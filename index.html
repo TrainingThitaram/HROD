@@ -17,160 +17,102 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
 :root{
-  --bg:#f5f6fa;
-  --surface:#ffffff;
-  --surface2:#f0f1f6;
-  --border:#e2e4ec;
-  --text:#1a1d2e;
-  --text2:#5c6080;
-  --text3:#9ea3bc;
-  --radius:12px;
+  --bg:#f5f6fa;--surface:#ffffff;--surface2:#f0f1f6;--border:#e2e4ec;
+  --text:#1a1d2e;--text2:#5c6080;--text3:#9ea3bc;--radius:12px;
   --shadow:0 2px 12px rgba(0,0,0,.07);
-  --trc:#ed1c24;
-  --tos:#26276f;
-  --vjp:#e97b2e;
-  --wellios:#DF1882;
-  --accent:#26276f;
+  --trc:#ed1c24;--tos:#26276f;--vjp:#e97b2e;--wellios:#DF1882;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
 
-/* ── LOGIN ── */
-#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(135deg,#f5f6fa 0%,#eef0f8 100%);}
-.login-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;
-  padding:48px 56px;text-align:center;max-width:420px;width:90%;box-shadow:var(--shadow);}
-.login-logo{width:72px;height:72px;background:var(--tos);
-  border-radius:18px;display:flex;align-items:center;justify-content:center;
-  margin:0 auto 24px;font-size:28px;font-weight:700;color:white;letter-spacing:-1px;}
+/* LOGIN */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#f5f6fa,#eef0f8);}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:48px 56px;text-align:center;max-width:420px;width:90%;box-shadow:var(--shadow);}
+.login-logo{width:72px;height:72px;background:var(--tos);border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:22px;font-weight:700;color:white;}
 .login-card h1{font-size:26px;font-weight:700;margin-bottom:6px;color:var(--tos);}
 .login-card p{color:var(--text2);font-size:14px;margin-bottom:32px;line-height:1.6;}
-.btn-login{width:100%;padding:14px 24px;background:var(--tos);
-  border:none;border-radius:12px;color:white;font-family:'Sarabun',sans-serif;
-  font-size:16px;font-weight:600;cursor:pointer;transition:all .2s;
-  display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 16px rgba(38,39,111,.25);}
+.btn-login{width:100%;padding:14px 24px;background:var(--tos);border:none;border-radius:12px;color:white;font-family:'Sarabun',sans-serif;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 16px rgba(38,39,111,.25);}
 .btn-login:hover{background:#1e1f5c;transform:translateY(-1px);}
 .btn-login:disabled{opacity:.6;cursor:not-allowed;transform:none;}
 .login-note{margin-top:14px;font-size:12px;color:var(--text3);}
-#login-error{display:none;margin-top:14px;color:#dc2626;font-size:13px;
-  background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px;}
+#login-error{display:none;margin-top:14px;color:#dc2626;font-size:13px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px;}
 
-/* ── APP ── */
+/* APP */
 #app{display:none;}
-
-/* HEADER */
-.header{background:var(--surface);border-bottom:1px solid var(--border);
-  padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;
-  position:sticky;top:0;z-index:100;box-shadow:var(--shadow);}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shadow);}
 .header-left{display:flex;align-items:center;gap:14px;}
-.header-logo{width:36px;height:36px;background:var(--tos);border-radius:9px;
-  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;}
+.header-logo{width:36px;height:36px;background:var(--tos);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;}
 .header-title{font-size:18px;font-weight:700;color:var(--tos);}
 .header-sub{font-size:11px;color:var(--text3);margin-top:1px;}
 .header-right{display:flex;align-items:center;gap:10px;}
-.user-badge{display:flex;align-items:center;gap:8px;background:var(--surface2);
-  border:1px solid var(--border);border-radius:9px;padding:6px 12px;font-size:13px;color:var(--text2);}
-.user-avatar{width:24px;height:24px;background:var(--tos);border-radius:50%;
-  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;}
-.btn-sm{background:transparent;border:1px solid var(--border);color:var(--text2);
-  border-radius:8px;padding:6px 12px;font-family:'Sarabun',sans-serif;font-size:13px;cursor:pointer;transition:all .2s;}
+.user-badge{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:6px 12px;font-size:13px;color:var(--text2);}
+.user-avatar{width:24px;height:24px;background:var(--tos);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;}
+.btn-sm{background:transparent;border:1px solid var(--border);color:var(--text2);border-radius:8px;padding:6px 12px;font-family:'Sarabun',sans-serif;font-size:13px;cursor:pointer;transition:all .2s;}
 .btn-sm:hover{border-color:var(--tos);color:var(--tos);}
 
 /* TABS */
-.tabs-bar{background:var(--surface);border-bottom:1px solid var(--border);
-  padding:0 32px;display:flex;gap:0;}
-.tab-btn{padding:14px 24px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:500;
-  color:var(--text2);background:none;border:none;border-bottom:3px solid transparent;
-  cursor:pointer;transition:all .2s;white-space:nowrap;}
+.tabs-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;display:flex;gap:0;overflow-x:auto;}
+.tab-btn{padding:14px 22px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:500;color:var(--text2);background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;transition:all .2s;white-space:nowrap;}
 .tab-btn:hover{color:var(--tos);}
 .tab-btn.active{color:var(--tos);border-bottom-color:var(--tos);font-weight:600;}
-
-/* CONTENT */
 .tab-content{display:none;}
 .tab-content.active{display:block;}
 .content{padding:28px 32px;max-width:1400px;margin:0 auto;}
 
 /* SECTION TITLE */
-.section-title{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;
-  letter-spacing:.8px;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.section-title{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
 .section-title::after{content:'';flex:1;height:1px;background:var(--border);}
 
-/* KPI CARDS */
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:28px;}
-.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-  padding:22px 24px;box-shadow:var(--shadow);transition:transform .2s;}
+/* KPI ROW — พนักงานรวม + 4 company */
+.kpi-row{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr;gap:16px;margin-bottom:28px;}
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:700px){.kpi-row{grid-template-columns:repeat(2,1fr);}}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow);transition:transform .2s;}
 .kpi-card:hover{transform:translateY(-2px);}
-.kpi-label{font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;
-  letter-spacing:.5px;margin-bottom:10px;}
-.kpi-value{font-size:36px;font-weight:700;line-height:1;margin-bottom:4px;}
+.kpi-label{font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+.kpi-value{font-size:34px;font-weight:700;line-height:1;margin-bottom:4px;}
 .kpi-sub{font-size:12px;color:var(--text3);}
+.kpi-card.total .kpi-value{color:var(--tos);}
+.kpi-card.trc{border-left:4px solid var(--trc);}.kpi-card.trc .kpi-value{color:var(--trc);}
+.kpi-card.tos{border-left:4px solid var(--tos);}.kpi-card.tos .kpi-value{color:var(--tos);}
+.kpi-card.vjp{border-left:4px solid var(--vjp);}.kpi-card.vjp .kpi-value{color:var(--vjp);}
+.kpi-card.wellios{border-left:4px solid var(--wellios);}.kpi-card.wellios .kpi-value{color:var(--wellios);}
 
-/* COMPANY CARDS */
-.company-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
-@media(max-width:900px){.company-grid{grid-template-columns:repeat(2,1fr);}}
-.company-card{background:var(--surface);border-radius:var(--radius);padding:20px 22px;
-  box-shadow:var(--shadow);border-left:4px solid;}
-.company-card.trc{border-color:var(--trc);}
-.company-card.tos{border-color:var(--tos);}
-.company-card.vjp{border-color:var(--vjp);}
-.company-card.wellios{border-color:var(--wellios);}
-.company-name{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px;}
-.company-count{font-size:32px;font-weight:700;line-height:1;}
-.company-card.trc .company-count{color:var(--trc);}
-.company-card.tos .company-count{color:var(--tos);}
-.company-card.vjp .company-count{color:var(--vjp);}
-.company-card.wellios .company-count{color:var(--wellios);}
-.company-sub{font-size:11px;color:var(--text3);margin-top:4px;}
+/* FILTER ROW — company chips + dept chips side by side */
+.filter-panels{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;}
+@media(max-width:900px){.filter-panels{grid-template-columns:1fr;}}
+.filter-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow);}
+.filter-panel-title{font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text);}
+.filter-actions{display:flex;gap:8px;margin-bottom:12px;}
+.btn-link{background:none;border:none;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--tos);cursor:pointer;padding:0;text-decoration:underline;}
+.chips{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:13px;cursor:pointer;transition:all .15s;user-select:none;}
+.chip:hover{border-color:var(--tos);}
+.chip.selected{background:#eef0f8;border-color:var(--tos);color:var(--tos);font-weight:500;}
+.chip-count{font-size:11px;color:var(--text3);background:var(--surface);border-radius:10px;padding:1px 6px;}
+.chip.selected .chip-count{background:#dde0f0;color:var(--tos);}
 
-/* CHARTS */
-.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;}
-@media(max-width:900px){.charts-grid{grid-template-columns:1fr;}}
-.chart-card{background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);}
-.card-header{display:flex;align-items:center;gap:8px;margin-bottom:20px;}
-.card-dot{width:8px;height:8px;border-radius:50%;}
-.card-title{font-size:15px;font-weight:600;color:var(--text);}
-.chart-wrap{position:relative;height:260px;}
-
-/* DEPARTMENT FILTER */
-.dept-filter-card{background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);margin-bottom:28px;}
-.dept-filter-title{font-size:14px;font-weight:600;margin-bottom:16px;color:var(--text);}
-.dept-filter-actions{display:flex;gap:8px;margin-bottom:14px;}
-.btn-link{background:none;border:none;font-family:'Sarabun',sans-serif;font-size:13px;
-  color:var(--tos);cursor:pointer;padding:0;text-decoration:underline;}
-.dept-checkboxes{display:flex;flex-wrap:wrap;gap:8px;}
-.dept-chip{display:flex;align-items:center;gap:6px;padding:6px 12px;
-  background:var(--surface2);border:1px solid var(--border);border-radius:20px;
-  font-size:13px;cursor:pointer;transition:all .15s;user-select:none;}
-.dept-chip:hover{border-color:var(--tos);}
-.dept-chip.selected{background:#eef0f8;border-color:var(--tos);color:var(--tos);font-weight:500;}
-.dept-chip input{display:none;}
-.dept-count{font-size:11px;color:var(--text3);background:var(--surface);
-  border-radius:10px;padding:1px 6px;margin-left:2px;}
-.dept-chip.selected .dept-count{background:#dde0f0;color:var(--tos);}
+/* Company chips สีตามบริษัท */
+.chip.c-trc.selected{background:rgba(237,28,36,.08);border-color:var(--trc);color:var(--trc);}
+.chip.c-trc.selected .chip-count{background:rgba(237,28,36,.12);color:var(--trc);}
+.chip.c-tos.selected{background:rgba(38,39,111,.08);border-color:var(--tos);color:var(--tos);}
+.chip.c-tos.selected .chip-count{background:rgba(38,39,111,.12);color:var(--tos);}
+.chip.c-vjp.selected{background:rgba(233,123,46,.08);border-color:var(--vjp);color:var(--vjp);}
+.chip.c-vjp.selected .chip-count{background:rgba(233,123,46,.12);color:var(--vjp);}
+.chip.c-wellios.selected{background:rgba(223,24,130,.08);border-color:var(--wellios);color:var(--wellios);}
+.chip.c-wellios.selected .chip-count{background:rgba(223,24,130,.12);color:var(--wellios);}
 
 /* TABLE */
-.table-card{background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
-.table-header{padding:18px 24px;border-bottom:1px solid var(--border);
-  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
-.search-box{display:flex;align-items:center;gap:8px;background:var(--surface2);
-  border:1px solid var(--border);border-radius:9px;padding:8px 14px;flex:1;max-width:360px;
-  transition:border-color .2s;}
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+.table-header{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:8px 14px;flex:1;max-width:360px;transition:border-color .2s;}
 .search-box:focus-within{border-color:var(--tos);}
-.search-box input{background:none;border:none;outline:none;color:var(--text);
-  font-family:'Sarabun',sans-serif;font-size:14px;width:100%;}
+.search-box input{background:none;border:none;outline:none;color:var(--text);font-family:'Sarabun',sans-serif;font-size:14px;width:100%;}
 .search-box input::placeholder{color:var(--text3);}
-.filter-row{display:flex;gap:8px;}
-.filter-select{background:var(--surface2);border:1px solid var(--border);color:var(--text);
-  border-radius:8px;padding:7px 12px;font-family:'Sarabun',sans-serif;font-size:13px;cursor:pointer;outline:none;}
-.filter-select:focus{border-color:var(--tos);}
 .table-wrap{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;font-size:13.5px;}
 thead tr{background:#f8f9fc;border-bottom:1px solid var(--border);}
-th{padding:11px 16px;text-align:left;font-size:11px;font-weight:600;
-  text-transform:uppercase;letter-spacing:.6px;color:var(--text2);white-space:nowrap;}
+th{padding:11px 16px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);white-space:nowrap;}
 tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
 tbody tr:hover{background:#f8f9fc;}
 tbody tr:last-child{border-bottom:none;}
@@ -181,61 +123,39 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
 .badge-vjp{background:rgba(233,123,46,.1);color:var(--vjp);}
 .badge-wellios{background:rgba(223,24,130,.1);color:var(--wellios);}
 .badge-other{background:#f0f1f6;color:var(--text2);}
-.status-active{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;
-  border-radius:20px;font-size:11px;font-weight:600;background:#f0fdf4;color:#16a34a;}
-.status-inactive{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;
-  border-radius:20px;font-size:11px;font-weight:600;background:#f8f9fc;color:var(--text3);}
-.dot{width:6px;height:6px;border-radius:50%;}
-.dot-green{background:#16a34a;}
-.dot-gray{background:var(--text3);}
-.table-footer{padding:13px 24px;border-top:1px solid var(--border);
-  display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--text2);}
+.status-active{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:#f0fdf4;color:#16a34a;}
+.dot{width:6px;height:6px;border-radius:50%;background:#16a34a;}
+.table-footer{padding:13px 24px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--text2);}
 .pagination{display:flex;gap:6px;}
-.page-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);
-  background:var(--surface2);color:var(--text2);cursor:pointer;
-  font-family:'Sarabun',sans-serif;font-size:13px;transition:all .15s;
-  display:flex;align-items:center;justify-content:center;}
+.page-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;font-family:'Sarabun',sans-serif;font-size:13px;transition:all .15s;display:flex;align-items:center;justify-content:center;}
 .page-btn:hover{border-color:var(--tos);color:var(--tos);}
 .page-btn.active{background:var(--tos);border-color:var(--tos);color:white;}
 .page-btn:disabled{opacity:.3;cursor:default;}
 
-/* LOADING */
-.loading-bar{position:fixed;top:0;left:0;right:0;height:3px;
-  background:linear-gradient(90deg,var(--trc),var(--tos),var(--vjp),var(--wellios));
-  background-size:200%;animation:lb 1.2s infinite;z-index:200;display:none;}
+/* MISC */
+.loading-bar{position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--trc),var(--tos),var(--vjp),var(--wellios));background-size:200%;animation:lb 1.2s infinite;z-index:200;display:none;}
 .loading-bar.active{display:block;}
 @keyframes lb{0%{background-position:200% 0}100%{background-position:-200% 0}}
-.error-box{background:#fef2f2;border:1px solid #fecaca;border-radius:10px;
-  padding:12px 18px;color:#dc2626;font-size:14px;margin-bottom:20px;display:none;}
-
-/* COMING SOON */
-.coming-soon{display:flex;flex-direction:column;align-items:center;justify-content:center;
-  min-height:300px;color:var(--text3);gap:12px;}
+.error-box{background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 18px;color:#dc2626;font-size:14px;margin-bottom:20px;display:none;}
+.coming-soon{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;color:var(--text3);gap:12px;}
 .coming-soon-icon{font-size:48px;}
 .coming-soon h3{font-size:18px;font-weight:600;color:var(--text2);}
-.coming-soon p{font-size:14px;}
 </style>
 </head>
 <body>
-
 <div class="loading-bar" id="loading-bar"></div>
 
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-card">
-    <div class="login-logo">HR</div>
+    <div class="login-logo">HROD</div>
     <h1>HROD Dashboard</h1>
     <p>ระบบแดชบอร์ดฝ่าย HR & Organization Development<br>ThitaramGroup</p>
     <button class="btn-login" id="btn-login" onclick="signIn()">
-      <svg width="18" height="18" viewBox="0 0 21 21" fill="none">
-        <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
-        <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
-        <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
-        <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
-      </svg>
+      <svg width="18" height="18" viewBox="0 0 21 21" fill="none"><rect x="1" y="1" width="9" height="9" fill="#F25022"/><rect x="11" y="1" width="9" height="9" fill="#7FBA00"/><rect x="1" y="11" width="9" height="9" fill="#00A4EF"/><rect x="11" y="11" width="9" height="9" fill="#FFB900"/></svg>
       เข้าสู่ระบบด้วย Microsoft
     </button>
-    <div id="login-error">ไม่สามารถโหลด MSAL Library ได้ กรุณาลองใหม่อีกครั้ง</div>
+    <div id="login-error">ไม่สามารถโหลด MSAL Library ได้</div>
     <p class="login-note">สำหรับพนักงาน ThitaramGroup (@thitaram.com) เท่านั้น</p>
   </div>
 </div>
@@ -245,92 +165,82 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
   <div class="header">
     <div class="header-left">
       <div class="header-logo">HR</div>
-      <div>
-        <div class="header-title">HROD Dashboard</div>
-        <div class="header-sub">ThitaramGroup</div>
-      </div>
+      <div><div class="header-title">HROD Dashboard</div><div class="header-sub">ThitaramGroup</div></div>
     </div>
     <div class="header-right">
       <span id="last-updated" style="font-size:11px;color:var(--text3)"></span>
       <button class="btn-sm" onclick="loadData()">🔄 รีเฟรช</button>
-      <div class="user-badge">
-        <div class="user-avatar" id="user-initial">?</div>
-        <span id="user-name">...</span>
-      </div>
+      <div class="user-badge"><div class="user-avatar" id="user-initial">?</div><span id="user-name">...</span></div>
       <button class="btn-sm" onclick="signOut()">ออกจากระบบ</button>
     </div>
   </div>
 
-  <!-- TABS -->
   <div class="tabs-bar">
-    <button class="tab-btn active" onclick="switchTab('employee')">👥 Employee Data</button>
-    <button class="tab-btn" onclick="switchTab('training')">📚 Training</button>
-    <button class="tab-btn" onclick="switchTab('wellexp')">💪 WellEXP</button>
-    <button class="tab-btn" onclick="switchTab('recruitment')">🔍 Recruitment</button>
+    <button class="tab-btn active" onclick="switchTab(event,'employee')">👥 Employee Data</button>
+    <button class="tab-btn" onclick="switchTab(event,'training')">📚 Training</button>
+    <button class="tab-btn" onclick="switchTab(event,'wellexp')">💪 WellEXP</button>
+    <button class="tab-btn" onclick="switchTab(event,'recruitment')">🔍 Recruitment</button>
+    <button class="tab-btn" onclick="switchTab(event,'dsd')">🏛️ กรมพัฒนาฝีมือแรงงาน</button>
   </div>
 
-  <!-- TAB: EMPLOYEE DATA -->
+  <!-- TAB: EMPLOYEE -->
   <div class="tab-content active" id="tab-employee">
     <div class="content">
       <div class="error-box" id="error-box"></div>
 
-      <!-- KPI -->
+      <!-- KPI ROW -->
       <div class="section-title">ภาพรวมพนักงาน (เฉพาะคงสภาพ)</div>
-      <div class="kpi-grid" style="grid-template-columns:1fr;">
-        <div class="kpi-card" style="max-width:220px;">
+      <div class="kpi-row">
+        <div class="kpi-card total">
           <div class="kpi-label">พนักงานคงสภาพทั้งหมด</div>
-          <div class="kpi-value" id="kpi-active" style="color:var(--tos)">—</div>
+          <div class="kpi-value" id="kpi-active">—</div>
           <div class="kpi-sub">ทุกบริษัทในกลุ่ม</div>
         </div>
-      </div>
-
-      <!-- COMPANY CARDS -->
-      <div class="section-title">แยกตาม Company</div>
-      <div class="company-grid">
-        <div class="company-card trc">
-          <div class="company-name">TRC</div>
-          <div class="company-count" id="cnt-trc">—</div>
-          <div class="company-sub">พนักงาน</div>
+        <div class="kpi-card trc">
+          <div class="kpi-label">TRC</div>
+          <div class="kpi-value" id="cnt-trc">—</div>
+          <div class="kpi-sub">พนักงาน</div>
         </div>
-        <div class="company-card tos">
-          <div class="company-name">TOS</div>
-          <div class="company-count" id="cnt-tos">—</div>
-          <div class="company-sub">พนักงาน</div>
+        <div class="kpi-card tos">
+          <div class="kpi-label">TOS</div>
+          <div class="kpi-value" id="cnt-tos">—</div>
+          <div class="kpi-sub">พนักงาน</div>
         </div>
-        <div class="company-card vjp">
-          <div class="company-name">VJP</div>
-          <div class="company-count" id="cnt-vjp">—</div>
-          <div class="company-sub">พนักงาน</div>
+        <div class="kpi-card vjp">
+          <div class="kpi-label">VJP</div>
+          <div class="kpi-value" id="cnt-vjp">—</div>
+          <div class="kpi-sub">พนักงาน</div>
         </div>
-        <div class="company-card wellios">
-          <div class="company-name">Wellios</div>
-          <div class="company-count" id="cnt-wellios">—</div>
-          <div class="company-sub">พนักงาน</div>
+        <div class="kpi-card wellios">
+          <div class="kpi-label">Wellios</div>
+          <div class="kpi-value" id="cnt-wellios">—</div>
+          <div class="kpi-sub">พนักงาน</div>
         </div>
       </div>
 
-      <!-- CHART -->
-      <div class="section-title">กราฟวิเคราะห์</div>
-      <div style="max-width:480px;margin-bottom:28px;">
-        <div class="chart-card">
-          <div class="card-header">
-            <div class="card-dot" style="background:var(--tos)"></div>
-            <div class="card-title">จำนวนพนักงานแยกตาม Company</div>
+      <!-- FILTER PANELS -->
+      <div class="section-title">Filter</div>
+      <div class="filter-panels">
+        <!-- Company Filter -->
+        <div class="filter-panel">
+          <div class="filter-panel-title">🏢 เลือก Company</div>
+          <div class="filter-actions">
+            <button class="btn-link" onclick="selectAllCompanies()">เลือกทั้งหมด</button>
+            <span style="color:var(--text3)">|</span>
+            <button class="btn-link" onclick="clearAllCompanies()">ล้างทั้งหมด</button>
           </div>
-          <div class="chart-wrap"><canvas id="chart-company"></canvas></div>
+          <div class="chips" id="company-chips"></div>
         </div>
-      </div>
-
-      <!-- DEPARTMENT FILTER -->
-      <div class="section-title">Filter Department</div>
-      <div class="dept-filter-card">
-        <div class="dept-filter-title">เลือก Department ที่ต้องการแสดง</div>
-        <div class="dept-filter-actions">
-          <button class="btn-link" onclick="selectAllDepts()">เลือกทั้งหมด</button>
-          <span style="color:var(--text3)">|</span>
-          <button class="btn-link" onclick="clearAllDepts()">ล้างทั้งหมด</button>
+        <!-- Dept Filter -->
+        <div class="filter-panel">
+          <div class="filter-panel-title">📂 เลือก Department</div>
+          <div class="filter-actions">
+            <button class="btn-link" onclick="selectAllDepts()">เลือกทั้งหมด</button>
+            <span style="color:var(--text3)">|</span>
+            <button class="btn-link" onclick="clearAllDepts()">ล้างทั้งหมด</button>
+          </div>
+          <div class="chips" id="dept-chips"></div>
         </div>
-        <div class="dept-checkboxes" id="dept-checkboxes"></div>
       </div>
 
       <!-- TABLE -->
@@ -338,18 +248,9 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
       <div class="table-card">
         <div class="table-header">
           <div style="font-size:14px;font-weight:600;color:var(--text)">ค้นหาพนักงาน</div>
-          <div class="filter-row">
-            <div class="search-box">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ea3bc" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              <input type="text" id="search-input" placeholder="ค้นหาชื่อ, ชื่อเล่น, รหัส..." oninput="filterTable()">
-            </div>
-            <select class="filter-select" id="filter-company" onchange="filterTable()">
-              <option value="">ทุก Company</option>
-              <option value="TRC">TRC</option>
-              <option value="TOS">TOS</option>
-              <option value="VJP">VJP</option>
-              <option value="Wellios">Wellios</option>
-            </select>
+          <div class="search-box">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ea3bc" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" id="search-input" placeholder="ค้นหาชื่อ, ชื่อเล่น, รหัส..." oninput="filterTable()">
           </div>
         </div>
         <div class="table-wrap">
@@ -368,42 +269,26 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
 
   <!-- TAB: TRAINING -->
   <div class="tab-content" id="tab-training">
-    <div class="content">
-      <div class="coming-soon">
-        <div class="coming-soon-icon">📚</div>
-        <h3>Training Dashboard</h3>
-        <p>อยู่ระหว่างการพัฒนา</p>
-      </div>
-    </div>
+    <div class="content"><div class="coming-soon"><div class="coming-soon-icon">📚</div><h3>Training Dashboard</h3><p>อยู่ระหว่างการพัฒนา</p></div></div>
   </div>
 
   <!-- TAB: WELLEXP -->
   <div class="tab-content" id="tab-wellexp">
-    <div class="content">
-      <div class="coming-soon">
-        <div class="coming-soon-icon">💪</div>
-        <h3>WellEXP Dashboard</h3>
-        <p>อยู่ระหว่างการพัฒนา</p>
-      </div>
-    </div>
+    <div class="content"><div class="coming-soon"><div class="coming-soon-icon">💪</div><h3>WellEXP Dashboard</h3><p>อยู่ระหว่างการพัฒนา</p></div></div>
   </div>
 
   <!-- TAB: RECRUITMENT -->
   <div class="tab-content" id="tab-recruitment">
-    <div class="content">
-      <div class="coming-soon">
-        <div class="coming-soon-icon">🔍</div>
-        <h3>Recruitment Dashboard</h3>
-        <p>อยู่ระหว่างการพัฒนา</p>
-      </div>
-    </div>
+    <div class="content"><div class="coming-soon"><div class="coming-soon-icon">🔍</div><h3>Recruitment Dashboard</h3><p>อยู่ระหว่างการพัฒนา</p></div></div>
+  </div>
+
+  <!-- TAB: DSD -->
+  <div class="tab-content" id="tab-dsd">
+    <div class="content"><div class="coming-soon"><div class="coming-soon-icon">🏛️</div><h3>กรมพัฒนาฝีมือแรงงาน</h3><p>อยู่ระหว่างการพัฒนา</p></div></div>
   </div>
 </div>
 
 <script>
-// ══════════════════════════════════
-// CONFIG
-// ══════════════════════════════════
 const CLIENT_ID  = 'f597fe26-1426-4c3f-869a-c5c2044b894f';
 const TENANT_ID  = '2bda086f-3dc3-4cfc-b130-c7a108f55766';
 const DRIVE_ID   = 'b!S7HcMzQZKES0PZ1vYtsX0YuiqArGV5FPlMLRinyLYKYKoQ-glON5QaabcZ_Rd6p3';
@@ -411,39 +296,35 @@ const FILE_ID    = '01MZGTHI6XC7SMSO6OZRCYNA522M5RJPSR';
 const SHEET_NAME = 'Sheet1';
 const REDIRECT   = 'https://trainingthitaram.github.io/HROD/';
 const SCOPES     = ['User.Read','Files.Read'];
+const COMPANY_COLORS = {TRC:'#ed1c24',TOS:'#26276f',VJP:'#e97b2e',Wellios:'#DF1882'};
 
-// ══════════════════════════════════
-// MSAL
-// ══════════════════════════════════
-let msalApp = null;
+let msalApp=null;
 
-function initMsal() {
-  try {
-    msalApp = new msal.PublicClientApplication({
-      auth: { clientId:CLIENT_ID, authority:'https://login.microsoftonline.com/'+TENANT_ID, redirectUri:REDIRECT },
-      cache: { cacheLocation:'sessionStorage', storeAuthStateInCookie:false }
+function initMsal(){
+  try{
+    msalApp=new msal.PublicClientApplication({
+      auth:{clientId:CLIENT_ID,authority:'https://login.microsoftonline.com/'+TENANT_ID,redirectUri:REDIRECT},
+      cache:{cacheLocation:'sessionStorage',storeAuthStateInCookie:false}
     });
     msalApp.handleRedirectPromise().then(function(r){
-      if(r&&r.account){ showApp(r.account); return; }
+      if(r&&r.account){showApp(r.account);return;}
       var acc=msalApp.getAllAccounts();
       if(acc.length>0) showApp(acc[0]);
-    }).catch(function(e){ showError('เกิดข้อผิดพลาด: '+e.message); });
-  } catch(e) {
+    }).catch(function(e){showError('เกิดข้อผิดพลาด: '+e.message);});
+  }catch(e){
     document.getElementById('login-error').style.display='block';
-    document.getElementById('login-error').textContent='เกิดข้อผิดพลาด: '+e.message;
+    document.getElementById('login-error').textContent='Error: '+e.message;
   }
 }
 
-function signIn() {
-  if(!msalApp){ document.getElementById('login-error').style.display='block'; return; }
-  var btn=document.getElementById('btn-login');
-  btn.disabled=true; btn.textContent='กำลังโหลด...';
+function signIn(){
+  if(!msalApp){document.getElementById('login-error').style.display='block';return;}
+  document.getElementById('btn-login').disabled=true;
+  document.getElementById('btn-login').textContent='กำลังโหลด...';
   msalApp.loginRedirect({scopes:SCOPES});
 }
-
-function signOut() { if(msalApp) msalApp.logoutRedirect(); }
-
-function showApp(account) {
+function signOut(){if(msalApp)msalApp.logoutRedirect();}
+function showApp(account){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
   var name=account.name||account.username;
@@ -451,156 +332,144 @@ function showApp(account) {
   document.getElementById('user-initial').textContent=name.charAt(0).toUpperCase();
   loadData();
 }
-
-async function getToken() {
-  var acc=msalApp.getAllAccounts();
-  if(!acc.length) return null;
-  try {
-    var r=await msalApp.acquireTokenSilent({scopes:SCOPES,account:acc[0]});
-    return r.accessToken;
-  } catch(e) { msalApp.acquireTokenRedirect({scopes:SCOPES}); return null; }
+async function getToken(){
+  var acc=msalApp.getAllAccounts();if(!acc.length)return null;
+  try{var r=await msalApp.acquireTokenSilent({scopes:SCOPES,account:acc[0]});return r.accessToken;}
+  catch(e){msalApp.acquireTokenRedirect({scopes:SCOPES});return null;}
 }
 
-// ══════════════════════════════════
-// TABS
-// ══════════════════════════════════
-function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
-  document.querySelectorAll('.tab-content').forEach(function(c){ c.classList.remove('active'); });
-  event.currentTarget.classList.add('active');
+function switchTab(e,name){
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.tab-content').forEach(function(c){c.classList.remove('active');});
+  e.currentTarget.classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
 }
 
-// ══════════════════════════════════
-// DATA
-// ══════════════════════════════════
-let allData=[], filteredData=[], currentPage=1, selectedDepts=new Set();
+let allData=[],filteredData=[],currentPage=1;
+let selectedCompanies=new Set(),selectedDepts=new Set();
 const PER_PAGE=15;
-let chartCompany=null;
 
-async function loadData() {
+async function loadData(){
   setLoading(true);
-  try {
-    var token=await getToken(); if(!token) return;
+  try{
+    var token=await getToken();if(!token)return;
     var url='https://graph.microsoft.com/v1.0/drives/'+DRIVE_ID+'/items/'+FILE_ID+'/workbook/worksheets(\''+SHEET_NAME+'\')/usedRange';
     var res=await fetch(url,{headers:{Authorization:'Bearer '+token}});
-    if(!res.ok) throw new Error('Graph API '+res.status+': '+await res.text());
+    if(!res.ok)throw new Error('Graph API '+res.status+': '+await res.text());
     var data=await res.json();
     parseData(data.values);
     document.getElementById('last-updated').textContent='อัปเดต: '+new Date().toLocaleTimeString('th-TH');
-  } catch(e) { showError('โหลดข้อมูลไม่สำเร็จ: '+e.message); console.error(e); }
+  }catch(e){showError('โหลดข้อมูลไม่สำเร็จ: '+e.message);console.error(e);}
   setLoading(false);
 }
 
-function parseData(rows) {
-  if(!rows||rows.length<2){ showError('ไม่พบข้อมูลใน Sheet'); return; }
+function parseData(rows){
+  if(!rows||rows.length<2){showError('ไม่พบข้อมูล');return;}
   var h=rows[0];
   var idx={
-    id:    h.findIndex(function(c){return String(c).includes('รหัสพนักงาน');}),
+    id:h.findIndex(function(c){return String(c).includes('รหัสพนักงาน');}),
     company:h.findIndex(function(c){return String(c).toLowerCase()==='company';}),
     fullname:h.findIndex(function(c){return String(c).includes('Full Name');}),
-    nick:  h.findIndex(function(c){return String(c).includes('Nick');}),
+    nick:h.findIndex(function(c){return String(c).includes('Nick');}),
     position:h.findIndex(function(c){return String(c).includes('Position');}),
-    dept:  h.findIndex(function(c){return String(c).includes('Department');}),
+    dept:h.findIndex(function(c){return String(c).includes('Department');}),
     status:h.findIndex(function(c){return String(c).includes('Employee Status');}),
   };
   allData=rows.slice(1).filter(function(r){
     return r&&r[idx.id]&&String(r[idx.id]).trim()&&String(r[idx.id]).trim()!=='รหัสพนักงาน';
   }).map(function(r,i){
-    return {
-      no:i+1, empId:String(r[idx.id]||'').trim(), company:String(r[idx.company]||'').trim(),
-      fullname:String(r[idx.fullname]||'').trim(), nick:String(r[idx.nick]||'').trim(),
-      position:String(r[idx.position]||'').trim(), dept:String(r[idx.dept]||'').trim(),
-      status:String(r[idx.status]||'').trim(),
-    };
+    return {no:i+1,empId:String(r[idx.id]||'').trim(),company:String(r[idx.company]||'').trim(),
+      fullname:String(r[idx.fullname]||'').trim(),nick:String(r[idx.nick]||'').trim(),
+      position:String(r[idx.position]||'').trim(),dept:String(r[idx.dept]||'').trim(),
+      status:String(r[idx.status]||'').trim()};
   });
   updateKPIs();
-  renderChart();
+  buildCompanyFilter();
   buildDeptFilter();
   filterTable();
 }
 
-function updateKPIs() {
+function updateKPIs(){
   var active=allData.filter(function(e){return e.status==='คงสภาพ';});
   document.getElementById('kpi-active').textContent=active.length.toLocaleString();
   ['TRC','TOS','VJP','Wellios'].forEach(function(c){
-    var cnt=active.filter(function(e){return e.company===c;}).length;
-    document.getElementById('cnt-'+c.toLowerCase()).textContent=cnt.toLocaleString();
+    document.getElementById('cnt-'+c.toLowerCase()).textContent=
+      active.filter(function(e){return e.company===c;}).length.toLocaleString();
   });
 }
 
-function renderChart() {
+function buildCompanyFilter(){
   var active=allData.filter(function(e){return e.status==='คงสภาพ';});
   var companies=['TRC','TOS','VJP','Wellios'];
-  var colors={'TRC':'#ed1c24','TOS':'#26276f','VJP':'#e97b2e','Wellios':'#DF1882'};
-  var counts=companies.map(function(c){return active.filter(function(e){return e.company===c;}).length;});
-  if(chartCompany) chartCompany.destroy();
-  chartCompany=new Chart(document.getElementById('chart-company'),{
-    type:'doughnut',
-    data:{labels:companies,datasets:[{data:counts,
-      backgroundColor:companies.map(function(c){return colors[c];}),
-      borderColor:'#ffffff',borderWidth:3,hoverOffset:8}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'right',labels:{color:'#5c6080',font:{family:'Sarabun',size:12},padding:14}},
-        tooltip:{callbacks:{label:function(c){return ' '+c.label+': '+c.parsed.toLocaleString()+' คน ('+((c.parsed/active.length)*100).toFixed(1)+'%)'; }}}}}
-  });
-}
-
-// ── DEPT FILTER ──
-function buildDeptFilter() {
-  var active=allData.filter(function(e){return e.status==='คงสภาพ';});
-  var dc={};
-  active.forEach(function(e){ if(e.dept){ dc[e.dept]=(dc[e.dept]||0)+1; } });
-  var depts=Object.keys(dc).sort();
-  selectedDepts=new Set(depts); // เลือกทั้งหมดตั้งต้น
-  var container=document.getElementById('dept-checkboxes');
-  container.innerHTML=depts.map(function(d){
-    return '<label class="dept-chip selected" data-dept="'+d+'" onclick="toggleDept(this,\''+d.replace(/'/g,"\\'")+'\')">'
-      +'<span>'+d+'</span><span class="dept-count">'+dc[d]+'</span></label>';
+  selectedCompanies=new Set(companies);
+  var container=document.getElementById('company-chips');
+  container.innerHTML=companies.map(function(c){
+    var cnt=active.filter(function(e){return e.company===c;}).length;
+    return '<label class="chip c-'+c.toLowerCase()+' selected" data-company="'+c+'" onclick="toggleCompany(this,\''+c+'\')">'
+      +'<span>'+c+'</span><span class="chip-count">'+cnt+'</span></label>';
   }).join('');
 }
 
-function toggleDept(el, dept) {
-  if(selectedDepts.has(dept)){ selectedDepts.delete(dept); el.classList.remove('selected'); }
-  else { selectedDepts.add(dept); el.classList.add('selected'); }
-  currentPage=1; filterTable();
+function toggleCompany(el,company){
+  if(selectedCompanies.has(company)){selectedCompanies.delete(company);el.classList.remove('selected');}
+  else{selectedCompanies.add(company);el.classList.add('selected');}
+  currentPage=1;filterTable();
+}
+function selectAllCompanies(){
+  document.querySelectorAll('#company-chips .chip').forEach(function(el){el.classList.add('selected');selectedCompanies.add(el.dataset.company);});
+  currentPage=1;filterTable();
+}
+function clearAllCompanies(){
+  document.querySelectorAll('#company-chips .chip').forEach(function(el){el.classList.remove('selected');selectedCompanies.delete(el.dataset.company);});
+  currentPage=1;filterTable();
 }
 
-function selectAllDepts() {
-  document.querySelectorAll('.dept-chip').forEach(function(el){
-    el.classList.add('selected'); selectedDepts.add(el.dataset.dept);
-  });
-  currentPage=1; filterTable();
+function buildDeptFilter(){
+  var active=allData.filter(function(e){return e.status==='คงสภาพ';});
+  var dc={};
+  active.forEach(function(e){if(e.dept){dc[e.dept]=(dc[e.dept]||0)+1;}});
+  var depts=Object.keys(dc).sort();
+  selectedDepts=new Set(depts);
+  var container=document.getElementById('dept-chips');
+  container.innerHTML=depts.map(function(d){
+    return '<label class="chip selected" data-dept="'+d+'" onclick="toggleDept(this,\''+d.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'
+      +'<span>'+d+'</span><span class="chip-count">'+dc[d]+'</span></label>';
+  }).join('');
 }
 
-function clearAllDepts() {
-  document.querySelectorAll('.dept-chip').forEach(function(el){
-    el.classList.remove('selected'); selectedDepts.delete(el.dataset.dept);
-  });
-  currentPage=1; filterTable();
+function toggleDept(el,dept){
+  if(selectedDepts.has(dept)){selectedDepts.delete(dept);el.classList.remove('selected');}
+  else{selectedDepts.add(dept);el.classList.add('selected');}
+  currentPage=1;filterTable();
+}
+function selectAllDepts(){
+  document.querySelectorAll('#dept-chips .chip').forEach(function(el){el.classList.add('selected');selectedDepts.add(el.dataset.dept);});
+  currentPage=1;filterTable();
+}
+function clearAllDepts(){
+  document.querySelectorAll('#dept-chips .chip').forEach(function(el){el.classList.remove('selected');selectedDepts.delete(el.dataset.dept);});
+  currentPage=1;filterTable();
 }
 
-// ── TABLE ──
-function filterTable() {
+function filterTable(){
   var q=document.getElementById('search-input').value.toLowerCase();
-  var company=document.getElementById('filter-company').value;
   filteredData=allData.filter(function(e){
     return e.status==='คงสภาพ'
-      && (selectedDepts.size===0||selectedDepts.has(e.dept))
-      && (!company||e.company===company)
-      && (!q||e.fullname.toLowerCase().includes(q)||e.nick.toLowerCase().includes(q)||e.empId.toLowerCase().includes(q)||e.position.toLowerCase().includes(q));
+      &&(selectedCompanies.size===0||selectedCompanies.has(e.company))
+      &&(selectedDepts.size===0||selectedDepts.has(e.dept))
+      &&(!q||e.fullname.toLowerCase().includes(q)||e.nick.toLowerCase().includes(q)||e.empId.toLowerCase().includes(q)||e.position.toLowerCase().includes(q));
   });
-  currentPage=1; renderTable();
+  currentPage=1;renderTable();
 }
 
-function renderTable() {
+function renderTable(){
   var start=(currentPage-1)*PER_PAGE;
   var rows=filteredData.slice(start,start+PER_PAGE);
   var tbody=document.getElementById('table-body');
   if(!rows.length){
     tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:40px">ไม่พบข้อมูล</td></tr>';
     document.getElementById('table-count').textContent='ไม่พบรายการ';
-    document.getElementById('pagination').innerHTML=''; return;
+    document.getElementById('pagination').innerHTML='';return;
   }
   tbody.innerHTML=rows.map(function(e,i){
     return '<tr>'
@@ -611,7 +480,7 @@ function renderTable() {
       +'<td>'+companyBadge(e.company)+'</td>'
       +'<td style="color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis">'+e.position+'</td>'
       +'<td style="color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis">'+e.dept+'</td>'
-      +'<td>'+statusBadge(e.status)+'</td>'
+      +'<td><span class="status-active"><span class="dot"></span>คงสภาพ</span></td>'
       +'</tr>';
   }).join('');
   document.getElementById('table-count').textContent=
@@ -622,10 +491,6 @@ function renderTable() {
 function companyBadge(c){
   var m={TRC:'badge-trc',TOS:'badge-tos',VJP:'badge-vjp',Wellios:'badge-wellios'};
   return '<span class="badge '+(m[c]||'badge-other')+'">'+(c||'—')+'</span>';
-}
-function statusBadge(s){
-  if(s==='คงสภาพ') return '<span class="status-active"><span class="dot dot-green"></span>คงสภาพ</span>';
-  return '<span class="status-inactive"><span class="dot dot-gray"></span>'+s+'</span>';
 }
 
 function renderPagination(){
@@ -645,9 +510,8 @@ function renderPagination(){
 
 function goPage(p){
   var total=Math.ceil(filteredData.length/PER_PAGE);
-  if(p<1||p>total)return; currentPage=p; renderTable();
+  if(p<1||p>total)return;currentPage=p;renderTable();
 }
-
 function setLoading(on){document.getElementById('loading-bar').classList.toggle('active',on);}
 function showError(msg){
   var b=document.getElementById('error-box');
