@@ -704,9 +704,7 @@ let chartCompany, chartDept;
 // ═══════════════════════════════════════
 async function signIn() {
   try {
-    await msalInstance.handleRedirectPromise();
-    const result = await msalInstance.loginPopup(loginRequest);
-    if (result) onSignedIn(result.account);
+    await msalInstance.loginRedirect(loginRequest);
   } catch (e) {
     showError("เข้าสู่ระบบไม่สำเร็จ: " + e.message);
   }
@@ -719,31 +717,32 @@ async function getToken() {
     const result = await msalInstance.acquireTokenSilent({ ...loginRequest, account: accounts[0] });
     return result.accessToken;
   } catch {
-    const result = await msalInstance.acquireTokenPopup(loginRequest);
-    return result.accessToken;
+    await msalInstance.acquireTokenRedirect(loginRequest);
   }
 }
 
 function signOut() {
-  msalInstance.logoutPopup();
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
+  msalInstance.logoutRedirect();
 }
 
 function onSignedIn(account) {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("app").style.display = "block";
   const name = account.name || account.username;
-  document.getElementById('user-name').textContent = name;
-  document.getElementById('user-initial').textContent = name.charAt(0).toUpperCase();
+  document.getElementById("user-name").textContent = name;
+  document.getElementById("user-initial").textContent = name.charAt(0).toUpperCase();
   loadData();
 }
 
-// Auto-login if already signed in
 async function init() {
-  await msalInstance.handleRedirectPromise();
-  const accounts = msalInstance.getAllAccounts();
-  if (accounts.length > 0) onSignedIn(accounts[0]);
+  try {
+    const result = await msalInstance.handleRedirectPromise();
+    if (result && result.account) { onSignedIn(result.account); return; }
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) onSignedIn(accounts[0]);
+  } catch (e) {
+    showError("เกิดข้อผิดพลาด: " + e.message);
+  }
 }
 
 // ═══════════════════════════════════════
