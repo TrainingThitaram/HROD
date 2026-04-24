@@ -686,7 +686,7 @@ const msalConfig = {
   cache: { cacheLocation: "sessionStorage" }
 };
 
-const msalInstance = new msal.PublicClientApplication(msalConfig);
+const msalInstance = new msal.new msal.PublicClientApplication(msalConfig);
 
 const loginRequest = {
   scopes: ["User.Read", "Files.Read.All", "Sites.Read.All"]
