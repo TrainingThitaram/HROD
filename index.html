@@ -685,8 +685,14 @@ async function loadWxData() {
     var base = 'https://graph.microsoft.com/v1.0/drives/' + WX_DRIVE_ID + '/items/' + WX_FILE_ID + '/workbook/worksheets/';
 
     // Load A-Summary
-    var r1 = await fetch(base + "('A-Summary')/usedRange", {headers:{Authorization:'Bearer '+token}});
-    if (!r1.ok) throw new Error('A-Summary: ' + r1.status);
+    var r1 = await fetch(base + "('A-Summary')/usedRange?$select=values", {headers:{Authorization:'Bearer '+token}});
+    if (!r1.ok) {
+      // fallback: try by index
+      var rList = await fetch('https://graph.microsoft.com/v1.0/drives/'+WX_DRIVE_ID+'/items/'+WX_FILE_ID+'/workbook/worksheets', {headers:{Authorization:'Bearer '+token}});
+      var wsList = await rList.json();
+      var wsNames = (wsList.value||[]).map(function(w){return w.name;});
+      throw new Error('A-Summary: ' + r1.status + ' | Sheets: ' + wsNames.join(', '));
+    }
     var d1 = await r1.json();
 
     // Load B-Transaction
