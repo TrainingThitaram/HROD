@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HR Dashboard — ThitaramGroup</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.1/lib/msal-browser.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap');
 
@@ -686,7 +686,7 @@ const msalConfig = {
   cache: { cacheLocation: "sessionStorage" }
 };
 
-const msalInstance = new msal.PublicClientApplication(msalConfig);
+const msalInstance = new msalBrowser.PublicClientApplication(msalConfig);
 
 const loginRequest = {
   scopes: ["User.Read", "Files.Read.All", "Sites.Read.All"]
