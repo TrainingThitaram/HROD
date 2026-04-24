@@ -178,7 +178,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
   <div class="tabs-bar">
     <button class="tab-btn active" onclick="switchTab(event,'employee')">👥 Employee Data</button>
     <button class="tab-btn" onclick="switchTab(event,'training')">📚 Training</button>
-    <button class="tab-btn" onclick="switchTab(event,'wellexp')">💪 WellEXP</button>
+    <button class="tab-btn" onclick="switchTab(event,'wellexp');loadWxData();">💪 WellEXP</button>
     <button class="tab-btn" onclick="switchTab(event,'recruitment')">🔍 Recruitment</button>
     <button class="tab-btn" onclick="switchTab(event,'dsd')">🏛️ กรมพัฒนาฝีมือแรงงาน</button>
   </div>
@@ -274,7 +274,134 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
 
   <!-- TAB: WELLEXP -->
   <div class="tab-content" id="tab-wellexp">
-    <div class="content"><div class="coming-soon"><div class="coming-soon-icon">💪</div><h3>WellEXP Dashboard</h3><p>อยู่ระหว่างการพัฒนา</p></div></div>
+    <!-- SUB TABS -->
+    <div style="background:#fff;border-bottom:1px solid var(--border);padding:0 32px;display:flex;gap:0;">
+      <button class="tab-btn active" id="sub-btn-activity" onclick="switchSubTab(event,'activity')" style="font-size:13px;padding:10px 18px;">📊 Activity Overview</button>
+    </div>
+
+    <!-- SUB TAB: ACTIVITY OVERVIEW -->
+    <div id="subtab-activity">
+      <div class="content">
+        <div class="error-box" id="wx-error-box"></div>
+
+        <!-- FILTER PANEL -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:16px;color:var(--text)">ตัวกรองข้อมูล</div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+            <!-- เขตพื้นที่ -->
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">เขตพื้นที่</div>
+              <select id="wx-region" class="filter-select" onchange="onWxRegionChange()" style="min-width:160px;">
+                <option value="ALL">ทั้งหมด</option>
+                <option value="ชลบุรี">ชลบุรี</option>
+                <option value="กรุงเทพ">กรุงเทพ</option>
+                <option value="ลาดกระบัง">ลาดกระบัง</option>
+                <option value="สมุทรปราการ">สมุทรปราการ</option>
+                <option value="ปทุมธานี-อยุธยา">ปทุมธานี-อยุธยา</option>
+                <option value="พระประแดง">พระประแดง</option>
+              </select>
+            </div>
+            <!-- โรงงาน -->
+            <div style="flex:1;min-width:300px;">
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">โรงงาน <span style="color:var(--text3);font-weight:400">(คลิกเพื่อเลือก/ยกเลิก)</span></div>
+              <div id="wx-factory-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+            </div>
+            <!-- ช่วงเวลา -->
+            <div style="flex:1;min-width:260px;">
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">ช่วงเวลา <span style="color:var(--text3);font-weight:400">(ปีงบประมาณ ต.ค.–ก.ย.)</span></div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <select id="wx-date-from" class="filter-select"></select>
+                <span style="color:var(--text3)">ถึง</span>
+                <select id="wx-date-to" class="filter-select"></select>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:16px;">
+            <button onclick="applyWxFilter()" style="padding:8px 20px;background:var(--tos);color:white;border:none;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:600;cursor:pointer;">ค้นหา</button>
+            <button onclick="resetWxFilter()" style="padding:8px 16px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;cursor:pointer;">รีเซต</button>
+          </div>
+        </div>
+
+        <!-- KPI ROW -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);">
+            <div style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">% ผู้ร่วมกิจกรรมเฉลี่ย</div>
+            <div id="wx-kpi-pct" style="font-size:38px;font-weight:700;color:var(--tos);">—</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:4px;">เฉลี่ยจากทุกกิจกรรมในช่วงที่เลือก</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);">
+            <div style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">WELLPOINT ที่ใช้ไปทั้งหมด</div>
+            <div id="wx-kpi-wp" style="font-size:38px;font-weight:700;color:var(--wellios);">—</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:4px;">รวมกิจกรรม + วันเกิด + ครบอายุงาน + อื่นๆ</div>
+          </div>
+        </div>
+
+        <!-- LINE CHART: % ผู้ร่วมกิจกรรมรายเดือน -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
+            <div>
+              <div style="font-size:15px;font-weight:600;color:var(--text);">% ผู้ร่วมกิจกรรมแยกโรงงานรายเดือน</div>
+              <div style="font-size:12px;color:var(--text3);margin-top:3px;">ค่าเฉลี่ย % Completed ของแต่ละโรงงานในแต่ละเดือน</div>
+            </div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;min-width:120px;">
+              <div style="color:var(--text2);font-size:11px;font-weight:600;margin-bottom:6px;">สถิติ % ร่วมกิจกรรม</div>
+              <div style="color:#dc2626;font-weight:600;">สูงสุด <span id="wx-stat-max">—</span></div>
+              <div style="color:#16a34a;font-weight:600;margin-top:3px;">ต่ำสุด <span id="wx-stat-min">—</span></div>
+              <div style="color:var(--vjp);font-weight:600;margin-top:3px;">เฉลี่ย <span id="wx-stat-avg">—</span></div>
+            </div>
+          </div>
+          <div style="position:relative;height:300px;"><canvas id="wx-line-chart"></canvas></div>
+        </div>
+
+        <!-- BAR CHART: Wellpoint แยกประเภทรายเดือน -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="margin-bottom:20px;">
+            <div style="font-size:15px;font-weight:600;color:var(--text);">Wellpoint ที่ใช้ไปแยกตามประเภทรายเดือน</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:3px;">รวมทุกโรงงานในช่วงที่เลือก</div>
+          </div>
+          <!-- WP Type KPI -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+            <div style="background:#eef2ff;border-radius:10px;padding:14px 16px;border-left:3px solid #4f7cff;">
+              <div style="font-size:12px;color:#4f7cff;font-weight:600;margin-bottom:4px;">กิจกรรม</div>
+              <div id="wx-wp-activity" style="font-size:22px;font-weight:700;color:#4f7cff;">—</div>
+              <div style="font-size:11px;color:#8892b0;">Wellpoint</div>
+            </div>
+            <div style="background:#fdf2f8;border-radius:10px;padding:14px 16px;border-left:3px solid var(--wellios);">
+              <div style="font-size:12px;color:var(--wellios);font-weight:600;margin-bottom:4px;">วันเกิด</div>
+              <div id="wx-wp-birthday" style="font-size:22px;font-weight:700;color:var(--wellios);">—</div>
+              <div style="font-size:11px;color:#8892b0;">Wellpoint</div>
+            </div>
+            <div style="background:#f0fdf4;border-radius:10px;padding:14px 16px;border-left:3px solid #16a34a;">
+              <div style="font-size:12px;color:#16a34a;font-weight:600;margin-bottom:4px;">ครบอายุงาน</div>
+              <div id="wx-wp-anniversary" style="font-size:22px;font-weight:700;color:#16a34a;">—</div>
+              <div style="font-size:11px;color:#8892b0;">Wellpoint</div>
+            </div>
+            <div style="background:#f8f9fc;border-radius:10px;padding:14px 16px;border-left:3px solid #94a3b8;">
+              <div style="font-size:12px;color:#94a3b8;font-weight:600;margin-bottom:4px;">อื่นๆ</div>
+              <div id="wx-wp-other" style="font-size:22px;font-weight:700;color:#94a3b8;">—</div>
+              <div style="font-size:11px;color:#8892b0;">Wellpoint</div>
+            </div>
+          </div>
+          <div style="position:relative;height:300px;"><canvas id="wx-bar-chart"></canvas></div>
+        </div>
+
+        <!-- AWARD PANEL -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);">
+          <div style="margin-bottom:16px;">
+            <div style="font-size:15px;font-weight:600;color:var(--text);">🏆 ประกาศรางวัลประจำเดือน</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:3px;">อิงจาก % ผู้ร่วมกิจกรรมเฉลี่ย | เฉพาะโรงงานที่มี % ≥ 41%</div>
+          </div>
+          <!-- Grade Legend -->
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+            <span style="background:#fff8e1;border:1.5px solid #f59e0b;color:#b45309;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;">● S — 99–100% (ไม่จำกัด)</span>
+            <span style="background:#f0fdf4;border:1.5px solid #16a34a;color:#16a34a;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;">● A+ — 81–98% (≤ 3)</span>
+            <span style="background:#eef2ff;border:1.5px solid #4f7cff;color:#4f7cff;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;">● A — 61–80% (≤ 2)</span>
+            <span style="background:#fdf4ff;border:1.5px solid #a855f7;color:#a855f7;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;">● B — 41–60% (≤ 1)</span>
+          </div>
+          <div id="wx-award-panel"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- TAB: RECRUITMENT -->
@@ -512,12 +639,394 @@ function goPage(p){
   var total=Math.ceil(filteredData.length/PER_PAGE);
   if(p<1||p>total)return;currentPage=p;renderTable();
 }
+
 function setLoading(on){document.getElementById('loading-bar').classList.toggle('active',on);}
 function showError(msg){
   var b=document.getElementById('error-box');
   b.textContent=msg;b.style.display='block';
   setTimeout(function(){b.style.display='none';},10000);
 }
+// ══════════════════════════════════
+const WX_DRIVE_ID = 'b!S7HcMzQZKES0PZ1vYtsX0YuiqArGV5FPlMLRinyLYKYKoQ-glON5QaabcZ_Rd6p3';
+const WX_FILE_ID  = '01MZGTHIZZND4ZDW6VKJHZ7SLRUKA3ACJH';
+
+const FACTORY_REGION = {
+  'AATH':'สมุทรปราการ','AFT':'ชลบุรี','BCM':'ชลบุรี','DM':'พระประแดง',
+  'FN':'ลาดกระบัง','FNwm':'ลาดกระบัง','Infus':'ชลบุรี','InfusKK':'ชลบุรี',
+  'KAO':'กรุงเทพ','NIFCO':'ชลบุรี','OfficeBKK':'กรุงเทพ','RB':'พระประแดง',
+  'Riken Sri':'สมุทรปราการ','Siam Chemical Industry':'ปทุมธานี-อยุธยา',
+  'Ueno':'พระประแดง','Unilever':'ลาดกระบัง'
+};
+const ALL_FACTORIES = Object.keys(FACTORY_REGION);
+
+const MONTH_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const FACTORY_COLORS = [
+  '#4f7cff','#DF1882','#26276f','#e97b2e','#06b6d4','#10b981',
+  '#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316',
+  '#6366f1','#84cc16','#0ea5e9','#a855f7'
+];
+
+let wxSummaryData = [], wxTransData = [];
+let wxSelectedFactories = new Set(ALL_FACTORIES);
+let wxFromKey = '', wxToKey = '';
+let wxLineChart = null, wxBarChart = null;
+let wxLoaded = false;
+
+function switchSubTab(e, name) {
+  document.querySelectorAll('[id^="sub-btn-"]').forEach(function(b){b.classList.remove('active');});
+  e.currentTarget.classList.add('active');
+}
+
+async function loadWxData() {
+  if (wxLoaded) return;
+  setLoading(true);
+  try {
+    var token = await getToken(); if (!token) return;
+    var base = 'https://graph.microsoft.com/v1.0/drives/' + WX_DRIVE_ID + '/items/' + WX_FILE_ID + '/workbook/worksheets/';
+
+    // Load A-Summary
+    var r1 = await fetch(base + "('A-Summary')/usedRange", {headers:{Authorization:'Bearer '+token}});
+    if (!r1.ok) throw new Error('A-Summary: ' + r1.status);
+    var d1 = await r1.json();
+
+    // Load B-Transaction
+    var r2 = await fetch(base + "('B-Trsnsaction')/usedRange", {headers:{Authorization:'Bearer '+token}});
+    if (!r2.ok) throw new Error('B-Transaction: ' + r2.status);
+    var d2 = await r2.json();
+
+    parseWxSummary(d1.values);
+    parseWxTransaction(d2.values);
+    wxLoaded = true;
+
+    buildWxFactoryChips();
+    buildDateSelectors();
+    applyWxFilter();
+
+  } catch(e) {
+    document.getElementById('wx-error-box').textContent = 'โหลดข้อมูล WellEXP ไม่สำเร็จ: ' + e.message;
+    document.getElementById('wx-error-box').style.display = 'block';
+    console.error(e);
+  }
+  setLoading(false);
+}
+
+function parseWxSummary(rows) {
+  if (!rows || rows.length < 2) return;
+  var h = rows[0];
+  var idx = {
+    quest: h.findIndex(function(c){return String(c).includes('Quest') && !String(c).includes('Maker') && !String(c).includes('Completed');}),
+    start: h.findIndex(function(c){return String(c).includes('Start');}),
+    end:   h.findIndex(function(c){return String(c).includes('End');}),
+    pct:   h.findIndex(function(c){return String(c).includes('%Completed');}),
+    given: h.findIndex(function(c){return String(c).includes('Given');}),
+    factory: h.findIndex(function(c){return String(c).includes('โรงงาน');}),
+  };
+  wxSummaryData = rows.slice(1).filter(function(r){return r && r[idx.factory];}).map(function(r){
+    var startRaw = r[idx.start];
+    var d = parseExcelDate(startRaw);
+    var pct = parseFloat(r[idx.pct]) || 0;
+    if (pct > 1) pct = pct / 100;
+    return {
+      quest: String(r[idx.quest]||''),
+      start: d,
+      monthKey: d ? (d.getFullYear()+'-'+(d.getMonth()+1)) : '',
+      pct: pct,
+      given: parseFloat(r[idx.given]) || 0,
+      factory: String(r[idx.factory]||'').trim(),
+    };
+  }).filter(function(r){return r.start;});
+}
+
+function parseWxTransaction(rows) {
+  if (!rows || rows.length < 2) return;
+  var h = rows[0];
+  var idx = {
+    title:   h.findIndex(function(c){return String(c).toLowerCase().includes('title');}),
+    value:   h.findIndex(function(c){return String(c).toLowerCase().includes('value');}),
+    date:    h.findIndex(function(c){return String(c).toLowerCase().includes('date');}),
+    factory: h.findIndex(function(c){return String(c).includes('โรงงาน');}),
+  };
+  wxTransData = rows.slice(1).filter(function(r){return r && r[idx.factory];}).map(function(r){
+    var title = String(r[idx.title]||'');
+    var type = 'other';
+    if (title.toLowerCase().includes('birthday')) type = 'birthday';
+    else if (title.toLowerCase().includes('working anniversary')) type = 'anniversary';
+    var d = parseExcelDate(r[idx.date]);
+    return {
+      title: title, type: type,
+      value: parseFloat(r[idx.value]) || 0,
+      date: d,
+      monthKey: d ? (d.getFullYear()+'-'+(d.getMonth()+1)) : '',
+      factory: String(r[idx.factory]||'').trim(),
+    };
+  }).filter(function(r){return r.date;});
+}
+
+function parseExcelDate(v) {
+  if (!v) return null;
+  if (typeof v === 'number') {
+    var d = new Date(Math.round((v - 25569) * 86400 * 1000));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  var s = String(v).trim();
+  if (!s) return null;
+  var d = new Date(s);
+  if (!isNaN(d.getTime())) return d;
+  // DD/MM/YYYY
+  var parts = s.split('/');
+  if (parts.length === 3) {
+    var d2 = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
+    return isNaN(d2.getTime()) ? null : d2;
+  }
+  return null;
+}
+
+function buildWxFactoryChips() {
+  var container = document.getElementById('wx-factory-chips');
+  container.innerHTML = ALL_FACTORIES.map(function(f, i){
+    return '<span class="chip selected" data-factory="'+f+'" '
+      +'style="font-size:12px;padding:4px 10px;border-color:'+(wxSelectedFactories.has(f)?'var(--tos)':'var(--border)')+';" '
+      +'onclick="toggleWxFactory(this,\''+f+'\')">'
+      +f+'</span>';
+  }).join('');
+}
+
+function toggleWxFactory(el, f) {
+  if (wxSelectedFactories.has(f)) { wxSelectedFactories.delete(f); el.classList.remove('selected'); }
+  else { wxSelectedFactories.add(f); el.classList.add('selected'); }
+}
+
+function onWxRegionChange() {
+  var region = document.getElementById('wx-region').value;
+  wxSelectedFactories = new Set();
+  document.querySelectorAll('#wx-factory-chips .chip').forEach(function(el){
+    var f = el.dataset.factory;
+    var include = region === 'ALL' || FACTORY_REGION[f] === region;
+    if (include) { wxSelectedFactories.add(f); el.classList.add('selected'); }
+    else { el.classList.remove('selected'); }
+  });
+}
+
+function buildDateSelectors() {
+  // Collect all month keys
+  var keys = new Set();
+  wxSummaryData.forEach(function(r){ if(r.monthKey) keys.add(r.monthKey); });
+  wxTransData.forEach(function(r){ if(r.monthKey) keys.add(r.monthKey); });
+  var sorted = Array.from(keys).sort();
+  if (!sorted.length) return;
+
+  var fromSel = document.getElementById('wx-date-from');
+  var toSel   = document.getElementById('wx-date-to');
+  fromSel.innerHTML = sorted.map(function(k){
+    return '<option value="'+k+'">'+formatMonthKey(k)+'</option>';
+  }).join('');
+  toSel.innerHTML = sorted.map(function(k){
+    return '<option value="'+k+'">'+formatMonthKey(k)+'</option>';
+  }).join('');
+  fromSel.value = sorted[0];
+  toSel.value   = sorted[sorted.length-1];
+  wxFromKey = sorted[0];
+  wxToKey   = sorted[sorted.length-1];
+}
+
+function formatMonthKey(k) {
+  var parts = k.split('-');
+  return MONTH_TH[parseInt(parts[1])-1] + ' ' + parts[0];
+}
+
+function applyWxFilter() {
+  wxFromKey = document.getElementById('wx-date-from').value;
+  wxToKey   = document.getElementById('wx-date-to').value;
+  renderWxDashboard();
+}
+
+function resetWxFilter() {
+  document.getElementById('wx-region').value = 'ALL';
+  wxSelectedFactories = new Set(ALL_FACTORIES);
+  document.querySelectorAll('#wx-factory-chips .chip').forEach(function(el){ el.classList.add('selected'); });
+  var sel = document.getElementById('wx-date-from');
+  wxFromKey = sel.options[0].value;
+  sel.value = wxFromKey;
+  var sel2 = document.getElementById('wx-date-to');
+  wxToKey = sel2.options[sel2.options.length-1].value;
+  sel2.value = wxToKey;
+  renderWxDashboard();
+}
+
+function inRange(key) {
+  return key >= wxFromKey && key <= wxToKey;
+}
+
+function renderWxDashboard() {
+  // Filter summary
+  var sumFiltered = wxSummaryData.filter(function(r){
+    return wxSelectedFactories.has(r.factory) && inRange(r.monthKey);
+  });
+  // Filter trans
+  var transFiltered = wxTransData.filter(function(r){
+    return wxSelectedFactories.has(r.factory) && inRange(r.monthKey);
+  });
+
+  // KPI
+  var avgPct = sumFiltered.length ? (sumFiltered.reduce(function(a,r){return a+r.pct;},0)/sumFiltered.length*100) : 0;
+  var totalWP = transFiltered.reduce(function(a,r){return a+r.value;},0)
+              + sumFiltered.reduce(function(a,r){return a+r.given;},0);
+  document.getElementById('wx-kpi-pct').textContent = avgPct.toFixed(1) + '%';
+  document.getElementById('wx-kpi-wp').textContent  = Math.round(totalWP).toLocaleString();
+
+  // WP by type
+  var wpActivity    = sumFiltered.reduce(function(a,r){return a+r.given;},0);
+  var wpBirthday    = transFiltered.filter(function(r){return r.type==='birthday';}).reduce(function(a,r){return a+r.value;},0);
+  var wpAnniversary = transFiltered.filter(function(r){return r.type==='anniversary';}).reduce(function(a,r){return a+r.value;},0);
+  var wpOther       = transFiltered.filter(function(r){return r.type==='other';}).reduce(function(a,r){return a+r.value;},0);
+  document.getElementById('wx-wp-activity').textContent    = Math.round(wpActivity).toLocaleString();
+  document.getElementById('wx-wp-birthday').textContent    = Math.round(wpBirthday).toLocaleString();
+  document.getElementById('wx-wp-anniversary').textContent = Math.round(wpAnniversary).toLocaleString();
+  document.getElementById('wx-wp-other').textContent       = Math.round(wpOther).toLocaleString();
+
+  // Month keys in range
+  var allKeys = new Set();
+  sumFiltered.forEach(function(r){allKeys.add(r.monthKey);});
+  transFiltered.forEach(function(r){allKeys.add(r.monthKey);});
+  var monthKeys = Array.from(allKeys).sort();
+  var monthLabels = monthKeys.map(formatMonthKey);
+
+  // LINE CHART: % per factory per month
+  var factories = Array.from(wxSelectedFactories).sort();
+  var lineDatasets = factories.map(function(f, i){
+    var data = monthKeys.map(function(mk){
+      var rows = sumFiltered.filter(function(r){return r.factory===f && r.monthKey===mk;});
+      if (!rows.length) return null;
+      return parseFloat((rows.reduce(function(a,r){return a+r.pct;},0)/rows.length*100).toFixed(1));
+    });
+    return {
+      label: f, data: data,
+      borderColor: FACTORY_COLORS[i % FACTORY_COLORS.length],
+      backgroundColor: 'transparent',
+      tension: 0.3, pointRadius: 3, borderWidth: 2, spanGaps: true
+    };
+  });
+
+  // Stats
+  var allPcts = sumFiltered.map(function(r){return r.pct*100;});
+  if (allPcts.length) {
+    document.getElementById('wx-stat-max').textContent = Math.max.apply(null,allPcts).toFixed(1)+'%';
+    document.getElementById('wx-stat-min').textContent = Math.min.apply(null,allPcts).toFixed(1)+'%';
+    document.getElementById('wx-stat-avg').textContent = (allPcts.reduce(function(a,b){return a+b;},0)/allPcts.length).toFixed(1)+'%';
+  } else {
+    ['wx-stat-max','wx-stat-min','wx-stat-avg'].forEach(function(id){document.getElementById(id).textContent='—';});
+  }
+
+  if (wxLineChart) wxLineChart.destroy();
+  wxLineChart = new Chart(document.getElementById('wx-line-chart'), {
+    type: 'line',
+    data: { labels: monthLabels, datasets: lineDatasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#5c6080', font: { family: 'Sarabun', size: 11 }, boxWidth: 12, padding: 10 }},
+        tooltip: { callbacks: { label: function(c){ return ' '+c.dataset.label+': '+(c.parsed.y!=null?c.parsed.y.toFixed(1)+'%':'—'); }}}
+      },
+      scales: {
+        x: { grid: { color: '#e2e4ec' }, ticks: { color: '#5c6080', font: { family: 'Sarabun', size: 11 }, maxRotation: 45 }},
+        y: { min: 0, max: 100, grid: { color: '#e2e4ec' }, ticks: { color: '#5c6080', font: { family: 'Sarabun', size: 11 }, callback: function(v){ return v+'%'; }}}
+      }
+    }
+  });
+
+  // BAR CHART: WP by type per month
+  var barActivity    = monthKeys.map(function(mk){ return sumFiltered.filter(function(r){return r.monthKey===mk;}).reduce(function(a,r){return a+r.given;},0); });
+  var barBirthday    = monthKeys.map(function(mk){ return transFiltered.filter(function(r){return r.type==='birthday'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0); });
+  var barAnniversary = monthKeys.map(function(mk){ return transFiltered.filter(function(r){return r.type==='anniversary'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0); });
+  var barOther       = monthKeys.map(function(mk){ return transFiltered.filter(function(r){return r.type==='other'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0); });
+
+  if (wxBarChart) wxBarChart.destroy();
+  wxBarChart = new Chart(document.getElementById('wx-bar-chart'), {
+    type: 'bar',
+    data: {
+      labels: monthLabels,
+      datasets: [
+        { label: 'กิจกรรม',     data: barActivity,    backgroundColor: '#4f7cff' },
+        { label: 'วันเกิด',     data: barBirthday,    backgroundColor: '#DF1882' },
+        { label: 'ครบอายุงาน', data: barAnniversary, backgroundColor: '#16a34a' },
+        { label: 'อื่นๆ',      data: barOther,       backgroundColor: '#94a3b8' },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#5c6080', font: { family: 'Sarabun', size: 12 }, boxWidth: 12, padding: 12 }},
+        tooltip: { callbacks: { label: function(c){ return ' '+c.dataset.label+': '+Math.round(c.parsed.y).toLocaleString()+' WP'; }}}
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#5c6080', font: { family: 'Sarabun', size: 11 }, maxRotation: 45 }},
+        y: { grid: { color: '#e2e4ec' }, ticks: { color: '#5c6080', font: { family: 'Sarabun', size: 11 }, callback: function(v){ return v.toLocaleString(); }}}
+      }
+    }
+  });
+
+  // AWARD PANEL
+  renderAwardPanel(sumFiltered, monthKeys);
+}
+
+function renderAwardPanel(data, monthKeys) {
+  var panel = document.getElementById('wx-award-panel');
+  if (!monthKeys.length) { panel.innerHTML = '<div style="color:var(--text3);text-align:center;padding:32px">ไม่พบข้อมูล</div>'; return; }
+
+  // Grade function
+  function getGrade(pct) {
+    if (pct >= 99) return 'S';
+    if (pct >= 81) return 'A+';
+    if (pct >= 61) return 'A';
+    if (pct >= 41) return 'B';
+    return null;
+  }
+  var gradeStyle = {
+    'S':  { border:'#f59e0b', bg:'#fff8e1', color:'#b45309' },
+    'A+': { border:'#16a34a', bg:'#f0fdf4', color:'#16a34a' },
+    'A':  { border:'#4f7cff', bg:'#eef2ff', color:'#4f7cff' },
+    'B':  { border:'#a855f7', bg:'#fdf4ff', color:'#a855f7' },
+  };
+
+  var html = '';
+  monthKeys.slice().reverse().forEach(function(mk){
+    var rows = data.filter(function(r){return r.monthKey===mk;});
+    // avg pct per factory
+    var factoryAvg = {};
+    rows.forEach(function(r){
+      if (!factoryAvg[r.factory]) factoryAvg[r.factory] = [];
+      factoryAvg[r.factory].push(r.pct*100);
+    });
+    var graded = [];
+    Object.keys(factoryAvg).forEach(function(f){
+      var avg = factoryAvg[f].reduce(function(a,b){return a+b;},0)/factoryAvg[f].length;
+      var g = getGrade(avg);
+      if (g) graded.push({ factory: f, avg: avg, grade: g });
+    });
+    if (!graded.length) return;
+
+    // Sort by grade then avg
+    var gradeOrder = { S:0, 'A+':1, A:2, B:3 };
+    graded.sort(function(a,b){ return gradeOrder[a.grade]-gradeOrder[b.grade] || b.avg-a.avg; });
+
+    html += '<div style="margin-bottom:20px;">';
+    html += '<div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);">'+formatMonthKey(mk)+'</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:10px;">';
+    graded.forEach(function(item){
+      var s = gradeStyle[item.grade];
+      html += '<div style="border:2px solid '+s.border+';background:'+s.bg+';border-radius:10px;padding:12px 16px;min-width:110px;text-align:center;">'
+        +'<div style="font-size:22px;font-weight:700;color:'+s.color+';">'+item.grade+'</div>'
+        +'<div style="font-size:12px;font-weight:600;color:'+s.color+';margin-top:2px;">'+item.factory+'</div>'
+        +'<div style="font-size:11px;color:var(--text3);margin-top:2px;">'+item.avg.toFixed(1)+'%</div>'
+        +'</div>';
+    });
+    html += '</div></div>';
+  });
+
+  panel.innerHTML = html || '<div style="color:var(--text3);text-align:center;padding:32px">ไม่พบโรงงานที่มี % ≥ 41% ในช่วงที่เลือก</div>';
+}
+
 </script>
 </body>
 </html>
