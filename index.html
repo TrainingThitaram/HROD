@@ -509,8 +509,8 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
               <div id="wx4-factory-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
             </div>
             <div>
-              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">ปี <span style="color:var(--text3);font-weight:400">(ไม่เลือก = ทั้งหมด)</span></div>
-              <div id="wx4-year-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">ปีงบประมาณ</div>
+              <select id="wx4-fiscal-year" class="filter-select" style="min-width:240px;"></select>
             </div>
             <div style="display:flex;gap:8px;">
               <button onclick="loadWxCompany()" style="padding:8px 20px;background:var(--tos);color:white;border:none;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:600;cursor:pointer;">ค้นหา</button>
@@ -1318,8 +1318,10 @@ function loadWxQuest(){
     var bySub={};items.forEach(function(r){var sub=r.subCategory||'ทั่วไป';if(!bySub[sub])bySub[sub]=[];bySub[sub].push(r);});
     var questAvg={};
     items.forEach(function(r){if(!questAvg[r.quest])questAvg[r.quest]={sum:0,count:0,factories:new Set(),subCategory:r.subCategory||'ทั่วไป'};questAvg[r.quest].sum+=r.pct*100;questAvg[r.quest].count++;questAvg[r.quest].factories.add(r.factory);});
-    var catSection=document.createElement('div');catSection.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);margin-bottom:20px;';
-    catSection.innerHTML='<div style="font-size:15px;font-weight:700;color:var(--tos);margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--border);">'+cat+'<span style="font-size:12px;font-weight:400;color:var(--text3);margin-left:10px;">'+Object.keys(questAvg).length+' กิจกรรม</span></div>';
+    var CAT_COLORS_MAP={'Welfare':{bg:'#fff0f7',border:'#DF1882',text:'#DF1882',light:'#fce7f3'},'Platform':{bg:'#eef2ff',border:'#4f7cff',text:'#4f7cff',light:'#e0e7ff'},'Health':{bg:'#f0fdf4',border:'#16a34a',text:'#16a34a',light:'#dcfce7'},'Organization':{bg:'#eff6ff',border:'#2563eb',text:'#2563eb',light:'#dbeafe'},'General':{bg:'#f9fafb',border:'#6b7280',text:'#6b7280',light:'#f3f4f6'},'Safety':{bg:'#fff7ed',border:'#ea580c',text:'#ea580c',light:'#ffedd5'},'Culture':{bg:'#fdf4ff',border:'#a855f7',text:'#a855f7',light:'#f3e8ff'},'Tax':{bg:'#fefce8',border:'#ca8a04',text:'#ca8a04',light:'#fef9c3'},'Lifestyle':{bg:'#ecfdf5',border:'#059669',text:'#059669',light:'#d1fae5'},'Law':{bg:'#fef2f2',border:'#dc2626',text:'#dc2626',light:'#fee2e2'},'Assessment':{bg:'#f0f9ff',border:'#0284c7',text:'#0284c7',light:'#e0f2fe'},'Behavior':{bg:'#fff1f2',border:'#e11d48',text:'#e11d48',light:'#ffe4e6'},'Engagement':{bg:'#f5f3ff',border:'#7c3aed',text:'#7c3aed',light:'#ede9fe'}};
+    var cc=CAT_COLORS_MAP[cat]||{bg:'#f9fafb',border:'#6b7280',text:'#6b7280',light:'#f3f4f6'};
+    var catSection=document.createElement('div');catSection.style.cssText='background:'+cc.bg+';border:1px solid '+cc.border+';border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);margin-bottom:20px;';
+    catSection.innerHTML='<div style="font-size:15px;font-weight:700;color:'+cc.text+';margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid '+cc.light+';display:flex;align-items:center;gap:10px;"><span style="background:'+cc.border+';color:white;border-radius:8px;padding:3px 10px;font-size:12px;font-weight:700;">'+cat+'</span><span style="font-size:12px;font-weight:400;color:'+cc.text+';opacity:.7;">'+Object.keys(questAvg).length+' กิจกรรม</span></div>';
     Object.keys(bySub).sort().forEach(function(sub){
       var subEl=document.createElement('div');subEl.style.cssText='margin-bottom:16px;';
       subEl.innerHTML='<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;">'+sub+'</div>';
@@ -1358,11 +1360,23 @@ async function initWxCompany() {
     var rowsS=await wxFetch('system');
     parseSystemInfo(rowsS);
     buildWxFactoryChips('wx4-factory-chips',wx4SelectedFactories,null);
-    buildWx4YearChips();
+    buildWx4FiscalYearSelect();
     renderWxCompany();
     wx4Loaded=true;
   }catch(e){errBox.textContent='โหลดข้อมูลไม่สำเร็จ: '+e.message;errBox.style.display='block';console.error(e);}
   setLoading(false);
+}
+
+// แปลงวันที่ → ปีงบประมาณ (ต.ค.ปีก่อน - ก.ย.ปีถัดไป)
+function dateToFiscalYear(d) {
+  if (!d) return null;
+  var m = d.getMonth() + 1; // 1-12
+  var y = d.getFullYear();
+  // ต.ค.(10)-ธ.ค.(12) → ปีงบฯ = ปีถัดไป, ม.ค.(1)-ก.ย.(9) → ปีงบฯ = ปีนั้น
+  var fyYear = m >= 10 ? y + 1 : y;
+  var fyFrom = (fyYear - 1) + '-10'; // ต.ค.ปีก่อน
+  var fyTo   = fyYear + '-09';       // ก.ย.ปีถัดไป
+  return { label: 'ปีงบประมาณ ' + fyYear + ' (ต.ค.' + (fyYear-1) + ' - ก.ย.' + fyYear + ')', fyYear: fyYear, fyFrom: fyFrom, fyTo: fyTo };
 }
 
 function parseSystemInfo(rows){
@@ -1372,33 +1386,43 @@ function parseSystemInfo(rows){
   if(idx.pkg<0)idx.pkg=1;if(idx.wp<0)idx.wp=2;if(idx.price<0)idx.price=3;if(idx.created<0)idx.created=6;if(idx.factory<0)idx.factory=7;
   wxSystemData=rows.slice(1).filter(function(r){return r&&r[idx.factory]&&String(r[idx.factory]).trim();}).map(function(r){
     var d=parseExcelDate(r[idx.created]);
-    return {package:String(r[idx.pkg]||'').trim(),wellpoint:parseFloat(r[idx.wp])||0,price:parseFloat(r[idx.price])||0,created:d,year:d?d.getFullYear():null,factory:String(r[idx.factory]||'').trim()};
+    var fy=dateToFiscalYear(d);
+    return {package:String(r[idx.pkg]||'').trim(),wellpoint:parseFloat(r[idx.wp])||0,price:parseFloat(r[idx.price])||0,created:d,fiscalYear:fy,factory:String(r[idx.factory]||'').trim()};
   }).filter(function(r){return r.factory;});
-  wx4AllYears=[...new Set(wxSystemData.filter(function(r){return r.year;}).map(function(r){return r.year;}))].sort();
+  // Build unique fiscal years sorted desc
+  var fyMap={};
+  wxSystemData.forEach(function(r){if(r.fiscalYear&&!fyMap[r.fiscalYear.fyYear])fyMap[r.fiscalYear.fyYear]=r.fiscalYear;});
+  wx4AllFiscalYears=Object.values(fyMap).sort(function(a,b){return b.fyYear-a.fyYear;});
 }
 
-function buildWx4YearChips(){
-  var el=document.getElementById('wx4-year-chips');el.innerHTML='';
-  wx4AllYears.forEach(function(y){
-    var c=document.createElement('span');c.className='chip';c.textContent=y;c.style.cssText='font-size:12px;padding:4px 10px;';
-    c.onclick=function(){if(wx4SelectedYears.has(y)){wx4SelectedYears.delete(y);c.classList.remove('selected');}else{wx4SelectedYears.add(y);c.classList.add('selected');}};
-    el.appendChild(c);
+function buildWx4FiscalYearSelect(){
+  var sel=document.getElementById('wx4-fiscal-year');sel.innerHTML='<option value="ALL">ทั้งหมด</option>';
+  wx4AllFiscalYears.forEach(function(fy){
+    var o=document.createElement('option');o.value=fy.fyYear;o.textContent=fy.label;sel.appendChild(o);
   });
+  // Default: latest fiscal year
+  if(wx4AllFiscalYears.length) sel.value=wx4AllFiscalYears[0].fyYear;
 }
 
 function loadWxCompany(){renderWxCompany();}
 function resetWxCompany(){
   document.getElementById('wx4-region').value='ALL';wx4SelectedFactories=new Set(ALL_FACTORIES);
   buildWxFactoryChips('wx4-factory-chips',wx4SelectedFactories,null);
-  wx4SelectedYears.clear();document.querySelectorAll('#wx4-year-chips .chip').forEach(function(c){c.classList.remove('selected');});
+  var sel4fy=document.getElementById('wx4-fiscal-year');
+  if(sel4fy&&wx4AllFiscalYears.length) sel4fy.value=wx4AllFiscalYears[0].fyYear;
   renderWxCompany();
 }
 
 function renderWxCompany(){
+  var sel4fy=document.getElementById('wx4-fiscal-year');
+  var fyVal=sel4fy?sel4fy.value:'ALL';
+  var fyObj=fyVal==='ALL'?null:wx4AllFiscalYears.find(function(f){return String(f.fyYear)===String(fyVal);});
   var txns=wxSystemData.filter(function(r){
     var facOk=wx4SelectedFactories.has(r.factory);
-    var yearOk=wx4SelectedYears.size===0||(r.year&&wx4SelectedYears.has(r.year));
-    return facOk&&yearOk;
+    if(!facOk) return false;
+    if(!fyObj) return true; // ทั้งหมด
+    var mk=r.created?(r.created.getFullYear()+'-'+String(r.created.getMonth()+1).padStart(2,'0')):'';
+    return mk>=fyObj.fyFrom && mk<=fyObj.fyTo;
   });
   var totalWP=txns.reduce(function(s,r){return s+r.wellpoint;},0);
   var totalPrice=txns.reduce(function(s,r){return s+r.price;},0);
