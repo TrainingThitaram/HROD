@@ -696,16 +696,18 @@ async function loadWxData() {
     var token = await getToken(); if (!token) return;
     var base = 'https://graph.microsoft.com/v1.0/drives/' + WX_DRIVE_ID + '/items/' + WX_FILE_ID + '/workbook/worksheets/';
 
-    // Load Query Summary — ชื่อ sheet ตรงตัว ไม่ใช้ $select (ทำให้ 400)
-    var r1 = await fetch(base + encodeURIComponent("'Query Summary'") + '/usedRange', {headers:{Authorization:'Bearer '+token}});
+    // ใช้ Sheet ID โดยตรง — หลีกเลี่ยงปัญหา URL encoding ของชื่อ Sheet
+    var WX_SHEET_SUMMARY     = '%7B9CFBBB4C-1576-4BB5-AFFA-00820E6AA9F0%7D';
+    var WX_SHEET_TRANSACTION = '%7B3C6F1E9E-F42D-4870-AF3E-1321A7BF98FD%7D';
+
+    var r1 = await fetch(base + WX_SHEET_SUMMARY + '/usedRange', {headers:{Authorization:'Bearer '+token}});
     if (!r1.ok) {
       var errText = await r1.text();
       throw new Error('Query Summary: ' + r1.status + ' — ' + errText.substring(0,120));
     }
     var d1 = await r1.json();
 
-    // Load Query Transaction
-    var r2 = await fetch(base + encodeURIComponent("'Query Transaction'") + '/usedRange', {headers:{Authorization:'Bearer '+token}});
+    var r2 = await fetch(base + WX_SHEET_TRANSACTION + '/usedRange', {headers:{Authorization:'Bearer '+token}});
     if (!r2.ok) {
       var errText2 = await r2.text();
       throw new Error('Query Transaction: ' + r2.status + ' — ' + errText2.substring(0,120));
