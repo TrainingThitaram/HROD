@@ -922,7 +922,7 @@ function buildWxPeriodSlots() {
   buildPeriodSlider(WX3P,'wx3-period-track','wx3-period-fill','wx3-period-thumb-lo','wx3-period-thumb-hi','wx3-period-display','wx3-period-ticks');
 }
 
-function wxSlotKey(s){ return s.y+'-'+s.m; }
+function wxSlotKey(s){ return s.y+'-'+String(s.m).padStart(2,'0'); }
 function wxInRange(key, cfg){ return key >= wxSlotKey(cfg.slots[cfg.lo]) && key <= wxSlotKey(cfg.slots[cfg.hi]); }
 
 // ══════════════════════════════════════════════════════
@@ -965,7 +965,7 @@ function parseWxSummary(rows) {
     var d = parseExcelDate(r[idx.start]);
     var pctRaw = parseFloat(String(r[idx.pct]||'').replace('%',''))||0;
     if(pctRaw>1) pctRaw=pctRaw/100;
-    return { quest:String(r[idx.quest]||''), start:d, monthKey:d?(d.getFullYear()+'-'+(d.getMonth()+1)):'', pct:pctRaw, given:parseFloat(r[idx.given])||0, factory:String(r[idx.factory]||'').trim(), category:idx.cat>=0?String(r[idx.cat]||'').trim():'', subCategory:idx.subcat>=0?String(r[idx.subcat]||'').trim():'' };
+    return { quest:String(r[idx.quest]||''), start:d, monthKey:d?(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')):'', pct:pctRaw, given:parseFloat(r[idx.given])||0, factory:String(r[idx.factory]||'').trim(), category:idx.cat>=0?String(r[idx.cat]||'').trim():'', subCategory:idx.subcat>=0?String(r[idx.subcat]||'').trim():'' };
   }).filter(function(r){return r.start&&r.monthKey;});
 }
 
@@ -978,7 +978,7 @@ function parseWxTransaction(rows) {
     var title=String(r[idx.title]||''), type='other';
     if(/birthday/i.test(title)) type='birthday'; else if(/working anniversary/i.test(title)) type='anniversary';
     var d=parseExcelDate(r[idx.date]);
-    return {title:title,type:type,value:parseFloat(r[idx.value])||0,date:d,monthKey:d?(d.getFullYear()+'-'+(d.getMonth()+1)):'',factory:String(r[idx.factory]||'').trim()};
+    return {title:title,type:type,value:parseFloat(r[idx.value])||0,date:d,monthKey:d?(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')):'',factory:String(r[idx.factory]||'').trim()};
   }).filter(function(r){return r.date&&r.monthKey;});
 }
 
@@ -1138,7 +1138,7 @@ function parseForecast(rows) {
   wxForecastData=rows.slice(1).filter(function(r){return r&&r[idx.factory];}).map(function(r){
     var fyText=String(r[idx.fiscal]||'');
     var nums=(fyText.match(/\d{4}/g)||[]).map(Number).filter(function(n){return n>=2000&&n<=2100;});
-    return {factory:String(r[idx.factory]||'').trim(),fiscalYear:fyText,fyFrom:nums.length?Math.min.apply(null,nums)+'-10':'',fyTo:nums.length?Math.max.apply(null,nums)+'-09':'',wp:parseFloat(r[idx.wp])||0};
+    return {factory:String(r[idx.factory]||'').trim(),fiscalYear:fyText,fyFrom:nums.length?(Math.min.apply(null,nums)+'-10'):'',fyTo:nums.length?(Math.max.apply(null,nums)+'-09'):'',wp:parseFloat(r[idx.wp])||0};
   }).filter(function(r){return r.factory&&r.wp;});
 }
 
@@ -1149,7 +1149,7 @@ function parseBalance(rows) {
   if(idx.factory<0)idx.factory=0; if(idx.bal<0)idx.bal=1; if(idx.date<0)idx.date=2; if(idx.fiscal<0)idx.fiscal=3;
   wxBalanceData=rows.slice(1).filter(function(r){return r&&r[idx.factory]&&r[idx.bal]!==''&&r[idx.bal]!=null;}).map(function(r){
     var d=parseExcelDate(r[idx.date]);
-    return {factory:String(r[idx.factory]||'').trim(),balance:parseFloat(r[idx.bal])||0,date:d,monthKey:d?(d.getFullYear()+'-'+(d.getMonth()+1)):'',fiscalYear:String(r[idx.fiscal]||'').trim()};
+    return {factory:String(r[idx.factory]||'').trim(),balance:parseFloat(r[idx.bal])||0,date:d,monthKey:d?(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')):'',fiscalYear:String(r[idx.fiscal]||'').trim()};
   }).filter(function(r){return r.factory&&r.date;});
 }
 
