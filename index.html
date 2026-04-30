@@ -704,11 +704,11 @@ async function loadWxData() {
     }
     var d1 = await r1.json();
 
-    // Load Query Trsnsaction — ⚠️ typo ตั้งใจ ห้ามแก้
-    var r2 = await fetch(base + encodeURIComponent("'Query Trsnsaction'") + '/usedRange', {headers:{Authorization:'Bearer '+token}});
+    // Load Query Transaction
+    var r2 = await fetch(base + encodeURIComponent("'Query Transaction'") + '/usedRange', {headers:{Authorization:'Bearer '+token}});
     if (!r2.ok) {
       var errText2 = await r2.text();
-      throw new Error('Query Trsnsaction: ' + r2.status + ' — ' + errText2.substring(0,120));
+      throw new Error('Query Transaction: ' + r2.status + ' — ' + errText2.substring(0,120));
     }
     var d2 = await r2.json();
 
