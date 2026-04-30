@@ -650,14 +650,24 @@ function showError(msg){
 const WX_DRIVE_ID = 'b!S7HcMzQZKES0PZ1vYtsX0YuiqArGV5FPlMLRinyLYKYKoQ-glON5QaabcZ_Rd6p3';
 const WX_FILE_ID  = '01MZGTHIZZND4ZDW6VKJHZ7SLRUKA3ACJH';
 
-const FACTORY_REGION = {
-  'AATH':'สมุทรปราการ','AFT':'ชลบุรี','BCM':'ชลบุรี','DM':'พระประแดง',
-  'FN':'ลาดกระบัง','FNwm':'ลาดกระบัง','Infus':'ชลบุรี','InfusKK':'ชลบุรี',
-  'KAO':'กรุงเทพ','NIFCO':'ชลบุรี','OfficeBKK':'กรุงเทพ','RB':'พระประแดง',
-  'Riken Sri':'สมุทรปราการ','Siam Chemical Industry':'ปทุมธานี-อยุธยา',
-  'Ueno':'พระประแดง','Unilever':'ลาดกระบัง'
+// Region Map ตาม WellEXP Dashboard เดิม
+const REGION_MAP_WX = {
+  'ชลบุรี':           ['AATH','KAO','NIFCO','Riken Sri','Infus','InfusKK'],
+  'กรุงเทพ':          ['OfficeBKK'],
+  'ลาดกระบัง':        ['DM','Unilever'],
+  'สมุทรปราการ':      ['RB','Siam Chemical Industry','Ueno'],
+  'ปทุมธานี-อยุธยา': ['BCM','FN','FNwm'],
+  'พระประแดง':        ['AFT'],
 };
-const ALL_FACTORIES = Object.keys(FACTORY_REGION);
+// Lookup factory → region (สร้างจาก REGION_MAP_WX)
+const FACTORY_REGION = (function(){
+  var m = {};
+  Object.keys(REGION_MAP_WX).forEach(function(reg){
+    REGION_MAP_WX[reg].forEach(function(f){ m[f] = reg; });
+  });
+  return m;
+})();
+const ALL_FACTORIES = Object.values(REGION_MAP_WX).reduce(function(a,b){return a.concat(b);},[]);
 
 const MONTH_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 const FACTORY_COLORS = [
@@ -680,24 +690,26 @@ function switchSubTab(e, name) {
 async function loadWxData() {
   if (wxLoaded) return;
   setLoading(true);
+  var wxErrBox = document.getElementById('wx-error-box');
+  wxErrBox.style.display = 'none';
   try {
     var token = await getToken(); if (!token) return;
     var base = 'https://graph.microsoft.com/v1.0/drives/' + WX_DRIVE_ID + '/items/' + WX_FILE_ID + '/workbook/worksheets/';
 
-    // Load A-Summary
-    var r1 = await fetch(base + "('A-Summary')/usedRange?$select=values", {headers:{Authorization:'Bearer '+token}});
+    // Load Query Summary — ชื่อ sheet ตรงตัว ไม่ใช้ $select (ทำให้ 400)
+    var r1 = await fetch(base + encodeURIComponent("'Query Summary'") + '/usedRange', {headers:{Authorization:'Bearer '+token}});
     if (!r1.ok) {
-      // fallback: try by index
-      var rList = await fetch('https://graph.microsoft.com/v1.0/drives/'+WX_DRIVE_ID+'/items/'+WX_FILE_ID+'/workbook/worksheets', {headers:{Authorization:'Bearer '+token}});
-      var wsList = await rList.json();
-      var wsNames = (wsList.value||[]).map(function(w){return w.name;});
-      throw new Error('A-Summary: ' + r1.status + ' | Sheets: ' + wsNames.join(', '));
+      var errText = await r1.text();
+      throw new Error('Query Summary: ' + r1.status + ' — ' + errText.substring(0,120));
     }
     var d1 = await r1.json();
 
-    // Load B-Transaction
-    var r2 = await fetch(base + "('B-Transaction')/usedRange", {headers:{Authorization:'Bearer '+token}});
-    if (!r2.ok) throw new Error('B-Transaction: ' + r2.status);
+    // Load Query Trsnsaction — ⚠️ typo ตั้งใจ ห้ามแก้
+    var r2 = await fetch(base + encodeURIComponent("'Query Trsnsaction'") + '/usedRange', {headers:{Authorization:'Bearer '+token}});
+    if (!r2.ok) {
+      var errText2 = await r2.text();
+      throw new Error('Query Trsnsaction: ' + r2.status + ' — ' + errText2.substring(0,120));
+    }
     var d2 = await r2.json();
 
     parseWxSummary(d1.values);
@@ -709,8 +721,8 @@ async function loadWxData() {
     applyWxFilter();
 
   } catch(e) {
-    document.getElementById('wx-error-box').textContent = 'โหลดข้อมูล WellEXP ไม่สำเร็จ: ' + e.message;
-    document.getElementById('wx-error-box').style.display = 'block';
+    wxErrBox.textContent = 'โหลดข้อมูล WellEXP ไม่สำเร็จ: ' + e.message;
+    wxErrBox.style.display = 'block';
     console.error(e);
   }
   setLoading(false);
@@ -718,54 +730,72 @@ async function loadWxData() {
 
 function parseWxSummary(rows) {
   if (!rows || rows.length < 2) return;
-  var h = rows[0];
+  var h = rows[0].map(function(c){ return String(c||'').trim(); });
+
+  // รองรับทั้ง column names จาก Google Sheets (Quest, StartDate, GivenPoints, %Completed, โรงงาน)
   var idx = {
-    quest: h.findIndex(function(c){return String(c).includes('Quest') && !String(c).includes('Maker') && !String(c).includes('Completed');}),
-    start: h.findIndex(function(c){return String(c).includes('Start');}),
-    end:   h.findIndex(function(c){return String(c).includes('End');}),
-    pct:   h.findIndex(function(c){return String(c).includes('%Completed');}),
-    given: h.findIndex(function(c){return String(c).includes('Given');}),
-    factory: h.findIndex(function(c){return String(c).includes('โรงงาน');}),
+    quest:   h.findIndex(function(c){ return /^quest$/i.test(c) && !c.includes('Maker') && !c.includes('Completed') && !c.includes('Category'); }),
+    start:   h.findIndex(function(c){ return /start/i.test(c); }),
+    pct:     h.findIndex(function(c){ return /%completed/i.test(c) || c === '%Completed'; }),
+    given:   h.findIndex(function(c){ return /given/i.test(c); }),
+    factory: h.findIndex(function(c){ return c === 'โรงงาน'; }),
   };
-  wxSummaryData = rows.slice(1).filter(function(r){return r && r[idx.factory];}).map(function(r){
-    var startRaw = r[idx.start];
-    var d = parseExcelDate(startRaw);
-    var pct = parseFloat(r[idx.pct]) || 0;
-    if (pct > 1) pct = pct / 100;
+
+  // fallback by position ถ้าหาไม่เจอ (Google Sheets: A=Quest, D=StartDate, G=GivenPoints, H=%Completed, J=โรงงาน)
+  if (idx.quest   < 0) idx.quest   = 0;
+  if (idx.start   < 0) idx.start   = 3;
+  if (idx.given   < 0) idx.given   = 6;
+  if (idx.pct     < 0) idx.pct     = 7;
+  if (idx.factory < 0) idx.factory = 9;
+
+  wxSummaryData = rows.slice(1).filter(function(r){ return r && r[idx.factory] && String(r[idx.factory]).trim(); }).map(function(r){
+    var d = parseExcelDate(r[idx.start]);
+    var pctRaw = String(r[idx.pct]||'').replace('%','');
+    var pct = parseFloat(pctRaw) || 0;
+    if (pct > 1) pct = pct / 100;   // 75 → 0.75, แต่ 0.75 คงเดิม
     return {
-      quest: String(r[idx.quest]||''),
-      start: d,
+      quest:    String(r[idx.quest]||''),
+      start:    d,
       monthKey: d ? (d.getFullYear()+'-'+(d.getMonth()+1)) : '',
-      pct: pct,
-      given: parseFloat(r[idx.given]) || 0,
-      factory: String(r[idx.factory]||'').trim(),
+      pct:      pct,
+      given:    parseFloat(r[idx.given]) || 0,
+      factory:  String(r[idx.factory]||'').trim(),
     };
-  }).filter(function(r){return r.start;});
+  }).filter(function(r){ return r.start && r.monthKey; });
 }
 
 function parseWxTransaction(rows) {
   if (!rows || rows.length < 2) return;
-  var h = rows[0];
+  var h = rows[0].map(function(c){ return String(c||'').trim(); });
+
   var idx = {
-    title:   h.findIndex(function(c){return String(c).toLowerCase().includes('title');}),
-    value:   h.findIndex(function(c){return String(c).toLowerCase().includes('value');}),
-    date:    h.findIndex(function(c){return String(c).toLowerCase().includes('date');}),
-    factory: h.findIndex(function(c){return String(c).includes('โรงงาน');}),
+    title:   h.findIndex(function(c){ return /title/i.test(c); }),
+    value:   h.findIndex(function(c){ return /value/i.test(c); }),
+    date:    h.findIndex(function(c){ return /date/i.test(c); }),
+    factory: h.findIndex(function(c){ return c === 'โรงงาน'; }),
   };
-  wxTransData = rows.slice(1).filter(function(r){return r && r[idx.factory];}).map(function(r){
+
+  // fallback by position (Google Sheets: A=Title, C=Value, G=Date, H=โรงงาน)
+  if (idx.title   < 0) idx.title   = 0;
+  if (idx.value   < 0) idx.value   = 2;
+  if (idx.date    < 0) idx.date    = 6;
+  if (idx.factory < 0) idx.factory = 7;
+
+  wxTransData = rows.slice(1).filter(function(r){ return r && r[idx.factory] && String(r[idx.factory]).trim(); }).map(function(r){
     var title = String(r[idx.title]||'');
     var type = 'other';
-    if (title.toLowerCase().includes('birthday')) type = 'birthday';
-    else if (title.toLowerCase().includes('working anniversary')) type = 'anniversary';
+    if (/birthday/i.test(title))             type = 'birthday';
+    else if (/working anniversary/i.test(title)) type = 'anniversary';
     var d = parseExcelDate(r[idx.date]);
     return {
-      title: title, type: type,
-      value: parseFloat(r[idx.value]) || 0,
-      date: d,
+      title:    title,
+      type:     type,
+      value:    parseFloat(r[idx.value]) || 0,
+      date:     d,
       monthKey: d ? (d.getFullYear()+'-'+(d.getMonth()+1)) : '',
-      factory: String(r[idx.factory]||'').trim(),
+      factory:  String(r[idx.factory]||'').trim(),
     };
-  }).filter(function(r){return r.date;});
+  }).filter(function(r){ return r.date && r.monthKey; });
 }
 
 function parseExcelDate(v) {
@@ -805,9 +835,10 @@ function toggleWxFactory(el, f) {
 function onWxRegionChange() {
   var region = document.getElementById('wx-region').value;
   wxSelectedFactories = new Set();
+  var regionFactories = region === 'ALL' ? null : (REGION_MAP_WX[region] || []);
   document.querySelectorAll('#wx-factory-chips .chip').forEach(function(el){
     var f = el.dataset.factory;
-    var include = region === 'ALL' || FACTORY_REGION[f] === region;
+    var include = region === 'ALL' || (regionFactories && regionFactories.indexOf(f) >= 0);
     if (include) { wxSelectedFactories.add(f); el.classList.add('selected'); }
     else { el.classList.remove('selected'); }
   });
