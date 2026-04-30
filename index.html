@@ -275,20 +275,20 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
   <!-- TAB: WELLEXP -->
   <div class="tab-content" id="tab-wellexp">
     <!-- SUB TABS -->
-    <div style="background:#fff;border-bottom:1px solid var(--border);padding:0 32px;display:flex;gap:0;">
-      <button class="tab-btn active" id="sub-btn-activity" onclick="switchSubTab(event,'activity')" style="font-size:13px;padding:10px 18px;">📊 Activity Overview</button>
+    <div style="background:#fff;border-bottom:1px solid var(--border);padding:0 32px;display:flex;gap:0;overflow-x:auto;">
+      <button class="tab-btn active" id="sub-btn-activity" onclick="switchSubTab(event,'activity')" style="font-size:13px;padding:10px 18px;">&#128202; Activity Overview</button>
+      <button class="tab-btn" id="sub-btn-forecast" onclick="switchSubTab(event,'forecast');initWxForecast();" style="font-size:13px;padding:10px 18px;">&#128176; Forecast &amp; Point Balance</button>
+      <button class="tab-btn" id="sub-btn-quest" onclick="switchSubTab(event,'quest');initWxQuest();" style="font-size:13px;padding:10px 18px;">&#128193; Quest Category</button>
+      <button class="tab-btn" id="sub-btn-company" onclick="switchSubTab(event,'company');initWxCompany();" style="font-size:13px;padding:10px 18px;">&#127981; Company Point</button>
     </div>
 
-    <!-- SUB TAB: ACTIVITY OVERVIEW -->
+    <!-- ═══ SUB TAB: ACTIVITY OVERVIEW ═══ -->
     <div id="subtab-activity">
       <div class="content">
         <div class="error-box" id="wx-error-box"></div>
-
         <!-- FILTER PANEL -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);margin-bottom:24px;">
-          <div style="font-size:14px;font-weight:600;margin-bottom:16px;color:var(--text)">ตัวกรองข้อมูล</div>
           <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
-            <!-- เขตพื้นที่ -->
             <div>
               <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">เขตพื้นที่</div>
               <select id="wx-region" class="filter-select" onchange="onWxRegionChange()" style="min-width:160px;">
@@ -301,19 +301,23 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
                 <option value="พระประแดง">พระประแดง</option>
               </select>
             </div>
-            <!-- โรงงาน -->
             <div style="flex:1;min-width:300px;">
               <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">โรงงาน <span style="color:var(--text3);font-weight:400">(คลิกเพื่อเลือก/ยกเลิก)</span></div>
               <div id="wx-factory-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
             </div>
-            <!-- ช่วงเวลา -->
-            <div style="flex:1;min-width:260px;">
-              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">ช่วงเวลา <span style="color:var(--text3);font-weight:400">(ปีงบประมาณ ต.ค.–ก.ย.)</span></div>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <select id="wx-date-from" class="filter-select"></select>
-                <span style="color:var(--text3)">ถึง</span>
-                <select id="wx-date-to" class="filter-select"></select>
+            <div style="flex:1;min-width:340px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="font-size:12px;color:var(--text2);font-weight:500;">ช่วงเวลา <span style="color:var(--text3);font-weight:400">(ปีงบประมาณ ต.ค.–ก.ย.)</span></div>
+                <div id="wx-period-display" style="font-size:13px;font-weight:700;color:var(--tos);">ทั้งหมด</div>
               </div>
+              <div style="position:relative;height:34px;display:flex;align-items:center;padding:0 10px;">
+                <div id="wx-period-track" style="position:relative;width:100%;height:5px;background:#e0e0e0;border-radius:3px;cursor:pointer;">
+                  <div id="wx-period-fill" style="position:absolute;height:100%;background:var(--tos);border-radius:3px;pointer-events:none;"></div>
+                  <div id="wx-period-thumb-lo" style="position:absolute;width:20px;height:20px;background:#fff;border:2.5px solid var(--tos);border-radius:50%;top:50%;transform:translate(-50%,-50%);cursor:grab;box-shadow:0 1px 6px rgba(0,0,0,.18);z-index:2;"></div>
+                  <div id="wx-period-thumb-hi" style="position:absolute;width:20px;height:20px;background:#fff;border:2.5px solid var(--tos);border-radius:50%;top:50%;transform:translate(-50%,-50%);cursor:grab;box-shadow:0 1px 6px rgba(0,0,0,.18);z-index:2;"></div>
+                </div>
+              </div>
+              <div id="wx-period-ticks" style="display:flex;justify-content:space-between;padding:0 2px;margin-top:2px;font-size:10px;color:#aaa;"></div>
             </div>
           </div>
           <div style="display:flex;gap:8px;margin-top:16px;">
@@ -321,7 +325,6 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
             <button onclick="resetWxFilter()" style="padding:8px 16px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;cursor:pointer;">รีเซต</button>
           </div>
         </div>
-
         <!-- KPI ROW -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);">
@@ -335,8 +338,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
             <div style="font-size:12px;color:var(--text3);margin-top:4px;">รวมกิจกรรม + วันเกิด + ครบอายุงาน + อื่นๆ</div>
           </div>
         </div>
-
-        <!-- LINE CHART: % ผู้ร่วมกิจกรรมรายเดือน -->
+        <!-- LINE CHART -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
             <div>
@@ -352,46 +354,26 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
           </div>
           <div style="position:relative;height:300px;"><canvas id="wx-line-chart"></canvas></div>
         </div>
-
-        <!-- BAR CHART: Wellpoint แยกประเภทรายเดือน -->
+        <!-- BAR CHART -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px;">
           <div style="margin-bottom:20px;">
             <div style="font-size:15px;font-weight:600;color:var(--text);">Wellpoint ที่ใช้ไปแยกตามประเภทรายเดือน</div>
             <div style="font-size:12px;color:var(--text3);margin-top:3px;">รวมทุกโรงงานในช่วงที่เลือก</div>
           </div>
-          <!-- WP Type KPI -->
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
-            <div style="background:#eef2ff;border-radius:10px;padding:14px 16px;border-left:3px solid #4f7cff;">
-              <div style="font-size:12px;color:#4f7cff;font-weight:600;margin-bottom:4px;">กิจกรรม</div>
-              <div id="wx-wp-activity" style="font-size:22px;font-weight:700;color:#4f7cff;">—</div>
-              <div style="font-size:11px;color:#8892b0;">Wellpoint</div>
-            </div>
-            <div style="background:#fdf2f8;border-radius:10px;padding:14px 16px;border-left:3px solid var(--wellios);">
-              <div style="font-size:12px;color:var(--wellios);font-weight:600;margin-bottom:4px;">วันเกิด</div>
-              <div id="wx-wp-birthday" style="font-size:22px;font-weight:700;color:var(--wellios);">—</div>
-              <div style="font-size:11px;color:#8892b0;">Wellpoint</div>
-            </div>
-            <div style="background:#f0fdf4;border-radius:10px;padding:14px 16px;border-left:3px solid #16a34a;">
-              <div style="font-size:12px;color:#16a34a;font-weight:600;margin-bottom:4px;">ครบอายุงาน</div>
-              <div id="wx-wp-anniversary" style="font-size:22px;font-weight:700;color:#16a34a;">—</div>
-              <div style="font-size:11px;color:#8892b0;">Wellpoint</div>
-            </div>
-            <div style="background:#f8f9fc;border-radius:10px;padding:14px 16px;border-left:3px solid #94a3b8;">
-              <div style="font-size:12px;color:#94a3b8;font-weight:600;margin-bottom:4px;">อื่นๆ</div>
-              <div id="wx-wp-other" style="font-size:22px;font-weight:700;color:#94a3b8;">—</div>
-              <div style="font-size:11px;color:#8892b0;">Wellpoint</div>
-            </div>
+            <div style="background:#eef2ff;border-radius:10px;padding:14px 16px;border-left:3px solid #4f7cff;"><div style="font-size:12px;color:#4f7cff;font-weight:600;margin-bottom:4px;">กิจกรรม</div><div id="wx-wp-activity" style="font-size:22px;font-weight:700;color:#4f7cff;">—</div><div style="font-size:11px;color:#8892b0;">Wellpoint</div></div>
+            <div style="background:#fdf2f8;border-radius:10px;padding:14px 16px;border-left:3px solid var(--wellios);"><div style="font-size:12px;color:var(--wellios);font-weight:600;margin-bottom:4px;">วันเกิด</div><div id="wx-wp-birthday" style="font-size:22px;font-weight:700;color:var(--wellios);">—</div><div style="font-size:11px;color:#8892b0;">Wellpoint</div></div>
+            <div style="background:#f0fdf4;border-radius:10px;padding:14px 16px;border-left:3px solid #16a34a;"><div style="font-size:12px;color:#16a34a;font-weight:600;margin-bottom:4px;">ครบอายุงาน</div><div id="wx-wp-anniversary" style="font-size:22px;font-weight:700;color:#16a34a;">—</div><div style="font-size:11px;color:#8892b0;">Wellpoint</div></div>
+            <div style="background:#f8f9fc;border-radius:10px;padding:14px 16px;border-left:3px solid #94a3b8;"><div style="font-size:12px;color:#94a3b8;font-weight:600;margin-bottom:4px;">อื่นๆ</div><div id="wx-wp-other" style="font-size:22px;font-weight:700;color:#94a3b8;">—</div><div style="font-size:11px;color:#8892b0;">Wellpoint</div></div>
           </div>
           <div style="position:relative;height:300px;"><canvas id="wx-bar-chart"></canvas></div>
         </div>
-
         <!-- AWARD PANEL -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);">
           <div style="margin-bottom:16px;">
-            <div style="font-size:15px;font-weight:600;color:var(--text);">🏆 ประกาศรางวัลประจำเดือน</div>
+            <div style="font-size:15px;font-weight:600;color:var(--text);">&#127942; ประกาศรางวัลประจำเดือน</div>
             <div style="font-size:12px;color:var(--text3);margin-top:3px;">อิงจาก % ผู้ร่วมกิจกรรมเฉลี่ย | เฉพาะโรงงานที่มี % ≥ 41%</div>
           </div>
-          <!-- Grade Legend -->
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
             <span style="background:#fff8e1;border:1.5px solid #f59e0b;color:#b45309;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;">● S — 99–100% (ไม่จำกัด)</span>
             <span style="background:#f0fdf4;border:1.5px solid #16a34a;color:#16a34a;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;">● A+ — 81–98% (≤ 3)</span>
@@ -401,8 +383,157 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
           <div id="wx-award-panel"></div>
         </div>
       </div>
-    </div>
-  </div>
+    </div><!-- /subtab-activity -->
+
+    <!-- ═══ SUB TAB: FORECAST & POINT BALANCE ═══ -->
+    <div id="subtab-forecast" style="display:none;">
+      <div class="content">
+        <div class="error-box" id="wx2-error-box"></div>
+        <!-- Filter -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">เขตพื้นที่</div>
+              <select id="wx2-region" class="filter-select" onchange="onWx2RegionChange()" style="min-width:160px;">
+                <option value="ALL">ทั้งหมด</option>
+                <option value="ชลบุรี">ชลบุรี</option>
+                <option value="กรุงเทพ">กรุงเทพ</option>
+                <option value="ลาดกระบัง">ลาดกระบัง</option>
+                <option value="สมุทรปราการ">สมุทรปราการ</option>
+                <option value="ปทุมธานี-อยุธยา">ปทุมธานี-อยุธยา</option>
+                <option value="พระประแดง">พระประแดง</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:260px;">
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">โรงงาน</div>
+              <div id="wx2-factory-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">ปีงบประมาณ</div>
+              <select id="wx2-fiscal-year" class="filter-select" style="min-width:200px;"></select>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button onclick="loadWxForecast()" style="padding:8px 20px;background:var(--tos);color:white;border:none;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:600;cursor:pointer;">ค้นหา</button>
+              <button onclick="resetWxForecast()" style="padding:8px 14px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;cursor:pointer;">รีเซต</button>
+            </div>
+          </div>
+        </div>
+        <!-- Forecast Table -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">&#128203; Forecast — ประมาณการใช้ <span style="font-weight:700;color:var(--wellios);">Wellpoint</span> ประจำปีงบประมาณ</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:20px;">เทียบระหว่าง Forecast กับ Wellpoint ที่ใช้ไปจริง</div>
+          <div id="wx2-forecast-content"><div style="text-align:center;color:var(--text3);padding:40px;">กำลังโหลด...</div></div>
+        </div>
+        <!-- Balance Cards -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">&#128179; Point Balance — <span style="font-weight:700;color:var(--wellios);">Wellpoint</span> คงเหลือรายเดือน</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:20px;">ข้อมูล ณ วันสุดท้ายของแต่ละเดือน | ยอดปัจจุบัน = รายการล่าสุดที่บันทึก</div>
+          <div id="wx2-balance-content"><div style="text-align:center;color:var(--text3);padding:40px;">กำลังโหลด...</div></div>
+        </div>
+      </div>
+    </div><!-- /subtab-forecast -->
+
+    <!-- ═══ SUB TAB: QUEST CATEGORY ═══ -->
+    <div id="subtab-quest" style="display:none;">
+      <div class="content">
+        <div class="error-box" id="wx3-error-box"></div>
+        <!-- Filter -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="margin-bottom:14px;">
+            <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:8px;">หมวดหลัก (Category) <span style="color:var(--text3);font-weight:400">(ไม่เลือก = แสดงทั้งหมด)</span></div>
+            <div id="wx3-cat-chips" style="display:flex;flex-wrap:wrap;gap:7px;"></div>
+          </div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;margin-bottom:14px;">
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">เขตพื้นที่</div>
+              <select id="wx3-region" class="filter-select" onchange="onWx3RegionChange()" style="min-width:160px;">
+                <option value="ALL">ทั้งหมด</option>
+                <option value="ชลบุรี">ชลบุรี</option>
+                <option value="กรุงเทพ">กรุงเทพ</option>
+                <option value="ลาดกระบัง">ลาดกระบัง</option>
+                <option value="สมุทรปราการ">สมุทรปราการ</option>
+                <option value="ปทุมธานี-อยุธยา">ปทุมธานี-อยุธยา</option>
+                <option value="พระประแดง">พระประแดง</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:260px;">
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">โรงงาน</div>
+              <div id="wx3-factory-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+            </div>
+            <!-- Period Slicer S3 -->
+            <div style="flex:1;min-width:300px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="font-size:12px;color:var(--text2);font-weight:500;">ช่วงเวลา</div>
+                <div id="wx3-period-display" style="font-size:13px;font-weight:700;color:var(--tos);">ทั้งหมด</div>
+              </div>
+              <div style="position:relative;height:34px;display:flex;align-items:center;padding:0 10px;">
+                <div id="wx3-period-track" style="position:relative;width:100%;height:5px;background:#e0e0e0;border-radius:3px;cursor:pointer;">
+                  <div id="wx3-period-fill" style="position:absolute;height:100%;background:var(--tos);border-radius:3px;pointer-events:none;"></div>
+                  <div id="wx3-period-thumb-lo" style="position:absolute;width:20px;height:20px;background:#fff;border:2.5px solid var(--tos);border-radius:50%;top:50%;transform:translate(-50%,-50%);cursor:grab;box-shadow:0 1px 6px rgba(0,0,0,.18);z-index:2;"></div>
+                  <div id="wx3-period-thumb-hi" style="position:absolute;width:20px;height:20px;background:#fff;border:2.5px solid var(--tos);border-radius:50%;top:50%;transform:translate(-50%,-50%);cursor:grab;box-shadow:0 1px 6px rgba(0,0,0,.18);z-index:2;"></div>
+                </div>
+              </div>
+              <div id="wx3-period-ticks" style="display:flex;justify-content:space-between;padding:0 2px;margin-top:2px;font-size:10px;color:#aaa;"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="loadWxQuest()" style="padding:8px 20px;background:var(--tos);color:white;border:none;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:600;cursor:pointer;">ค้นหา</button>
+            <button onclick="resetWxQuest()" style="padding:8px 14px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;cursor:pointer;">รีเซต</button>
+          </div>
+        </div>
+        <div id="wx3-content"><div style="text-align:center;color:var(--text3);padding:60px;">กำลังโหลด...</div></div>
+      </div>
+    </div><!-- /subtab-quest -->
+
+    <!-- ═══ SUB TAB: COMPANY POINT ═══ -->
+    <div id="subtab-company" style="display:none;">
+      <div class="content">
+        <div class="error-box" id="wx4-error-box"></div>
+        <!-- Filter -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">เขตพื้นที่</div>
+              <select id="wx4-region" class="filter-select" onchange="onWx4RegionChange()" style="min-width:160px;">
+                <option value="ALL">ทั้งหมด</option>
+                <option value="ชลบุรี">ชลบุรี</option>
+                <option value="กรุงเทพ">กรุงเทพ</option>
+                <option value="ลาดกระบัง">ลาดกระบัง</option>
+                <option value="สมุทรปราการ">สมุทรปราการ</option>
+                <option value="ปทุมธานี-อยุธยา">ปทุมธานี-อยุธยา</option>
+                <option value="พระประแดง">พระประแดง</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:260px;">
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">โรงงาน</div>
+              <div id="wx4-factory-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">ปี <span style="color:var(--text3);font-weight:400">(ไม่เลือก = ทั้งหมด)</span></div>
+              <div id="wx4-year-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button onclick="loadWxCompany()" style="padding:8px 20px;background:var(--tos);color:white;border:none;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:600;cursor:pointer;">ค้นหา</button>
+              <button onclick="resetWxCompany()" style="padding:8px 14px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;cursor:pointer;">รีเซต</button>
+            </div>
+          </div>
+        </div>
+        <!-- KPI -->
+        <div id="wx4-kpi" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;"></div>
+        <!-- Factory Cards -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:16px;">&#127981; สรุปยอดซื้อ <span style="font-weight:700;color:var(--wellios);">Wellpoint</span> แยกตามโรงงาน</div>
+          <div id="wx4-factory-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;"></div>
+        </div>
+        <!-- Table -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:16px;">&#128203; ประวัติการซื้อ <span style="font-weight:700;color:var(--wellios);">Wellpoint</span> ทั้งหมด</div>
+          <div id="wx4-table-content"><div style="text-align:center;color:var(--text3);padding:40px;">กำลังโหลด...</div></div>
+        </div>
+      </div>
+    </div><!-- /subtab-company -->
+
+  </div><!-- /tab-wellexp -->
 
   <!-- TAB: RECRUITMENT -->
   <div class="tab-content" id="tab-recruitment">
@@ -646,11 +777,20 @@ function showError(msg){
   b.textContent=msg;b.style.display='block';
   setTimeout(function(){b.style.display='none';},10000);
 }
-// ══════════════════════════════════
+// ══════════════════════════════════════════════════════
+// WELLEXP — CONFIG & STATE
+// ══════════════════════════════════════════════════════
 const WX_DRIVE_ID = 'b!S7HcMzQZKES0PZ1vYtsX0YuiqArGV5FPlMLRinyLYKYKoQ-glON5QaabcZ_Rd6p3';
 const WX_FILE_ID  = '01MZGTHIZZND4ZDW6VKJHZ7SLRUKA3ACJH';
+const WX_SHEETS   = {
+  summary:     '%7B9CFBBB4C-1576-4BB5-AFFA-00820E6AA9F0%7D',
+  transaction: '%7B3C6F1E9E-F42D-4870-AF3E-1321A7BF98FD%7D',
+  forecast:    '%7B9C5CA37F-EB1D-4E99-87A7-539836C232D4%7D',
+  balance:     '%7B955B4727-E05A-419F-9B0C-53EC66444770%7D',
+  quest:       '%7B538773DA-B17D-48BD-B5D0-51917991D234%7D',
+  system:      '%7B02DF1752-EC3F-4F9C-A5F6-8473DBFEC204%7D',
+};
 
-// Region Map ตาม WellEXP Dashboard เดิม
 const REGION_MAP_WX = {
   'ชลบุรี':           ['AATH','KAO','NIFCO','Riken Sri','Infus','InfusKK'],
   'กรุงเทพ':          ['OfficeBKK'],
@@ -659,411 +799,582 @@ const REGION_MAP_WX = {
   'ปทุมธานี-อยุธยา': ['BCM','FN','FNwm'],
   'พระประแดง':        ['AFT'],
 };
-// Lookup factory → region (สร้างจาก REGION_MAP_WX)
-const FACTORY_REGION = (function(){
-  var m = {};
-  Object.keys(REGION_MAP_WX).forEach(function(reg){
-    REGION_MAP_WX[reg].forEach(function(f){ m[f] = reg; });
-  });
-  return m;
-})();
 const ALL_FACTORIES = Object.values(REGION_MAP_WX).reduce(function(a,b){return a.concat(b);},[]);
-
 const MONTH_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-const FACTORY_COLORS = [
-  '#4f7cff','#DF1882','#26276f','#e97b2e','#06b6d4','#10b981',
-  '#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316',
-  '#6366f1','#84cc16','#0ea5e9','#a855f7'
+const FACTORY_COLORS = ['#4f7cff','#DF1882','#26276f','#e97b2e','#06b6d4','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#0ea5e9','#a855f7'];
+const CAT_LIST = ['Welfare','Platform','Health','Organization','General','Safety','Culture','Tax','Lifestyle','Law','Assessment','Behavior','Engagement'];
+const GRADE_CONFIG = [
+  {grade:'S',  min:99, max:100, limit:null},
+  {grade:'A+', min:81, max:98,  limit:3},
+  {grade:'A',  min:61, max:80,  limit:2},
+  {grade:'B',  min:41, max:60,  limit:1},
 ];
+const GRADE_STYLE = {
+  'S':  {border:'#f59e0b',bg:'#fff8e1',color:'#b45309'},
+  'A+': {border:'#16a34a',bg:'#f0fdf4',color:'#16a34a'},
+  'A':  {border:'#4f7cff',bg:'#eef2ff',color:'#4f7cff'},
+  'B':  {border:'#a855f7',bg:'#fdf4ff',color:'#a855f7'},
+};
 
-let wxSummaryData = [], wxTransData = [];
-let wxSelectedFactories = new Set(ALL_FACTORIES);
-let wxFromKey = '', wxToKey = '';
+// Shared data cache
+let wxSummaryData = [], wxTransData = [], wxForecastData = [], wxBalanceData = [], wxQuestData = [], wxSystemData = [];
+let wxLoaded = false, wx2Loaded = false, wx3Loaded = false, wx4Loaded = false;
 let wxLineChart = null, wxBarChart = null;
-let wxLoaded = false;
+let wx2BalCharts = {};
 
+// Period Slider state
+const WXP  = {slots:[], lo:0, hi:0, render:null};  // S1
+const WX3P = {slots:[], lo:0, hi:0, render:null};   // S3
+
+// Per-tab factory sets
+let wxSelectedFactories  = new Set(ALL_FACTORIES);
+let wx2SelectedFactories = new Set(ALL_FACTORIES);
+let wx3SelectedFactories = new Set(ALL_FACTORIES);
+let wx4SelectedFactories = new Set(ALL_FACTORIES);
+let wx4SelectedYears     = new Set();
+let wx4AllYears          = [];
+
+// ══════════════════════════════════════════════════════
+// SUB-TAB SWITCH
+// ══════════════════════════════════════════════════════
 function switchSubTab(e, name) {
   document.querySelectorAll('[id^="sub-btn-"]').forEach(function(b){b.classList.remove('active');});
   e.currentTarget.classList.add('active');
+  ['activity','forecast','quest','company'].forEach(function(n){
+    var el = document.getElementById('subtab-'+n);
+    if (el) el.style.display = n===name ? '' : 'none';
+  });
 }
 
+// ══════════════════════════════════════════════════════
+// GRAPH API HELPER
+// ══════════════════════════════════════════════════════
+async function wxFetch(sheetKey) {
+  var token = await getToken(); if (!token) throw new Error('ไม่มี Token');
+  var url = 'https://graph.microsoft.com/v1.0/drives/'+WX_DRIVE_ID+'/items/'+WX_FILE_ID+'/workbook/worksheets/'+WX_SHEETS[sheetKey]+'/usedRange';
+  var r = await fetch(url, {headers:{Authorization:'Bearer '+token}});
+  if (!r.ok) { var t=await r.text(); throw new Error(sheetKey+': '+r.status+' '+t.substring(0,80)); }
+  return (await r.json()).values || [];
+}
+
+// ══════════════════════════════════════════════════════
+// PERIOD SLIDER
+// ══════════════════════════════════════════════════════
+function buildPeriodSlider(cfg, trackId, fillId, loId, hiId, displayId, ticksId) {
+  var track   = document.getElementById(trackId);
+  var fill    = document.getElementById(fillId);
+  var thumbLo = document.getElementById(loId);
+  var thumbHi = document.getElementById(hiId);
+  var display = document.getElementById(displayId);
+  var ticks   = document.getElementById(ticksId);
+  if (!track) return;
+
+  var n = cfg.slots.length; if (!n) return;
+  ticks.innerHTML = '';
+  cfg.slots.forEach(function(s,i){
+    var span = document.createElement('span');
+    var show = (i%3===0) || s.m===10;
+    span.style.cssText = 'font-size:10px;color:'+(s.m===10?'var(--tos)':'#aaa')+';font-weight:'+(s.m===10?'700':'400')+';min-width:0;text-align:center;';
+    span.textContent = show ? (MONTH_TH[s.m-1]+' '+s.y) : '';
+    ticks.appendChild(span);
+  });
+
+  function pct(idx){ return n===1?0:idx/(n-1)*100; }
+  function refresh(){
+    var p1=pct(cfg.lo), p2=pct(cfg.hi);
+    fill.style.left=p1+'%'; fill.style.width=(p2-p1)+'%';
+    thumbLo.style.left=p1+'%'; thumbHi.style.left=p2+'%';
+    var slo=cfg.slots[cfg.lo], shi=cfg.slots[cfg.hi];
+    if(cfg.lo===0&&cfg.hi===n-1) display.textContent='ทั้งหมด';
+    else if(cfg.lo===cfg.hi) display.textContent=MONTH_TH[slo.m-1]+' '+slo.y;
+    else display.textContent=MONTH_TH[slo.m-1]+' '+slo.y+'  —  '+MONTH_TH[shi.m-1]+' '+shi.y;
+  }
+  function idxAt(cx){ var r=track.getBoundingClientRect(); return Math.round(Math.max(0,Math.min(1,(cx-r.left)/r.width))*(n-1)); }
+  track.addEventListener('click',function(e){
+    var idx=idxAt(e.clientX), mid=Math.round((cfg.lo+cfg.hi)/2);
+    if(idx<=mid) cfg.lo=Math.min(idx,cfg.hi); else cfg.hi=Math.max(idx,cfg.lo);
+    refresh();
+  });
+  function startDrag(e,which){
+    e.preventDefault(); e.stopPropagation();
+    var move=function(ev){ var cx=ev.touches?ev.touches[0].clientX:ev.clientX, idx=idxAt(cx); if(which==='lo') cfg.lo=Math.min(idx,cfg.hi); else cfg.hi=Math.max(idx,cfg.lo); refresh(); };
+    var up=function(){ document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',up); document.removeEventListener('touchmove',move); document.removeEventListener('touchend',up); };
+    document.addEventListener('mousemove',move); document.addEventListener('mouseup',up);
+    document.addEventListener('touchmove',move,{passive:false}); document.addEventListener('touchend',up);
+  }
+  thumbLo.addEventListener('mousedown',function(e){startDrag(e,'lo');}); thumbHi.addEventListener('mousedown',function(e){startDrag(e,'hi');});
+  thumbLo.addEventListener('touchstart',function(e){startDrag(e,'lo');},{passive:false}); thumbHi.addEventListener('touchstart',function(e){startDrag(e,'hi');},{passive:false});
+  cfg.render = refresh; refresh();
+}
+
+function buildWxPeriodSlots() {
+  // Build slots from all monthKeys in data
+  var keys = new Set();
+  wxSummaryData.forEach(function(r){ if(r.monthKey) keys.add(r.monthKey); });
+  wxTransData.forEach(function(r){ if(r.monthKey) keys.add(r.monthKey); });
+  var sorted = Array.from(keys).sort();
+  if (!sorted.length) { sorted = ['2024-1','2024-12']; }
+  WXP.slots = sorted.map(function(k){ var p=k.split('-'); return {y:parseInt(p[0]),m:parseInt(p[1])}; });
+  WXP.lo = 0; WXP.hi = WXP.slots.length - 1;
+  buildPeriodSlider(WXP,'wx-period-track','wx-period-fill','wx-period-thumb-lo','wx-period-thumb-hi','wx-period-display','wx-period-ticks');
+  // Clone for S3
+  WX3P.slots = WXP.slots.slice(); WX3P.lo = 0; WX3P.hi = WX3P.slots.length - 1;
+  buildPeriodSlider(WX3P,'wx3-period-track','wx3-period-fill','wx3-period-thumb-lo','wx3-period-thumb-hi','wx3-period-display','wx3-period-ticks');
+}
+
+function wxSlotKey(s){ return s.y+'-'+s.m; }
+function wxInRange(key, cfg){ return key >= wxSlotKey(cfg.slots[cfg.lo]) && key <= wxSlotKey(cfg.slots[cfg.hi]); }
+
+// ══════════════════════════════════════════════════════
+// S1: ACTIVITY OVERVIEW — LOAD
+// ══════════════════════════════════════════════════════
 async function loadWxData() {
   if (wxLoaded) return;
   setLoading(true);
-  var wxErrBox = document.getElementById('wx-error-box');
-  wxErrBox.style.display = 'none';
+  var errBox = document.getElementById('wx-error-box'); errBox.style.display='none';
   try {
     var token = await getToken(); if (!token) return;
-    var base = 'https://graph.microsoft.com/v1.0/drives/' + WX_DRIVE_ID + '/items/' + WX_FILE_ID + '/workbook/worksheets/';
-
-    // ใช้ Sheet ID โดยตรง — หลีกเลี่ยงปัญหา URL encoding ของชื่อ Sheet
-    var WX_SHEET_SUMMARY     = '%7B9CFBBB4C-1576-4BB5-AFFA-00820E6AA9F0%7D';
-    var WX_SHEET_TRANSACTION = '%7B3C6F1E9E-F42D-4870-AF3E-1321A7BF98FD%7D';
-
-    var r1 = await fetch(base + WX_SHEET_SUMMARY + '/usedRange', {headers:{Authorization:'Bearer '+token}});
-    if (!r1.ok) {
-      var errText = await r1.text();
-      throw new Error('Query Summary: ' + r1.status + ' — ' + errText.substring(0,120));
-    }
-    var d1 = await r1.json();
-
-    var r2 = await fetch(base + WX_SHEET_TRANSACTION + '/usedRange', {headers:{Authorization:'Bearer '+token}});
-    if (!r2.ok) {
-      var errText2 = await r2.text();
-      throw new Error('Query Transaction: ' + r2.status + ' — ' + errText2.substring(0,120));
-    }
-    var d2 = await r2.json();
-
-    parseWxSummary(d1.values);
-    parseWxTransaction(d2.values);
+    var rows1 = await wxFetch('summary');
+    var rows2 = await wxFetch('transaction');
+    parseWxSummary(rows1);
+    parseWxTransaction(rows2);
     wxLoaded = true;
-
-    buildWxFactoryChips();
-    buildDateSelectors();
+    buildWxFactoryChips('wx-factory-chips', wxSelectedFactories, null);
+    buildWxPeriodSlots();
     applyWxFilter();
-
   } catch(e) {
-    wxErrBox.textContent = 'โหลดข้อมูล WellEXP ไม่สำเร็จ: ' + e.message;
-    wxErrBox.style.display = 'block';
-    console.error(e);
+    errBox.textContent='โหลดข้อมูล WellEXP ไม่สำเร็จ: '+e.message; errBox.style.display='block'; console.error(e);
   }
   setLoading(false);
 }
 
 function parseWxSummary(rows) {
-  if (!rows || rows.length < 2) return;
-  var h = rows[0].map(function(c){ return String(c||'').trim(); });
-
-  // รองรับทั้ง column names จาก Google Sheets (Quest, StartDate, GivenPoints, %Completed, โรงงาน)
+  if (!rows||rows.length<2) return;
+  var h = rows[0].map(function(c){return String(c||'').trim();});
   var idx = {
-    quest:   h.findIndex(function(c){ return /^quest$/i.test(c) && !c.includes('Maker') && !c.includes('Completed') && !c.includes('Category'); }),
-    start:   h.findIndex(function(c){ return /start/i.test(c); }),
-    pct:     h.findIndex(function(c){ return /%completed/i.test(c) || c === '%Completed'; }),
-    given:   h.findIndex(function(c){ return /given/i.test(c); }),
-    factory: h.findIndex(function(c){ return c === 'โรงงาน'; }),
+    quest:   h.findIndex(function(c){return /^quest$/i.test(c)&&!c.includes('Maker')&&!c.includes('Completed')&&!c.includes('Category');}),
+    start:   h.findIndex(function(c){return /start/i.test(c);}),
+    pct:     h.findIndex(function(c){return /%completed/i.test(c)||c==='%Completed';}),
+    given:   h.findIndex(function(c){return /given/i.test(c);}),
+    factory: h.findIndex(function(c){return c==='โรงงาน';}),
+    cat:     h.findIndex(function(c){return /category/i.test(c)&&!c.includes('Sub');}),
+    subcat:  h.findIndex(function(c){return /sub.?cat/i.test(c);}),
   };
-
-  // fallback by position ถ้าหาไม่เจอ (Google Sheets: A=Quest, D=StartDate, G=GivenPoints, H=%Completed, J=โรงงาน)
-  if (idx.quest   < 0) idx.quest   = 0;
-  if (idx.start   < 0) idx.start   = 3;
-  if (idx.given   < 0) idx.given   = 6;
-  if (idx.pct     < 0) idx.pct     = 7;
-  if (idx.factory < 0) idx.factory = 9;
-
-  wxSummaryData = rows.slice(1).filter(function(r){ return r && r[idx.factory] && String(r[idx.factory]).trim(); }).map(function(r){
+  if(idx.quest<0)idx.quest=0; if(idx.start<0)idx.start=3; if(idx.given<0)idx.given=6; if(idx.pct<0)idx.pct=7; if(idx.factory<0)idx.factory=9;
+  wxSummaryData = rows.slice(1).filter(function(r){return r&&r[idx.factory]&&String(r[idx.factory]).trim();}).map(function(r){
     var d = parseExcelDate(r[idx.start]);
-    var pctRaw = String(r[idx.pct]||'').replace('%','');
-    var pct = parseFloat(pctRaw) || 0;
-    if (pct > 1) pct = pct / 100;   // 75 → 0.75, แต่ 0.75 คงเดิม
-    return {
-      quest:    String(r[idx.quest]||''),
-      start:    d,
-      monthKey: d ? (d.getFullYear()+'-'+(d.getMonth()+1)) : '',
-      pct:      pct,
-      given:    parseFloat(r[idx.given]) || 0,
-      factory:  String(r[idx.factory]||'').trim(),
-    };
-  }).filter(function(r){ return r.start && r.monthKey; });
+    var pctRaw = parseFloat(String(r[idx.pct]||'').replace('%',''))||0;
+    if(pctRaw>1) pctRaw=pctRaw/100;
+    return { quest:String(r[idx.quest]||''), start:d, monthKey:d?(d.getFullYear()+'-'+(d.getMonth()+1)):'', pct:pctRaw, given:parseFloat(r[idx.given])||0, factory:String(r[idx.factory]||'').trim(), category:idx.cat>=0?String(r[idx.cat]||'').trim():'', subCategory:idx.subcat>=0?String(r[idx.subcat]||'').trim():'' };
+  }).filter(function(r){return r.start&&r.monthKey;});
 }
 
 function parseWxTransaction(rows) {
-  if (!rows || rows.length < 2) return;
-  var h = rows[0].map(function(c){ return String(c||'').trim(); });
-
-  var idx = {
-    title:   h.findIndex(function(c){ return /title/i.test(c); }),
-    value:   h.findIndex(function(c){ return /value/i.test(c); }),
-    date:    h.findIndex(function(c){ return /date/i.test(c); }),
-    factory: h.findIndex(function(c){ return c === 'โรงงาน'; }),
-  };
-
-  // fallback by position (Google Sheets: A=Title, C=Value, G=Date, H=โรงงาน)
-  if (idx.title   < 0) idx.title   = 0;
-  if (idx.value   < 0) idx.value   = 2;
-  if (idx.date    < 0) idx.date    = 6;
-  if (idx.factory < 0) idx.factory = 7;
-
-  wxTransData = rows.slice(1).filter(function(r){ return r && r[idx.factory] && String(r[idx.factory]).trim(); }).map(function(r){
-    var title = String(r[idx.title]||'');
-    var type = 'other';
-    if (/birthday/i.test(title))             type = 'birthday';
-    else if (/working anniversary/i.test(title)) type = 'anniversary';
-    var d = parseExcelDate(r[idx.date]);
-    return {
-      title:    title,
-      type:     type,
-      value:    parseFloat(r[idx.value]) || 0,
-      date:     d,
-      monthKey: d ? (d.getFullYear()+'-'+(d.getMonth()+1)) : '',
-      factory:  String(r[idx.factory]||'').trim(),
-    };
-  }).filter(function(r){ return r.date && r.monthKey; });
+  if(!rows||rows.length<2) return;
+  var h=rows[0].map(function(c){return String(c||'').trim();});
+  var idx={title:h.findIndex(function(c){return /title/i.test(c);}),value:h.findIndex(function(c){return /value/i.test(c);}),date:h.findIndex(function(c){return /date/i.test(c);}),factory:h.findIndex(function(c){return c==='โรงงาน';})};
+  if(idx.title<0)idx.title=0; if(idx.value<0)idx.value=2; if(idx.date<0)idx.date=6; if(idx.factory<0)idx.factory=7;
+  wxTransData=rows.slice(1).filter(function(r){return r&&r[idx.factory]&&String(r[idx.factory]).trim();}).map(function(r){
+    var title=String(r[idx.title]||''), type='other';
+    if(/birthday/i.test(title)) type='birthday'; else if(/working anniversary/i.test(title)) type='anniversary';
+    var d=parseExcelDate(r[idx.date]);
+    return {title:title,type:type,value:parseFloat(r[idx.value])||0,date:d,monthKey:d?(d.getFullYear()+'-'+(d.getMonth()+1)):'',factory:String(r[idx.factory]||'').trim()};
+  }).filter(function(r){return r.date&&r.monthKey;});
 }
 
 function parseExcelDate(v) {
-  if (!v) return null;
-  if (typeof v === 'number') {
-    var d = new Date(Math.round((v - 25569) * 86400 * 1000));
-    return isNaN(d.getTime()) ? null : d;
-  }
-  var s = String(v).trim();
-  if (!s) return null;
-  var d = new Date(s);
-  if (!isNaN(d.getTime())) return d;
-  // DD/MM/YYYY
-  var parts = s.split('/');
-  if (parts.length === 3) {
-    var d2 = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
-    return isNaN(d2.getTime()) ? null : d2;
-  }
+  if(!v) return null;
+  if(typeof v==='number'){var d=new Date(Math.round((v-25569)*86400*1000));return isNaN(d.getTime())?null:d;}
+  var s=String(v).trim(); if(!s) return null;
+  var d=new Date(s); if(!isNaN(d.getTime())) return d;
+  var parts=s.split('/');
+  if(parts.length===3){var d2=new Date(parseInt(parts[2]),parseInt(parts[1])-1,parseInt(parts[0]));return isNaN(d2.getTime())?null:d2;}
   return null;
 }
 
-function buildWxFactoryChips() {
-  var container = document.getElementById('wx-factory-chips');
-  container.innerHTML = ALL_FACTORIES.map(function(f, i){
-    return '<span class="chip selected" data-factory="'+f+'" '
-      +'style="font-size:12px;padding:4px 10px;border-color:'+(wxSelectedFactories.has(f)?'var(--tos)':'var(--border)')+';" '
-      +'onclick="toggleWxFactory(this,\''+f+'\')">'
-      +f+'</span>';
+// ── Factory Chips (generic) ──
+function buildWxFactoryChips(containerId, selectedSet, onToggle) {
+  var container=document.getElementById(containerId); if(!container) return;
+  container.innerHTML=ALL_FACTORIES.map(function(f){
+    var sel = selectedSet.has(f);
+    return '<span class="chip'+(sel?' selected':'')+'" data-factory="'+f+'" style="font-size:12px;padding:4px 10px;" onclick="toggleWxFactoryChip(this,\''+f+'\',\''+containerId+'\')">'+ f+'</span>';
   }).join('');
 }
 
-function toggleWxFactory(el, f) {
-  if (wxSelectedFactories.has(f)) { wxSelectedFactories.delete(f); el.classList.remove('selected'); }
-  else { wxSelectedFactories.add(f); el.classList.add('selected'); }
+function toggleWxFactoryChip(el, f, containerId) {
+  var map = {'wx-factory-chips':wxSelectedFactories,'wx2-factory-chips':wx2SelectedFactories,'wx3-factory-chips':wx3SelectedFactories,'wx4-factory-chips':wx4SelectedFactories};
+  var s = map[containerId];
+  if(s){ if(s.has(f)){s.delete(f);el.classList.remove('selected');}else{s.add(f);el.classList.add('selected');} }
 }
 
-function onWxRegionChange() {
-  var region = document.getElementById('wx-region').value;
-  wxSelectedFactories = new Set();
-  var regionFactories = region === 'ALL' ? null : (REGION_MAP_WX[region] || []);
-  document.querySelectorAll('#wx-factory-chips .chip').forEach(function(el){
-    var f = el.dataset.factory;
-    var include = region === 'ALL' || (regionFactories && regionFactories.indexOf(f) >= 0);
-    if (include) { wxSelectedFactories.add(f); el.classList.add('selected'); }
-    else { el.classList.remove('selected'); }
+function onWxRegionChange()  { filterChipsByRegion('wx-region','wx-factory-chips',wxSelectedFactories); }
+function onWx2RegionChange() { filterChipsByRegion('wx2-region','wx2-factory-chips',wx2SelectedFactories); }
+function onWx3RegionChange() { filterChipsByRegion('wx3-region','wx3-factory-chips',wx3SelectedFactories); }
+function onWx4RegionChange() { filterChipsByRegion('wx4-region','wx4-factory-chips',wx4SelectedFactories); }
+
+function filterChipsByRegion(selectId, containerId, selectedSet) {
+  var region=document.getElementById(selectId).value;
+  var regionFacs = region==='ALL' ? null : (REGION_MAP_WX[region]||[]);
+  selectedSet.clear();
+  document.querySelectorAll('#'+containerId+' .chip').forEach(function(el){
+    var f=el.dataset.factory;
+    var include = !regionFacs || regionFacs.indexOf(f)>=0;
+    if(include){selectedSet.add(f);el.classList.add('selected');}else{el.classList.remove('selected');}
   });
 }
 
-function buildDateSelectors() {
-  // Collect all month keys
-  var keys = new Set();
-  wxSummaryData.forEach(function(r){ if(r.monthKey) keys.add(r.monthKey); });
-  wxTransData.forEach(function(r){ if(r.monthKey) keys.add(r.monthKey); });
-  var sorted = Array.from(keys).sort();
-  if (!sorted.length) return;
+function formatMonthKey(k){var p=k.split('-');return MONTH_TH[parseInt(p[1])-1]+' '+p[0];}
 
-  var fromSel = document.getElementById('wx-date-from');
-  var toSel   = document.getElementById('wx-date-to');
-  fromSel.innerHTML = sorted.map(function(k){
-    return '<option value="'+k+'">'+formatMonthKey(k)+'</option>';
-  }).join('');
-  toSel.innerHTML = sorted.map(function(k){
-    return '<option value="'+k+'">'+formatMonthKey(k)+'</option>';
-  }).join('');
-  fromSel.value = sorted[0];
-  toSel.value   = sorted[sorted.length-1];
-  wxFromKey = sorted[0];
-  wxToKey   = sorted[sorted.length-1];
-}
-
-function formatMonthKey(k) {
-  var parts = k.split('-');
-  return MONTH_TH[parseInt(parts[1])-1] + ' ' + parts[0];
-}
-
+// ── Render S1 ──
 function applyWxFilter() {
-  wxFromKey = document.getElementById('wx-date-from').value;
-  wxToKey   = document.getElementById('wx-date-to').value;
+  if (!wxLoaded) return;
   renderWxDashboard();
 }
 
 function resetWxFilter() {
-  document.getElementById('wx-region').value = 'ALL';
-  wxSelectedFactories = new Set(ALL_FACTORIES);
-  document.querySelectorAll('#wx-factory-chips .chip').forEach(function(el){ el.classList.add('selected'); });
-  var sel = document.getElementById('wx-date-from');
-  wxFromKey = sel.options[0].value;
-  sel.value = wxFromKey;
-  var sel2 = document.getElementById('wx-date-to');
-  wxToKey = sel2.options[sel2.options.length-1].value;
-  sel2.value = wxToKey;
+  document.getElementById('wx-region').value='ALL';
+  wxSelectedFactories=new Set(ALL_FACTORIES);
+  buildWxFactoryChips('wx-factory-chips',wxSelectedFactories,null);
+  WXP.lo=0; WXP.hi=WXP.slots.length-1; if(WXP.render) WXP.render();
   renderWxDashboard();
 }
 
-function inRange(key) {
-  return key >= wxFromKey && key <= wxToKey;
-}
-
 function renderWxDashboard() {
-  // Filter summary
-  var sumFiltered = wxSummaryData.filter(function(r){
-    return wxSelectedFactories.has(r.factory) && inRange(r.monthKey);
-  });
-  // Filter trans
-  var transFiltered = wxTransData.filter(function(r){
-    return wxSelectedFactories.has(r.factory) && inRange(r.monthKey);
-  });
+  var fromKey = WXP.slots[WXP.lo] ? wxSlotKey(WXP.slots[WXP.lo]) : '';
+  var toKey   = WXP.slots[WXP.hi] ? wxSlotKey(WXP.slots[WXP.hi]) : '';
+  function inR(k){ return (!fromKey||k>=fromKey)&&(!toKey||k<=toKey); }
+
+  var sumF  = wxSummaryData.filter(function(r){return wxSelectedFactories.has(r.factory)&&inR(r.monthKey);});
+  var transF= wxTransData.filter(function(r){return wxSelectedFactories.has(r.factory)&&inR(r.monthKey);});
 
   // KPI
-  var avgPct = sumFiltered.length ? (sumFiltered.reduce(function(a,r){return a+r.pct;},0)/sumFiltered.length*100) : 0;
-  var totalWP = transFiltered.reduce(function(a,r){return a+r.value;},0)
-              + sumFiltered.reduce(function(a,r){return a+r.given;},0);
-  document.getElementById('wx-kpi-pct').textContent = avgPct.toFixed(1) + '%';
-  document.getElementById('wx-kpi-wp').textContent  = Math.round(totalWP).toLocaleString();
+  var avgPct = sumF.length?(sumF.reduce(function(a,r){return a+r.pct;},0)/sumF.length*100):0;
+  var totalWP= transF.reduce(function(a,r){return a+r.value;},0)+sumF.reduce(function(a,r){return a+r.given;},0);
+  document.getElementById('wx-kpi-pct').textContent=avgPct.toFixed(1)+'%';
+  document.getElementById('wx-kpi-wp').textContent=Math.round(totalWP).toLocaleString();
 
   // WP by type
-  var wpActivity    = sumFiltered.reduce(function(a,r){return a+r.given;},0);
-  var wpBirthday    = transFiltered.filter(function(r){return r.type==='birthday';}).reduce(function(a,r){return a+r.value;},0);
-  var wpAnniversary = transFiltered.filter(function(r){return r.type==='anniversary';}).reduce(function(a,r){return a+r.value;},0);
-  var wpOther       = transFiltered.filter(function(r){return r.type==='other';}).reduce(function(a,r){return a+r.value;},0);
-  document.getElementById('wx-wp-activity').textContent    = Math.round(wpActivity).toLocaleString();
-  document.getElementById('wx-wp-birthday').textContent    = Math.round(wpBirthday).toLocaleString();
-  document.getElementById('wx-wp-anniversary').textContent = Math.round(wpAnniversary).toLocaleString();
-  document.getElementById('wx-wp-other').textContent       = Math.round(wpOther).toLocaleString();
+  document.getElementById('wx-wp-activity').textContent=Math.round(sumF.reduce(function(a,r){return a+r.given;},0)).toLocaleString();
+  document.getElementById('wx-wp-birthday').textContent=Math.round(transF.filter(function(r){return r.type==='birthday';}).reduce(function(a,r){return a+r.value;},0)).toLocaleString();
+  document.getElementById('wx-wp-anniversary').textContent=Math.round(transF.filter(function(r){return r.type==='anniversary';}).reduce(function(a,r){return a+r.value;},0)).toLocaleString();
+  document.getElementById('wx-wp-other').textContent=Math.round(transF.filter(function(r){return r.type==='other';}).reduce(function(a,r){return a+r.value;},0)).toLocaleString();
 
-  // Month keys in range
-  var allKeys = new Set();
-  sumFiltered.forEach(function(r){allKeys.add(r.monthKey);});
-  transFiltered.forEach(function(r){allKeys.add(r.monthKey);});
-  var monthKeys = Array.from(allKeys).sort();
-  var monthLabels = monthKeys.map(formatMonthKey);
-
-  // LINE CHART: % per factory per month
-  var factories = Array.from(wxSelectedFactories).sort();
-  var lineDatasets = factories.map(function(f, i){
-    var data = monthKeys.map(function(mk){
-      var rows = sumFiltered.filter(function(r){return r.factory===f && r.monthKey===mk;});
-      if (!rows.length) return null;
-      return parseFloat((rows.reduce(function(a,r){return a+r.pct;},0)/rows.length*100).toFixed(1));
-    });
-    return {
-      label: f, data: data,
-      borderColor: FACTORY_COLORS[i % FACTORY_COLORS.length],
-      backgroundColor: 'transparent',
-      tension: 0.3, pointRadius: 3, borderWidth: 2, spanGaps: true
-    };
-  });
+  var allKeys=new Set(); sumF.forEach(function(r){allKeys.add(r.monthKey);}); transF.forEach(function(r){allKeys.add(r.monthKey);});
+  var monthKeys=Array.from(allKeys).sort();
+  var monthLabels=monthKeys.map(formatMonthKey);
 
   // Stats
-  var allPcts = sumFiltered.map(function(r){return r.pct*100;});
-  if (allPcts.length) {
-    document.getElementById('wx-stat-max').textContent = Math.max.apply(null,allPcts).toFixed(1)+'%';
-    document.getElementById('wx-stat-min').textContent = Math.min.apply(null,allPcts).toFixed(1)+'%';
-    document.getElementById('wx-stat-avg').textContent = (allPcts.reduce(function(a,b){return a+b;},0)/allPcts.length).toFixed(1)+'%';
-  } else {
-    ['wx-stat-max','wx-stat-min','wx-stat-avg'].forEach(function(id){document.getElementById(id).textContent='—';});
-  }
+  var allPcts=sumF.map(function(r){return r.pct*100;});
+  if(allPcts.length){
+    document.getElementById('wx-stat-max').textContent=Math.max.apply(null,allPcts).toFixed(1)+'%';
+    document.getElementById('wx-stat-min').textContent=Math.min.apply(null,allPcts).toFixed(1)+'%';
+    document.getElementById('wx-stat-avg').textContent=(allPcts.reduce(function(a,b){return a+b;},0)/allPcts.length).toFixed(1)+'%';
+  } else {['wx-stat-max','wx-stat-min','wx-stat-avg'].forEach(function(id){document.getElementById(id).textContent='—';});}
 
-  if (wxLineChart) wxLineChart.destroy();
-  wxLineChart = new Chart(document.getElementById('wx-line-chart'), {
-    type: 'line',
-    data: { labels: monthLabels, datasets: lineDatasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { position: 'bottom', labels: { color: '#5c6080', font: { family: 'Sarabun', size: 11 }, boxWidth: 12, padding: 10 }},
-        tooltip: { callbacks: { label: function(c){ return ' '+c.dataset.label+': '+(c.parsed.y!=null?c.parsed.y.toFixed(1)+'%':'—'); }}}
-      },
-      scales: {
-        x: { grid: { color: '#e2e4ec' }, ticks: { color: '#5c6080', font: { family: 'Sarabun', size: 11 }, maxRotation: 45 }},
-        y: { min: 0, max: 100, grid: { color: '#e2e4ec' }, ticks: { color: '#5c6080', font: { family: 'Sarabun', size: 11 }, callback: function(v){ return v+'%'; }}}
-      }
-    }
+  // Line Chart
+  var factories=Array.from(wxSelectedFactories).sort();
+  var lineDS=factories.map(function(f,i){
+    return {label:f,data:monthKeys.map(function(mk){var rows=sumF.filter(function(r){return r.factory===f&&r.monthKey===mk;});return rows.length?parseFloat((rows.reduce(function(a,r){return a+r.pct;},0)/rows.length*100).toFixed(1)):null;}),borderColor:FACTORY_COLORS[i%FACTORY_COLORS.length],backgroundColor:'transparent',tension:0.3,pointRadius:3,borderWidth:2,spanGaps:true};
   });
+  if(wxLineChart) wxLineChart.destroy();
+  wxLineChart=new Chart(document.getElementById('wx-line-chart'),{type:'line',data:{labels:monthLabels,datasets:lineDS},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom',labels:{color:'#5c6080',font:{family:'Sarabun',size:11},boxWidth:12,padding:10}},tooltip:{callbacks:{label:function(c){return ' '+c.dataset.label+': '+(c.parsed.y!=null?c.parsed.y.toFixed(1)+'%':'—');}}}},scales:{x:{grid:{color:'#e2e4ec'},ticks:{color:'#5c6080',font:{family:'Sarabun',size:11},maxRotation:45}},y:{min:0,max:100,grid:{color:'#e2e4ec'},ticks:{color:'#5c6080',font:{family:'Sarabun',size:11},callback:function(v){return v+'%';}}}}}}); 
 
-  // BAR CHART: WP by type per month
-  var barActivity    = monthKeys.map(function(mk){ return sumFiltered.filter(function(r){return r.monthKey===mk;}).reduce(function(a,r){return a+r.given;},0); });
-  var barBirthday    = monthKeys.map(function(mk){ return transFiltered.filter(function(r){return r.type==='birthday'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0); });
-  var barAnniversary = monthKeys.map(function(mk){ return transFiltered.filter(function(r){return r.type==='anniversary'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0); });
-  var barOther       = monthKeys.map(function(mk){ return transFiltered.filter(function(r){return r.type==='other'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0); });
+  // Bar Chart
+  if(wxBarChart) wxBarChart.destroy();
+  wxBarChart=new Chart(document.getElementById('wx-bar-chart'),{type:'bar',data:{labels:monthLabels,datasets:[{label:'กิจกรรม',data:monthKeys.map(function(mk){return sumF.filter(function(r){return r.monthKey===mk;}).reduce(function(a,r){return a+r.given;},0);}),backgroundColor:'#4f7cff'},{label:'วันเกิด',data:monthKeys.map(function(mk){return transF.filter(function(r){return r.type==='birthday'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0);}),backgroundColor:'#DF1882'},{label:'ครบอายุงาน',data:monthKeys.map(function(mk){return transF.filter(function(r){return r.type==='anniversary'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0);}),backgroundColor:'#16a34a'},{label:'อื่นๆ',data:monthKeys.map(function(mk){return transF.filter(function(r){return r.type==='other'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0);}),backgroundColor:'#94a3b8'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#5c6080',font:{family:'Sarabun',size:12},boxWidth:12,padding:12}},tooltip:{callbacks:{label:function(c){return ' '+c.dataset.label+': '+Math.round(c.parsed.y).toLocaleString()+' WP';}}}},scales:{x:{grid:{display:false},ticks:{color:'#5c6080',font:{family:'Sarabun',size:11},maxRotation:45}},y:{grid:{color:'#e2e4ec'},ticks:{color:'#5c6080',font:{family:'Sarabun',size:11},callback:function(v){return v.toLocaleString();}}}}}}); 
 
-  if (wxBarChart) wxBarChart.destroy();
-  wxBarChart = new Chart(document.getElementById('wx-bar-chart'), {
-    type: 'bar',
-    data: {
-      labels: monthLabels,
-      datasets: [
-        { label: 'กิจกรรม',     data: barActivity,    backgroundColor: '#4f7cff' },
-        { label: 'วันเกิด',     data: barBirthday,    backgroundColor: '#DF1882' },
-        { label: 'ครบอายุงาน', data: barAnniversary, backgroundColor: '#16a34a' },
-        { label: 'อื่นๆ',      data: barOther,       backgroundColor: '#94a3b8' },
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom', labels: { color: '#5c6080', font: { family: 'Sarabun', size: 12 }, boxWidth: 12, padding: 12 }},
-        tooltip: { callbacks: { label: function(c){ return ' '+c.dataset.label+': '+Math.round(c.parsed.y).toLocaleString()+' WP'; }}}
-      },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: '#5c6080', font: { family: 'Sarabun', size: 11 }, maxRotation: 45 }},
-        y: { grid: { color: '#e2e4ec' }, ticks: { color: '#5c6080', font: { family: 'Sarabun', size: 11 }, callback: function(v){ return v.toLocaleString(); }}}
-      }
-    }
-  });
-
-  // AWARD PANEL
-  renderAwardPanel(sumFiltered, monthKeys);
+  // Award
+  renderAwardPanel(sumF, monthKeys);
 }
 
 function renderAwardPanel(data, monthKeys) {
-  var panel = document.getElementById('wx-award-panel');
-  if (!monthKeys.length) { panel.innerHTML = '<div style="color:var(--text3);text-align:center;padding:32px">ไม่พบข้อมูล</div>'; return; }
-
-  // Grade function
-  function getGrade(pct) {
-    if (pct >= 99) return 'S';
-    if (pct >= 81) return 'A+';
-    if (pct >= 61) return 'A';
-    if (pct >= 41) return 'B';
-    return null;
-  }
-  var gradeStyle = {
-    'S':  { border:'#f59e0b', bg:'#fff8e1', color:'#b45309' },
-    'A+': { border:'#16a34a', bg:'#f0fdf4', color:'#16a34a' },
-    'A':  { border:'#4f7cff', bg:'#eef2ff', color:'#4f7cff' },
-    'B':  { border:'#a855f7', bg:'#fdf4ff', color:'#a855f7' },
-  };
-
-  var html = '';
+  var panel=document.getElementById('wx-award-panel');
+  if(!monthKeys.length){panel.innerHTML='<div style="color:var(--text3);text-align:center;padding:32px">ไม่พบข้อมูล</div>';return;}
+  var html='';
   monthKeys.slice().reverse().forEach(function(mk){
-    var rows = data.filter(function(r){return r.monthKey===mk;});
-    // avg pct per factory
-    var factoryAvg = {};
-    rows.forEach(function(r){
-      if (!factoryAvg[r.factory]) factoryAvg[r.factory] = [];
-      factoryAvg[r.factory].push(r.pct*100);
-    });
-    var graded = [];
-    Object.keys(factoryAvg).forEach(function(f){
-      var avg = factoryAvg[f].reduce(function(a,b){return a+b;},0)/factoryAvg[f].length;
-      var g = getGrade(avg);
-      if (g) graded.push({ factory: f, avg: avg, grade: g });
-    });
-    if (!graded.length) return;
+    var rows=data.filter(function(r){return r.monthKey===mk;});
+    var factoryAvg={};
+    rows.forEach(function(r){if(!factoryAvg[r.factory])factoryAvg[r.factory]=[];factoryAvg[r.factory].push(r.pct*100);});
+    var seats={'S':Infinity,'A+':3,'A':2,'B':1}, winners=[];
+    Object.keys(factoryAvg).map(function(f){return {factory:f,avg:factoryAvg[f].reduce(function(a,b){return a+b;},0)/factoryAvg[f].length};})
+      .sort(function(a,b){return b.avg-a.avg;}).forEach(function(item){
+        var g=GRADE_CONFIG.find(function(g){return item.avg>=g.min&&item.avg<=g.max;});
+        if(!g||seats[g.grade]<=0) return; seats[g.grade]--; winners.push({factory:item.factory,avg:item.avg,grade:g.grade});
+      });
+    if(!winners.length) return;
+    html+='<div style="margin-bottom:20px;"><div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);">'+formatMonthKey(mk)+'</div><div style="display:flex;flex-wrap:wrap;gap:10px;">';
+    winners.forEach(function(item){var s=GRADE_STYLE[item.grade];html+='<div style="border:2px solid '+s.border+';background:'+s.bg+';border-radius:10px;padding:12px 16px;min-width:110px;text-align:center;"><div style="font-size:22px;font-weight:700;color:'+s.color+';">'+item.grade+'</div><div style="font-size:12px;font-weight:600;color:'+s.color+';margin-top:2px;">'+item.factory+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;">'+item.avg.toFixed(1)+'%</div></div>';});
+    html+='</div></div>';
+  });
+  panel.innerHTML=html||'<div style="color:var(--text3);text-align:center;padding:32px">ไม่พบโรงงานที่มี % ≥ 41% ในช่วงที่เลือก</div>';
+}
 
-    // Sort by grade then avg
-    var gradeOrder = { S:0, 'A+':1, A:2, B:3 };
-    graded.sort(function(a,b){ return gradeOrder[a.grade]-gradeOrder[b.grade] || b.avg-a.avg; });
+// ══════════════════════════════════════════════════════
+// S2: FORECAST & POINT BALANCE
+// ══════════════════════════════════════════════════════
+async function initWxForecast() {
+  if (wx2Loaded) return;
+  setLoading(true);
+  var errBox=document.getElementById('wx2-error-box'); errBox.style.display='none';
+  try {
+    if (!wxLoaded) { var r1=await wxFetch('summary'); parseWxSummary(r1); var r2=await wxFetch('transaction'); parseWxTransaction(r2); wxLoaded=true; }
+    var rowsF = await wxFetch('forecast');
+    var rowsB = await wxFetch('balance');
+    parseForecast(rowsF);
+    parseBalance(rowsB);
+    buildWxFactoryChips('wx2-factory-chips',wx2SelectedFactories,null);
+    buildFiscalYearSelect();
+    renderWxForecast();
+    wx2Loaded=true;
+  } catch(e){errBox.textContent='โหลดข้อมูลไม่สำเร็จ: '+e.message;errBox.style.display='block';console.error(e);}
+  setLoading(false);
+}
 
-    html += '<div style="margin-bottom:20px;">';
-    html += '<div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);">'+formatMonthKey(mk)+'</div>';
-    html += '<div style="display:flex;flex-wrap:wrap;gap:10px;">';
-    graded.forEach(function(item){
-      var s = gradeStyle[item.grade];
-      html += '<div style="border:2px solid '+s.border+';background:'+s.bg+';border-radius:10px;padding:12px 16px;min-width:110px;text-align:center;">'
-        +'<div style="font-size:22px;font-weight:700;color:'+s.color+';">'+item.grade+'</div>'
-        +'<div style="font-size:12px;font-weight:600;color:'+s.color+';margin-top:2px;">'+item.factory+'</div>'
-        +'<div style="font-size:11px;color:var(--text3);margin-top:2px;">'+item.avg.toFixed(1)+'%</div>'
-        +'</div>';
-    });
-    html += '</div></div>';
+function parseForecast(rows) {
+  if(!rows||rows.length<2) return;
+  var h=rows[0].map(function(c){return String(c||'').trim();});
+  var idx={factory:h.findIndex(function(c){return c==='โรงงาน';}),fiscal:h.findIndex(function(c){return /ปีงบ/i.test(c)||/fiscal/i.test(c);}),wp:h.findIndex(function(c){return /wellpoint/i.test(c)||/wp/i.test(c)&&!/balance/i.test(c)&&!/price/i.test(c);})};
+  if(idx.factory<0)idx.factory=0; if(idx.fiscal<0)idx.fiscal=1; if(idx.wp<0)idx.wp=2;
+  wxForecastData=rows.slice(1).filter(function(r){return r&&r[idx.factory];}).map(function(r){
+    var fyText=String(r[idx.fiscal]||'');
+    var nums=(fyText.match(/\d{4}/g)||[]).map(Number).filter(function(n){return n>=2000&&n<=2100;});
+    return {factory:String(r[idx.factory]||'').trim(),fiscalYear:fyText,fyFrom:nums.length?Math.min.apply(null,nums)+'-10':'',fyTo:nums.length?Math.max.apply(null,nums)+'-09':'',wp:parseFloat(r[idx.wp])||0};
+  }).filter(function(r){return r.factory&&r.wp;});
+}
+
+function parseBalance(rows) {
+  if(!rows||rows.length<2) return;
+  var h=rows[0].map(function(c){return String(c||'').trim();});
+  var idx={factory:h.findIndex(function(c){return c==='โรงงาน';}),bal:h.findIndex(function(c){return /balance/i.test(c)||c==='Balance';}),date:h.findIndex(function(c){return /date|วันที่/i.test(c);}),fiscal:h.findIndex(function(c){return /ปีงบ/i.test(c)||/fiscal/i.test(c);})};
+  if(idx.factory<0)idx.factory=0; if(idx.bal<0)idx.bal=1; if(idx.date<0)idx.date=2; if(idx.fiscal<0)idx.fiscal=3;
+  wxBalanceData=rows.slice(1).filter(function(r){return r&&r[idx.factory]&&r[idx.bal]!==''&&r[idx.bal]!=null;}).map(function(r){
+    var d=parseExcelDate(r[idx.date]);
+    return {factory:String(r[idx.factory]||'').trim(),balance:parseFloat(r[idx.bal])||0,date:d,monthKey:d?(d.getFullYear()+'-'+(d.getMonth()+1)):'',fiscalYear:String(r[idx.fiscal]||'').trim()};
+  }).filter(function(r){return r.factory&&r.date;});
+}
+
+function buildFiscalYearSelect() {
+  var years=[];
+  wxForecastData.forEach(function(r){if(r.fiscalYear&&years.indexOf(r.fiscalYear)<0)years.push(r.fiscalYear);});
+  var sel=document.getElementById('wx2-fiscal-year'); sel.innerHTML='';
+  years.forEach(function(y){var o=document.createElement('option');o.value=y;o.textContent=y;sel.appendChild(o);});
+}
+
+function loadWxForecast() { renderWxForecast(); }
+
+function resetWxForecast() {
+  document.getElementById('wx2-region').value='ALL';
+  wx2SelectedFactories=new Set(ALL_FACTORIES);
+  buildWxFactoryChips('wx2-factory-chips',wx2SelectedFactories,null);
+  renderWxForecast();
+}
+
+function renderWxForecast() {
+  var fy=document.getElementById('wx2-fiscal-year').value;
+  var fcRows=wxForecastData.filter(function(r){return r.fiscalYear===fy&&wx2SelectedFactories.has(r.factory);});
+  var fyFrom='',fyTo='';
+  if(fcRows.length){fyFrom=fcRows[0].fyFrom;fyTo=fcRows[0].fyTo;}
+
+  // actual from summary+trans in fiscal year period
+  function inFY(k){return (!fyFrom||k>=fyFrom)&&(!fyTo||k<=fyTo);}
+  var actualByFactory={};
+  wxSummaryData.filter(function(r){return inFY(r.monthKey)&&wx2SelectedFactories.has(r.factory);}).forEach(function(r){actualByFactory[r.factory]=(actualByFactory[r.factory]||0)+r.given;});
+  wxTransData.filter(function(r){return inFY(r.monthKey)&&wx2SelectedFactories.has(r.factory);}).forEach(function(r){actualByFactory[r.factory]=(actualByFactory[r.factory]||0)+r.value;});
+
+  // Latest balance per factory
+  var latestBal={};
+  wxBalanceData.filter(function(r){return wx2SelectedFactories.has(r.factory);}).forEach(function(r){
+    if(!latestBal[r.factory]||r.date>latestBal[r.factory].date) latestBal[r.factory]=r;
   });
 
-  panel.innerHTML = html || '<div style="color:var(--text3);text-align:center;padding:32px">ไม่พบโรงงานที่มี % ≥ 41% ในช่วงที่เลือก</div>';
+  // Render Forecast Table
+  var el=document.getElementById('wx2-forecast-content');
+  if(!fcRows.length){el.innerHTML='<div style="text-align:center;color:var(--text3);padding:40px;">ไม่พบข้อมูล Forecast ในปีงบประมาณที่เลือก</div>';} else {
+    var rows=fcRows.map(function(r){
+      var actual=actualByFactory[r.factory]||0, bal=latestBal[r.factory]?latestBal[r.factory].balance:null;
+      var pctFc=r.wp>0?Math.round(actual/r.wp*100):0;
+      var pctBal=bal!=null?(actual+bal)>0?Math.round(actual/(actual+bal)*100):0:null;
+      var statusText=pctFc>=100?'เกินงบ':pctFc>=90?'ใกล้เต็ม':pctFc>=50?'ปกติ':'ต่ำ';
+      var statusColor=pctFc>=100?'#dc2626':pctFc>=90?'#f97316':pctFc>=50?'#16a34a':'#6366f1';
+      return {factory:r.factory,fc:r.wp,actual:actual,pctFc:pctFc,bal:bal,pctBal:pctBal,statusText:statusText,statusColor:statusColor};
+    }).sort(function(a,b){return b.pctFc-a.pctFc;});
+    var totalFc=rows.reduce(function(s,r){return s+r.fc;},0), totalAct=rows.reduce(function(s,r){return s+r.actual;},0);
+    el.innerHTML='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#f8f9fc;"><th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);">โรงงาน</th><th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);">Forecast (WP)</th><th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);">ใช้จริง (WP)</th><th style="padding:10px 14px;min-width:160px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);">% ใช้ไป vs Forecast</th><th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);">Point Balance</th><th style="padding:10px 14px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);">สถานะ</th></tr></thead><tbody>'+
+      rows.map(function(r){return '<tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 14px;font-weight:600;">'+r.factory+'</td><td style="padding:10px 14px;text-align:right;color:var(--text2);">'+r.fc.toLocaleString()+'</td><td style="padding:10px 14px;text-align:right;font-weight:600;">'+r.actual.toLocaleString()+'</td><td style="padding:10px 14px;"><div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;background:#e2e4ec;border-radius:4px;height:8px;overflow:hidden;"><div style="height:100%;background:'+(r.pctFc>=100?'#dc2626':r.pctFc>=90?'#f97316':'#4f7cff')+';width:'+Math.min(r.pctFc,100)+'%;"></div></div><span style="font-size:12px;font-weight:700;color:'+(r.pctFc>=100?'#dc2626':r.pctFc>=90?'#f97316':'var(--text)')+';">'+r.pctFc+'%</span></div></td><td style="padding:10px 14px;text-align:right;font-weight:700;color:'+(r.bal!=null&&r.bal<0?'#dc2626':'var(--text)')+';">'+(r.bal!=null?r.bal.toLocaleString():'—')+'</td><td style="padding:10px 14px;"><span style="background:'+r.statusColor+'20;color:'+r.statusColor+';border-radius:12px;padding:3px 10px;font-size:12px;font-weight:600;">'+r.statusText+'</span></td></tr>';}).join('')+
+      '<tr style="background:#f8f9fc;font-weight:700;"><td style="padding:10px 14px;">รวมทั้งหมด</td><td style="padding:10px 14px;text-align:right;">'+totalFc.toLocaleString()+'</td><td style="padding:10px 14px;text-align:right;">'+totalAct.toLocaleString()+'</td><td style="padding:10px 14px;"><span style="font-weight:700;">'+(totalFc>0?Math.round(totalAct/totalFc*100):0)+'%</span></td><td colspan="2"></td></tr>'+
+      '</tbody></table></div>';
+  }
+
+  // Balance Cards
+  var balEl=document.getElementById('wx2-balance-content');
+  var balFiltered=wxBalanceData.filter(function(r){return wx2SelectedFactories.has(r.factory);});
+  var byFactory={};
+  balFiltered.forEach(function(r){if(!byFactory[r.factory])byFactory[r.factory]=[];byFactory[r.factory].push(r);});
+  Object.values(byFactory).forEach(function(arr){arr.sort(function(a,b){return a.date-b.date;});});
+  // Destroy old charts
+  Object.values(wx2BalCharts).forEach(function(c){try{c.destroy();}catch(e){}});wx2BalCharts={};
+  if(!Object.keys(byFactory).length){balEl.innerHTML='<div style="text-align:center;color:var(--text3);padding:40px;">ไม่มีข้อมูล Point Balance</div>';return;}
+  var grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;';
+  Object.keys(byFactory).sort().forEach(function(factory){
+    var rows=byFactory[factory], cur=rows[rows.length-1], prev=rows.length>1?rows[rows.length-2]:null;
+    var delta=prev!=null?cur.balance-prev.balance:null;
+    var safeId=factory.replace(/[^a-zA-Z0-9]/g,'_'), cid='wxb-'+safeId;
+    var card=document.createElement('div');card.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow);';
+    card.innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;"><div><div style="font-size:14px;font-weight:700;color:var(--text);">'+factory+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px;">'+(cur.date?MONTH_TH[cur.date.getMonth()]+' '+cur.date.getFullYear():'—')+'</div></div><div style="text-align:right;"><div style="font-size:11px;color:var(--text2);">คงเหลือ</div><div style="font-size:20px;font-weight:700;color:var(--tos);">'+cur.balance.toLocaleString()+'</div><div style="font-size:10px;color:var(--text3);">Wellpoint</div></div></div><div style="height:70px;"><canvas id="'+cid+'"></canvas></div>'+(delta!=null?'<div style="margin-top:8px;font-size:12px;color:'+(delta>=0?'#16a34a':'#dc2626')+';">'+(delta>=0?'▲':'▼')+' '+Math.abs(delta).toLocaleString()+' WP จากเดือนก่อน</div>':'');
+    grid.appendChild(card);
+    setTimeout(function(){
+      var canvas=document.getElementById(cid);if(!canvas)return;
+      var vals=rows.map(function(r){return r.balance;}), labels=rows.map(function(r){return r.date?MONTH_TH[r.date.getMonth()]+' '+r.date.getFullYear():'—';});
+      var lc=vals.length<2?'#4f7cff':vals[vals.length-1]<vals[vals.length-2]?'#ef4444':'#4f7cff';
+      wx2BalCharts[cid]=new Chart(canvas.getContext('2d'),{type:'line',data:{labels:labels,datasets:[{data:vals,borderColor:lc,backgroundColor:lc.replace('ff','22'),tension:0.3,pointRadius:2,borderWidth:2,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return 'Balance: '+c.parsed.y.toLocaleString()+' WP';}}}},scales:{x:{display:false},y:{display:false}}}});
+    },80);
+  });
+  balEl.innerHTML='';balEl.appendChild(grid);
+}
+
+// ══════════════════════════════════════════════════════
+// S3: QUEST CATEGORY
+// ══════════════════════════════════════════════════════
+let wx3SelectedCats = new Set();
+
+async function initWxQuest() {
+  if (wx3Loaded) return;
+  setLoading(true);
+  var errBox=document.getElementById('wx3-error-box');errBox.style.display='none';
+  try {
+    if(!wxLoaded){var r1=await wxFetch('summary');parseWxSummary(r1);var r2=await wxFetch('transaction');parseWxTransaction(r2);wxLoaded=true;}
+    buildWx3CatChips();
+    buildWxFactoryChips('wx3-factory-chips',wx3SelectedFactories,null);
+    if(WXP.slots.length){WX3P.slots=WXP.slots.slice();WX3P.lo=0;WX3P.hi=WX3P.slots.length-1;buildPeriodSlider(WX3P,'wx3-period-track','wx3-period-fill','wx3-period-thumb-lo','wx3-period-thumb-hi','wx3-period-display','wx3-period-ticks');}
+    loadWxQuest();
+    wx3Loaded=true;
+  }catch(e){errBox.textContent='โหลดข้อมูลไม่สำเร็จ: '+e.message;errBox.style.display='block';console.error(e);}
+  setLoading(false);
+}
+
+function buildWx3CatChips(){
+  var el=document.getElementById('wx3-cat-chips');el.innerHTML='';
+  CAT_LIST.forEach(function(cat){
+    var c=document.createElement('div');c.className='chip';c.textContent=cat;c.style.cssText='font-size:12px;padding:5px 12px;border-radius:20px;cursor:pointer;';
+    c.onclick=function(){if(wx3SelectedCats.has(cat)){wx3SelectedCats.delete(cat);c.classList.remove('selected');}else{wx3SelectedCats.add(cat);c.classList.add('selected');}};
+    el.appendChild(c);
+  });
+}
+
+function loadWxQuest(){
+  var fromKey=WX3P.slots[WX3P.lo]?wxSlotKey(WX3P.slots[WX3P.lo]):'';
+  var toKey=WX3P.slots[WX3P.hi]?wxSlotKey(WX3P.slots[WX3P.hi]):'';
+  function inR(k){return(!fromKey||k>=fromKey)&&(!toKey||k<=toKey);}
+  var filtered=wxSummaryData.filter(function(r){return wx3SelectedFactories.has(r.factory)&&inR(r.monthKey);});
+  var showCats=wx3SelectedCats.size?Array.from(wx3SelectedCats):CAT_LIST;
+  var el=document.getElementById('wx3-content');el.innerHTML='';
+  showCats.forEach(function(cat){
+    var items=filtered.filter(function(r){return (r.category||'').toLowerCase()===cat.toLowerCase();});
+    if(!items.length) return;
+    var bySub={};items.forEach(function(r){var sub=r.subCategory||'ทั่วไป';if(!bySub[sub])bySub[sub]=[];bySub[sub].push(r);});
+    var questAvg={};
+    items.forEach(function(r){if(!questAvg[r.quest])questAvg[r.quest]={sum:0,count:0,factories:new Set(),subCategory:r.subCategory||'ทั่วไป'};questAvg[r.quest].sum+=r.pct*100;questAvg[r.quest].count++;questAvg[r.quest].factories.add(r.factory);});
+    var catSection=document.createElement('div');catSection.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);margin-bottom:20px;';
+    catSection.innerHTML='<div style="font-size:15px;font-weight:700;color:var(--tos);margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--border);">'+cat+'<span style="font-size:12px;font-weight:400;color:var(--text3);margin-left:10px;">'+Object.keys(questAvg).length+' กิจกรรม</span></div>';
+    Object.keys(bySub).sort().forEach(function(sub){
+      var subEl=document.createElement('div');subEl.style.cssText='margin-bottom:16px;';
+      subEl.innerHTML='<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;">'+sub+'</div>';
+      var cards=document.createElement('div');cards.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;';
+      var questsInSub=[...new Set(bySub[sub].map(function(r){return r.quest;}))];
+      questsInSub.forEach(function(q){
+        var qa=questAvg[q];if(!qa)return;
+        var avg=qa.sum/qa.count;
+        var card=document.createElement('div');card.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;';
+        card.innerHTML='<div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:8px;line-height:1.4;">'+q+'</div><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:11px;color:var(--text3);">'+qa.factories.size+' โรงงาน</span><span style="font-size:18px;font-weight:700;color:'+(avg>=80?'#16a34a':avg>=60?'#f59e0b':'#ef4444')+';">'+avg.toFixed(1)+'%</span></div>';
+        cards.appendChild(card);
+      });
+      subEl.appendChild(cards);catSection.appendChild(subEl);
+    });
+    el.appendChild(catSection);
+  });
+  if(!el.children.length) el.innerHTML='<div style="text-align:center;color:var(--text3);padding:60px;">ไม่พบข้อมูลในช่วงที่เลือก</div>';
+}
+
+function resetWxQuest(){
+  wx3SelectedCats.clear();document.querySelectorAll('#wx3-cat-chips .chip').forEach(function(c){c.classList.remove('selected');});
+  document.getElementById('wx3-region').value='ALL';wx3SelectedFactories=new Set(ALL_FACTORIES);
+  buildWxFactoryChips('wx3-factory-chips',wx3SelectedFactories,null);
+  WX3P.lo=0;WX3P.hi=WX3P.slots.length-1;if(WX3P.render)WX3P.render();
+  loadWxQuest();
+}
+
+// ══════════════════════════════════════════════════════
+// S4: COMPANY POINT
+// ══════════════════════════════════════════════════════
+async function initWxCompany() {
+  if (wx4Loaded) return;
+  setLoading(true);
+  var errBox=document.getElementById('wx4-error-box');errBox.style.display='none';
+  try {
+    var rowsS=await wxFetch('system');
+    parseSystemInfo(rowsS);
+    buildWxFactoryChips('wx4-factory-chips',wx4SelectedFactories,null);
+    buildWx4YearChips();
+    renderWxCompany();
+    wx4Loaded=true;
+  }catch(e){errBox.textContent='โหลดข้อมูลไม่สำเร็จ: '+e.message;errBox.style.display='block';console.error(e);}
+  setLoading(false);
+}
+
+function parseSystemInfo(rows){
+  if(!rows||rows.length<2)return;
+  var h=rows[0].map(function(c){return String(c||'').trim();});
+  var idx={pkg:h.findIndex(function(c){return /package/i.test(c);}),wp:h.findIndex(function(c){return /wellpoint/i.test(c)||(/^wp$/i.test(c));}),price:h.findIndex(function(c){return /price|ราคา/i.test(c);}),created:h.findIndex(function(c){return /created|วันที่/i.test(c);}),factory:h.findIndex(function(c){return c==='โรงงาน';})};
+  if(idx.pkg<0)idx.pkg=1;if(idx.wp<0)idx.wp=2;if(idx.price<0)idx.price=3;if(idx.created<0)idx.created=6;if(idx.factory<0)idx.factory=7;
+  wxSystemData=rows.slice(1).filter(function(r){return r&&r[idx.factory]&&String(r[idx.factory]).trim();}).map(function(r){
+    var d=parseExcelDate(r[idx.created]);
+    return {package:String(r[idx.pkg]||'').trim(),wellpoint:parseFloat(r[idx.wp])||0,price:parseFloat(r[idx.price])||0,created:d,year:d?d.getFullYear():null,factory:String(r[idx.factory]||'').trim()};
+  }).filter(function(r){return r.factory;});
+  wx4AllYears=[...new Set(wxSystemData.filter(function(r){return r.year;}).map(function(r){return r.year;}))].sort();
+}
+
+function buildWx4YearChips(){
+  var el=document.getElementById('wx4-year-chips');el.innerHTML='';
+  wx4AllYears.forEach(function(y){
+    var c=document.createElement('span');c.className='chip';c.textContent=y;c.style.cssText='font-size:12px;padding:4px 10px;';
+    c.onclick=function(){if(wx4SelectedYears.has(y)){wx4SelectedYears.delete(y);c.classList.remove('selected');}else{wx4SelectedYears.add(y);c.classList.add('selected');}};
+    el.appendChild(c);
+  });
+}
+
+function loadWxCompany(){renderWxCompany();}
+function resetWxCompany(){
+  document.getElementById('wx4-region').value='ALL';wx4SelectedFactories=new Set(ALL_FACTORIES);
+  buildWxFactoryChips('wx4-factory-chips',wx4SelectedFactories,null);
+  wx4SelectedYears.clear();document.querySelectorAll('#wx4-year-chips .chip').forEach(function(c){c.classList.remove('selected');});
+  renderWxCompany();
+}
+
+function renderWxCompany(){
+  var txns=wxSystemData.filter(function(r){
+    var facOk=wx4SelectedFactories.has(r.factory);
+    var yearOk=wx4SelectedYears.size===0||(r.year&&wx4SelectedYears.has(r.year));
+    return facOk&&yearOk;
+  });
+  var totalWP=txns.reduce(function(s,r){return s+r.wellpoint;},0);
+  var totalPrice=txns.reduce(function(s,r){return s+r.price;},0);
+  // KPI
+  document.getElementById('wx4-kpi').innerHTML=
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);"><div style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">รายการซื้อทั้งหมด</div><div style="font-size:34px;font-weight:700;color:var(--tos);">'+txns.length.toLocaleString()+'</div><div style="font-size:12px;color:var(--text3);margin-top:4px;">รายการ</div></div>'+
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);"><div style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Wellpoint รวม</div><div style="font-size:34px;font-weight:700;color:var(--wellios);">'+totalWP.toLocaleString()+'</div><div style="font-size:12px;color:var(--text3);margin-top:4px;">Wellpoint</div></div>'+
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);"><div style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">ยอดรวมทั้งหมด</div><div style="font-size:34px;font-weight:700;color:#16a34a;">'+totalPrice.toLocaleString()+'</div><div style="font-size:12px;color:var(--text3);margin-top:4px;">บาท</div></div>';
+  // Factory Cards
+  var byF={};txns.forEach(function(r){if(!byF[r.factory])byF[r.factory]={wp:0,price:0,count:0};byF[r.factory].wp+=r.wellpoint;byF[r.factory].price+=r.price;byF[r.factory].count++;});
+  var fg=document.getElementById('wx4-factory-grid');
+  var sorted=Object.keys(byF).sort(function(a,b){return byF[b].wp-byF[a].wp;});
+  fg.innerHTML=sorted.length?sorted.map(function(f){var d=byF[f];return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">'+f+'</div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:4px;"><span>Wellpoint รวม</span><span style="font-weight:700;color:var(--wellios);">'+d.wp.toLocaleString()+'</span></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:4px;"><span>ยอดเงินรวม</span><span style="font-weight:700;color:#16a34a;">'+d.price.toLocaleString()+' บาท</span></div><div style="font-size:11px;color:var(--text3);">'+d.count+' รายการ</div></div>';}).join(''):'<div style="color:var(--text3);text-align:center;padding:40px;grid-column:1/-1;">ไม่มีข้อมูล</div>';
+  // Table
+  var te=document.getElementById('wx4-table-content');
+  if(!txns.length){te.innerHTML='<div style="text-align:center;color:var(--text3);padding:40px;">ไม่มีข้อมูลในช่วงที่เลือก</div>';return;}
+  var sorted2=[...txns].sort(function(a,b){return (b.created||0)-(a.created||0);});
+  te.innerHTML='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="background:#f8f9fc;"><th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);">วันที่</th><th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);">โรงงาน</th><th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);">Package</th><th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);">Wellpoint</th><th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);">ราคา (บาท)</th></tr></thead><tbody>'+
+    sorted2.map(function(r){return '<tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 14px;color:var(--text2);">'+(r.created?(MONTH_TH[r.created.getMonth()]+' '+r.created.getFullYear()):'—')+'</td><td style="padding:10px 14px;font-weight:600;">'+r.factory+'</td><td style="padding:10px 14px;"><span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:12px;">'+r.package+'</span></td><td style="padding:10px 14px;text-align:right;font-weight:700;color:var(--wellios);">'+r.wellpoint.toLocaleString()+'</td><td style="padding:10px 14px;text-align:right;color:#16a34a;font-weight:600;">'+r.price.toLocaleString()+'</td></tr>';}).join('')+
+    '<tfoot><tr style="background:#f8f9fc;font-weight:700;"><td colspan="3" style="padding:10px 14px;">รวมทั้งหมด</td><td style="padding:10px 14px;text-align:right;color:var(--wellios);">'+totalWP.toLocaleString()+'</td><td style="padding:10px 14px;text-align:right;color:#16a34a;">'+totalPrice.toLocaleString()+'</td></tr></tfoot></table></div>';
 }
 
 </script>
