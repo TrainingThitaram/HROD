@@ -1237,18 +1237,62 @@ function renderWxForecast() {
 // ══════════════════════════════════════════════════════
 let wx3SelectedCats = new Set();
 
+// Quest → {category, subCategory} lookup map (สร้างจาก Sheet "Quest Category")
+var wxQuestCatMap = {};
+
+function parseQuestCategory(rows) {
+  if (!rows || rows.length < 2) return;
+  var h = rows[0].map(function(c){ return String(c||'').trim(); });
+  // หา column: Quest, หมวดหลัก (Category), หมวดย่อย (Sub-category)
+  var idxQ   = h.findIndex(function(c){ return /^quest$/i.test(c); });
+  var idxCat = h.findIndex(function(c){ return /หมวดหลัก|category/i.test(c) && !/ย่อย|sub/i.test(c); });
+  var idxSub = h.findIndex(function(c){ return /หมวดย่อย|sub.?cat/i.test(c); });
+  if (idxQ < 0) idxQ = 0;
+  if (idxCat < 0) idxCat = 1;
+  if (idxSub < 0) idxSub = 2;
+  wxQuestCatMap = {};
+  rows.slice(1).forEach(function(r){
+    var quest = String(r[idxQ]||'').trim();
+    if (!quest) return;
+    wxQuestCatMap[quest] = {
+      category:    String(r[idxCat]||'').trim(),
+      subCategory: String(r[idxSub]||'').trim(),
+    };
+  });
+}
+
 async function initWxQuest() {
   if (wx3Loaded) return;
   setLoading(true);
   var errBox=document.getElementById('wx3-error-box');errBox.style.display='none';
   try {
-    if(!wxLoaded){var r1=await wxFetch('summary');parseWxSummary(r1);var r2=await wxFetch('transaction');parseWxTransaction(r2);wxLoaded=true;}
+    // โหลด Summary ถ้ายังไม่มี
+    if (!wxLoaded) {
+      var r1=await wxFetch('summary'); parseWxSummary(r1);
+      var r2=await wxFetch('transaction'); parseWxTransaction(r2);
+      wxLoaded=true;
+    }
+    // โหลด Quest Category sheet เพื่อ join
+    var rCat = await wxFetch('quest');
+    parseQuestCategory(rCat);
+
+    // Inject category/subCategory เข้า wxSummaryData จาก lookup map
+    wxSummaryData.forEach(function(r){
+      var info = wxQuestCatMap[r.quest];
+      if (info) { r.category = info.category; r.subCategory = info.subCategory; }
+    });
+
     buildWx3CatChips();
-    buildWxFactoryChips('wx3-factory-chips',wx3SelectedFactories,null);
-    if(WXP.slots.length){WX3P.slots=WXP.slots.slice();WX3P.lo=0;WX3P.hi=WX3P.slots.length-1;buildPeriodSlider(WX3P,'wx3-period-track','wx3-period-fill','wx3-period-thumb-lo','wx3-period-thumb-hi','wx3-period-display','wx3-period-ticks');}
+    buildWxFactoryChips('wx3-factory-chips', wx3SelectedFactories, null);
+    if (WXP.slots.length) {
+      WX3P.slots=WXP.slots.slice(); WX3P.lo=0; WX3P.hi=WX3P.slots.length-1;
+      buildPeriodSlider(WX3P,'wx3-period-track','wx3-period-fill','wx3-period-thumb-lo','wx3-period-thumb-hi','wx3-period-display','wx3-period-ticks');
+    }
     loadWxQuest();
     wx3Loaded=true;
-  }catch(e){errBox.textContent='โหลดข้อมูลไม่สำเร็จ: '+e.message;errBox.style.display='block';console.error(e);}
+  } catch(e) {
+    errBox.textContent='โหลดข้อมูลไม่สำเร็จ: '+e.message; errBox.style.display='block'; console.error(e);
+  }
   setLoading(false);
 }
 
