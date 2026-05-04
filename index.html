@@ -1095,7 +1095,7 @@ async function loadDsdNewEmp() {
 function buildDsdAreaChips() {
   var el = document.getElementById('dsd-area-chips'); if(!el) return;
   el.innerHTML = DSD_AREAS.map(function(a){
-    return '<span class="chip selected" data-area="'+a+'" onclick="toggleDsdChip(this,'area')" style="font-size:12px;padding:4px 10px;">'+a+'</span>';
+    return '<span class="chip selected" data-area="'+a+'" onclick="toggleDsdChip(this,\'area\')" style="font-size:12px;padding:4px 10px;">'+a+'</span>';
   }).join('');
   dsdSelAreas = new Set(DSD_AREAS);
 }
@@ -1107,7 +1107,7 @@ function buildDsdMonthChips() {
   var el = document.getElementById('dsd-month-chips'); if(!el) return;
   var MONTH_TH_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
   el.innerHTML = sorted.map(function(m){
-    return '<span class="chip selected" data-month="'+m+'" onclick="toggleDsdChip(this,'month')" style="font-size:12px;padding:4px 10px;">'+MONTH_TH_SHORT[m-1]+'</span>';
+    return '<span class="chip selected" data-month="'+m+'" onclick="toggleDsdChip(this,\'month\')" style="font-size:12px;padding:4px 10px;">'+MONTH_TH_SHORT[m-1]+'</span>';
   }).join('');
   dsdSelMonths = new Set(sorted);
 }
