@@ -7,11 +7,25 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 (function(){
-  var s=document.createElement('script');
-  s.src='https://unpkg.com/@azure/msal-browser@2.38.3/lib/msal-browser.min.js';
-  s.onload=function(){initMsal();};
-  s.onerror=function(){document.getElementById('login-error').style.display='block';};
-  document.head.appendChild(s);
+  function loadMsal(src, fallback){
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = function(){ initMsal(); };
+    s.onerror = function(){
+      if(fallback){
+        loadMsal(fallback, null);
+      } else {
+        var el = document.getElementById('login-error');
+        if(el){ el.style.display='block'; el.textContent='โหลด MSAL library ไม่สำเร็จ กรุณารีเฟรชหน้าและลองใหม่'; }
+      }
+    };
+    document.head.appendChild(s);
+  }
+  // Primary: cdnjs, Fallback: jsdelivr
+  loadMsal(
+    'https://cdnjs.cloudflare.com/ajax/libs/microsoft-authentication-library-for-js/2.38.3/msal-browser.min.js',
+    'https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js'
+  );
 })();
 </script>
 <style>
