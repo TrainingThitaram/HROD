@@ -632,10 +632,75 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
   <div class="tab-content" id="tab-dsd">
     <!-- DSD Sub-tabs -->
     <div style="background:#fff;border-bottom:1px solid var(--border);padding:0 32px;display:flex;gap:0;overflow-x:auto;">
-      <button class="tab-btn active" id="dsd-btn-target" onclick="switchDsdTab(event,'target')" style="font-size:13px;padding:10px 18px;">&#127919; เป้ายื่นกรมพัฒ เทียบ ยื่นจริง</button>
+      <button class="tab-btn active" id="dsd-btn-newemp"  onclick="switchDsdTab(event,'newemp');loadDsdNewEmp();" style="font-size:13px;padding:10px 18px;">&#128203; ยื่นกรมพัฒนาฝีมือแรงงาน (พนักงานใหม่)</button>
+      <button class="tab-btn" id="dsd-btn-target" onclick="switchDsdTab(event,'target')" style="font-size:13px;padding:10px 18px;">&#127919; เป้ายื่นกรมพัฒ เทียบ ยื่นจริง</button>
     </div>
-    <!-- DSD: เป้า vs ยื่นจริง -->
-    <div id="dsd-subtab-target">
+
+    <!-- ═══ SUB TAB: พนักงานใหม่ ═══ -->
+    <div id="dsd-subtab-newemp">
+      <div class="content">
+        <div class="error-box" id="dsd-error-box"></div>
+
+        <!-- KPI CARDS -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+          <!-- Card 1: รวมทั้งหมด -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);">
+            <div style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">พนักงานใหม่ปี 2569 ทั้งหมด</div>
+            <div id="dsd-kpi-total" style="font-size:42px;font-weight:700;color:var(--tos);">—</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:4px;">คน</div>
+          </div>
+          <!-- Card 2: แยกบริษัท -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);">
+            <div style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">แยกตามบริษัท</div>
+            <div style="display:flex;gap:20px;flex-wrap:wrap;">
+              <div><div style="font-size:11px;font-weight:700;color:#ed1c24;margin-bottom:2px;">TRC</div><div id="dsd-kpi-trc" style="font-size:28px;font-weight:700;color:#ed1c24;">—</div></div>
+              <div><div style="font-size:11px;font-weight:700;color:#26276f;margin-bottom:2px;">TOS</div><div id="dsd-kpi-tos" style="font-size:28px;font-weight:700;color:#26276f;">—</div></div>
+              <div><div style="font-size:11px;font-weight:700;color:#e97b2e;margin-bottom:2px;">VJP</div><div id="dsd-kpi-vjp" style="font-size:28px;font-weight:700;color:#e97b2e;">—</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FILTER PANEL -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">
+            <!-- บริษัท -->
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">บริษัท</div>
+              <div style="display:flex;gap:6px;">
+                <span class="chip selected" data-co="TRC" onclick="toggleDsdChip(this,'co')" style="font-size:12px;padding:5px 12px;border-color:#ed1c24;color:#ed1c24;">TRC</span>
+                <span class="chip selected" data-co="TOS" onclick="toggleDsdChip(this,'co')" style="font-size:12px;padding:5px 12px;border-color:#26276f;color:#26276f;">TOS</span>
+                <span class="chip selected" data-co="VJP" onclick="toggleDsdChip(this,'co')" style="font-size:12px;padding:5px 12px;border-color:#e97b2e;color:#e97b2e;">VJP</span>
+              </div>
+            </div>
+            <!-- พื้นที่ -->
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">พื้นที่/ผู้รับผิดชอบ</div>
+              <div id="dsd-area-chips" style="display:flex;flex-wrap:wrap;gap:6px;max-width:480px;"></div>
+            </div>
+            <!-- เดือน -->
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">เดือนที่เริ่มงาน</div>
+              <div id="dsd-month-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+            </div>
+            <!-- Buttons -->
+            <div style="display:flex;gap:8px;align-self:flex-end;">
+              <button onclick="applyDsdFilter()" style="padding:8px 20px;background:var(--tos);color:white;border:none;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:600;cursor:pointer;">ค้นหา</button>
+              <button onclick="resetDsdFilter()" style="padding:8px 14px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;cursor:pointer;">รีเซต</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TABLE -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">รายชื่อสาขา — พนักงานใหม่ปี 2569</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:20px;">1 แถว = 1 สาขา + 1 บริษัท | คอลัมน์ที่ยังไม่เชื่อมข้อมูลแสดงเป็น —</div>
+          <div id="dsd-table-content"><div style="text-align:center;color:var(--text3);padding:40px;">กำลังโหลด...</div></div>
+        </div>
+      </div>
+    </div><!-- /dsd-subtab-newemp -->
+
+    <!-- ═══ SUB TAB: เป้า vs ยื่นจริง ═══ -->
+    <div id="dsd-subtab-target" style="display:none;">
       <div class="content">
         <div class="coming-soon"><div class="coming-soon-icon">&#127919;</div><h3>เป้ายื่นกรมพัฒ เทียบ ยื่นจริง</h3><p>อยู่ระหว่างการพัฒนา</p></div>
       </div>
@@ -940,6 +1005,203 @@ function switchDsdTab(e, name) {
   document.querySelectorAll('[id^="dsd-subtab-"]').forEach(function(el){el.style.display='none';});
   var el=document.getElementById('dsd-subtab-'+name);
   if(el) el.style.display='';
+}
+
+// ══════════════════════════════════════════════════════
+// DSD — พนักงานใหม่ปี 2569
+// ══════════════════════════════════════════════════════
+const DSD_FILE_ID = '01MZGTHI53PA2OE7CL5BH3LKAJ2X6CMMPV';
+const DSD_SHEET   = encodeURIComponent("'Data รวมพนักงาน 3 สังกัด'");
+const DSD_YEAR_BE = 2569; // พ.ศ. ที่ต้องการ
+const DSD_AREAS   = ['กรุงเทพฯ','สมุทรปราการ','พระประแดง','กทม.(สำนักงาน)','ชลบุรี-ระยอง','ปทุม-อยุธยา','ลาดกระบัง'];
+
+let dsdRawData   = [];
+let dsdLoaded    = false;
+let dsdSelCo     = new Set(['TRC','TOS','VJP']);
+let dsdSelAreas  = new Set(DSD_AREAS);
+let dsdSelMonths = new Set();
+
+function parseDsdDate(v) {
+  // รูปแบบ วัน/เดือน/ปี พ.ศ. เช่น 24/05/2560
+  if (!v) return null;
+  var s = String(v).trim();
+  var parts = s.split('/');
+  if (parts.length === 3) {
+    var d = parseInt(parts[0]), m = parseInt(parts[1]), yBE = parseInt(parts[2]);
+    if (!d||!m||!yBE) return null;
+    var yCE = yBE - 543;
+    return new Date(yCE, m-1, d);
+  }
+  // fallback: Excel serial
+  return parseExcelDate(v);
+}
+
+async function loadDsdNewEmp() {
+  if (dsdLoaded) return;
+  setLoading(true);
+  var errBox = document.getElementById('dsd-error-box'); errBox.style.display='none';
+  try {
+    var token = await getToken(); if (!token) return;
+    var url = 'https://graph.microsoft.com/v1.0/drives/'+DRIVE_ID+'/items/'+DSD_FILE_ID+'/workbook/worksheets/'+DSD_SHEET+'/usedRange';
+    var r = await fetch(url, {headers:{Authorization:'Bearer '+token}});
+    if (!r.ok) { var t=await r.text(); throw new Error('โหลดไฟล์ไม่สำเร็จ: '+r.status+' '+t.substring(0,120)); }
+    var rows = (await r.json()).values || [];
+    if (rows.length < 2) throw new Error('ไม่พบข้อมูลใน Sheet');
+
+    var h = rows[0].map(function(c){return String(c||'').trim();});
+    // หา column index
+    var idx = {
+      branch:  h.findIndex(function(c){return c==='สาขา';}),
+      company: h.findIndex(function(c){return c==='บริษัท';}),
+      idcard:  h.findIndex(function(c){return /บัตร|เลขบัตร|เลขประจำ/i.test(c);}),
+      pos:     h.findIndex(function(c){return /ตำแหน่ง/i.test(c);}),
+      sdate:   h.findIndex(function(c){return /วันที่เริ่มงาน/i.test(c);}),
+      area:    h.findIndex(function(c){return /พื้นที่|ผู้รับผิดชอบ/i.test(c);}),
+    };
+    // fallback by position
+    if(idx.branch<0)  idx.branch=0;
+    if(idx.company<0) idx.company=1;
+    if(idx.idcard<0)  idx.idcard=2;
+    if(idx.pos<0)     idx.pos=3;
+    if(idx.sdate<0)   idx.sdate=4;
+    if(idx.area<0)    idx.area=5;
+
+    dsdRawData = rows.slice(1).filter(function(r){return r&&r[idx.company];}).map(function(r){
+      var d = parseDsdDate(r[idx.sdate]);
+      var yBE = d ? (d.getFullYear()+543) : null;
+      return {
+        branch:  String(r[idx.branch]||'').trim(),
+        company: String(r[idx.company]||'').trim().toUpperCase(),
+        idcard:  String(r[idx.idcard]||'').trim(),
+        pos:     String(r[idx.pos]||'').trim(),
+        sdate:   d,
+        yearBE:  yBE,
+        month:   d ? (d.getMonth()+1) : null,
+        area:    String(r[idx.area]||'').trim(),
+      };
+    }).filter(function(r){ return r.yearBE === DSD_YEAR_BE; }); // เฉพาะปี 2569
+
+    dsdLoaded = true;
+    buildDsdAreaChips();
+    buildDsdMonthChips();
+    renderDsdDashboard();
+
+  } catch(e) {
+    errBox.textContent = e.message; errBox.style.display='block'; console.error(e);
+  }
+  setLoading(false);
+}
+
+function buildDsdAreaChips() {
+  var el = document.getElementById('dsd-area-chips'); if(!el) return;
+  el.innerHTML = DSD_AREAS.map(function(a){
+    return '<span class="chip selected" data-area="'+a+'" onclick="toggleDsdChip(this,'area')" style="font-size:12px;padding:4px 10px;">'+a+'</span>';
+  }).join('');
+  dsdSelAreas = new Set(DSD_AREAS);
+}
+
+function buildDsdMonthChips() {
+  var months = new Set();
+  dsdRawData.forEach(function(r){ if(r.month) months.add(r.month); });
+  var sorted = Array.from(months).sort(function(a,b){return a-b;});
+  var el = document.getElementById('dsd-month-chips'); if(!el) return;
+  var MONTH_TH_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  el.innerHTML = sorted.map(function(m){
+    return '<span class="chip selected" data-month="'+m+'" onclick="toggleDsdChip(this,'month')" style="font-size:12px;padding:4px 10px;">'+MONTH_TH_SHORT[m-1]+'</span>';
+  }).join('');
+  dsdSelMonths = new Set(sorted);
+}
+
+function toggleDsdChip(el, type) {
+  if (type==='co') {
+    var co = el.dataset.co;
+    if(dsdSelCo.has(co)){dsdSelCo.delete(co);el.classList.remove('selected');}
+    else{dsdSelCo.add(co);el.classList.add('selected');}
+  } else if(type==='area') {
+    var area = el.dataset.area;
+    if(dsdSelAreas.has(area)){dsdSelAreas.delete(area);el.classList.remove('selected');}
+    else{dsdSelAreas.add(area);el.classList.add('selected');}
+  } else if(type==='month') {
+    var mo = parseInt(el.dataset.month);
+    if(dsdSelMonths.has(mo)){dsdSelMonths.delete(mo);el.classList.remove('selected');}
+    else{dsdSelMonths.add(mo);el.classList.add('selected');}
+  }
+}
+
+function applyDsdFilter() { renderDsdDashboard(); }
+
+function resetDsdFilter() {
+  dsdSelCo = new Set(['TRC','TOS','VJP']);
+  document.querySelectorAll('[data-co]').forEach(function(el){el.classList.add('selected');});
+  buildDsdAreaChips();
+  buildDsdMonthChips();
+  renderDsdDashboard();
+}
+
+function renderDsdDashboard() {
+  var filtered = dsdRawData.filter(function(r){
+    return dsdSelCo.has(r.company) && dsdSelAreas.has(r.area) && dsdSelMonths.has(r.month);
+  });
+
+  // KPI
+  document.getElementById('dsd-kpi-total').textContent = filtered.length.toLocaleString();
+  document.getElementById('dsd-kpi-trc').textContent = filtered.filter(function(r){return r.company==='TRC';}).length.toLocaleString();
+  document.getElementById('dsd-kpi-tos').textContent = filtered.filter(function(r){return r.company==='TOS';}).length.toLocaleString();
+  document.getElementById('dsd-kpi-vjp').textContent = filtered.filter(function(r){return r.company==='VJP';}).length.toLocaleString();
+
+  // Group by branch + company
+  var groupMap = {};
+  filtered.forEach(function(r){
+    var key = r.branch + '||' + r.company;
+    if(!groupMap[key]) groupMap[key] = {branch:r.branch, company:r.company, count:0};
+    groupMap[key].count++;
+  });
+  var groups = Object.values(groupMap).sort(function(a,b){
+    if(a.branch < b.branch) return -1;
+    if(a.branch > b.branch) return 1;
+    return a.company.localeCompare(b.company);
+  });
+
+  var CO_COLORS = {TRC:'#ed1c24', TOS:'#26276f', VJP:'#e97b2e'};
+  var CO_BG     = {TRC:'#fff0f0', TOS:'#f0f0ff', VJP:'#fff5ee'};
+
+  var el = document.getElementById('dsd-table-content');
+  if (!groups.length) {
+    el.innerHTML='<div style="text-align:center;color:var(--text3);padding:40px;">ไม่พบข้อมูลในช่วงที่เลือก</div>';
+    return;
+  }
+
+  el.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'+
+    '<thead><tr style="background:#f8f9fc;">'+
+    '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);min-width:160px;">สังกัด (สาขา)</th>'+
+    '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);">บริษัท</th>'+
+    '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);min-width:180px;">รายชื่อหลักสูตรที่ผ่านการรับรอง</th>'+
+    '<th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);">พนักงานใหม่ ปี 2569 (รวม)</th>'+
+    '<th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);min-width:140px;">ส่งชื่อให้หญิงลี</th>'+
+    '<th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);">ส่วนต่างที่ยังไม่ส่ง</th>'+
+    '<th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);min-width:150px;">หญิงลี ยื่นกรมพัฒฯ แล้ว</th>'+
+    '</tr></thead><tbody>'+
+    groups.map(function(g){
+      var color = CO_COLORS[g.company] || '#6b7280';
+      var bg    = CO_BG[g.company]    || '#f9fafb';
+      return '<tr style="border-bottom:1px solid var(--border);">'+
+        '<td style="padding:10px 14px;font-weight:500;color:var(--text);">'+g.branch+'</td>'+
+        '<td style="padding:10px 14px;">'+
+          '<span style="background:'+bg+';color:'+color+';border:1.5px solid '+color+';border-radius:6px;padding:2px 10px;font-size:12px;font-weight:700;">'+g.company+'</span>'+
+        '</td>'+
+        '<td style="padding:10px 14px;color:var(--text3);">—</td>'+
+        '<td style="padding:10px 14px;text-align:right;font-weight:700;font-size:15px;color:var(--tos);">'+g.count+'</td>'+
+        '<td style="padding:10px 14px;text-align:right;color:var(--text3);">—</td>'+
+        '<td style="padding:10px 14px;text-align:right;color:var(--text3);">—</td>'+
+        '<td style="padding:10px 14px;text-align:right;color:var(--text3);">—</td>'+
+      '</tr>';
+    }).join('')+
+    '<tfoot><tr style="background:#f8f9fc;font-weight:700;">'+
+    '<td colspan="3" style="padding:10px 14px;">รวมทั้งหมด</td>'+
+    '<td style="padding:10px 14px;text-align:right;font-size:15px;color:var(--tos);">'+filtered.length+'</td>'+
+    '<td colspan="3"></td>'+
+    '</tr></tfoot>'+
+    '</tbody></table></div>';
 }
 
 function switchTrainingTab(e, name) {
