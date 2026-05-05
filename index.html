@@ -1036,32 +1036,26 @@ let dsdSelAreas  = new Set(DSD_AREAS);
 let dsdSelMonths = new Set();
 
 function parseDsdDate(v) {
+  // Col G format: M/D/YYYY ค.ศ. ทั้งหมด เช่น 2/6/2015, 1/10/2019
   if (v === null || v === undefined || v === '') return null;
   var s = String(v).trim();
-
-  // Format: M/D/YYYY (Excel default) — รองรับทั้ง พ.ศ. (year > 2100) และ ค.ศ.
-  // ตัวอย่าง พ.ศ.: "2/6/2558", "10/7/2562"
-  // ตัวอย่าง ค.ศ.: "5/24/2017", "12/26/2013"
   if (s.includes('/')) {
     var parts = s.split('/');
     if (parts.length === 3) {
-      var m    = parseInt(parts[0]);
-      var d    = parseInt(parts[1]);
-      var year = parseInt(parts[2]);
-      if (!m || !d || !year) return null;
-      var yearCE = year > 2100 ? year - 543 : year; // พ.ศ. → ค.ศ.
-      var result = new Date(yearCE, m - 1, d);
+      var m = parseInt(parts[0]);
+      var d = parseInt(parts[1]);
+      var y = parseInt(parts[2]);
+      if (!m || !d || !y) return null;
+      var result = new Date(y, m - 1, d);
       return isNaN(result.getTime()) ? null : result;
     }
   }
-
-  // Fallback: Excel Serial Number (typeof number หรือ string ตัวเลข)
+  // Fallback: Excel Serial Number
   var num = typeof v === 'number' ? v : parseFloat(s);
   if (!isNaN(num) && num > 1000) {
     var d2 = new Date(Math.round((num - 25569) * 86400 * 1000));
     return isNaN(d2.getTime()) ? null : d2;
   }
-
   return null;
 }
 
