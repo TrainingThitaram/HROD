@@ -1240,7 +1240,7 @@ function renderDsdDashboard() {
   function sortIcon(col){ return dsdSortCol!==col ? ' ⇅' : dsdSortDir==='asc' ? ' ↑' : ' ↓'; }
   function thSort(col,label,align){
     align = align||'left';
-    return '<th onclick="dsdSetSort(''+col+'')" style="padding:10px 14px;text-align:'+align+';font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);cursor:pointer;user-select:none;white-space:nowrap;" title="คลิกเพื่อเรียงลำดับ">'+label+sortIcon(col)+'</th>';
+    return '<th onclick="dsdSetSort(\'' + col + '\')" style="padding:10px 14px;text-align:'+align+';font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);cursor:pointer;user-select:none;white-space:nowrap;" title="คลิกเพื่อเรียงลำดับ">'+label+sortIcon(col)+'</th>';
   }
   function thStatic(label,align){
     align = align||'left';
