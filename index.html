@@ -1398,52 +1398,85 @@ function renderDsdDashboard() {
     el.innerHTML='<div style="text-align:center;color:var(--text3);padding:40px;">ไม่พบข้อมูลในช่วงที่เลือก</div>'; return;
   }
 
-  el.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'+
-    '<thead><tr style="background:#f8f9fc;">'+
+  // คำนวณ totals สำหรับ footer
+  var totalCount  = groups.reduce(function(s,g){return s+g.count;},0);
+  var totalSent   = 0, totalDiff = 0, totalFiled = 0;
+  var courseColW  = typeof dsdCourseColW !== 'undefined' ? dsdCourseColW : 220;
+
+  groups.forEach(function(g){
+    var fullName = dsdBranchMap[g.branch]||'';
+    var hrKey    = g.company+'||'+(fullName||g.branch);
+    var hrInfo   = hrMap[hrKey]||{sent:0,filed:0};
+    if(hrInfo.sent>0){ totalSent+=hrInfo.sent; totalDiff+=(g.count-hrInfo.sent); totalFiled+=hrInfo.filed; }
+  });
+
+  var diffTotalColor = totalDiff>0?'#dc2626':totalDiff===0?'#16a34a':'#16a34a';
+  var diffTotalText  = totalSent>0 ? ((totalDiff>0?'':'')+totalDiff) : '—';
+
+  // ปุ่มปรับขนาดคอลัมน์หลักสูตร
+  var resizeBtns = '<div style="display:flex;align-items:center;gap:4px;white-space:nowrap;">'+
+    'รายชื่อหลักสูตรที่ผ่านการรับรอง'+
+    '<span style="margin-left:6px;display:inline-flex;gap:3px;">'+
+    '<button onclick="dsdResizeCourse(-60)" style="padding:1px 5px;font-size:10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;line-height:1.4;" title="ย่อคอลัมน์">◀</button>'+
+    '<button onclick="dsdResizeCourse(60)"  style="padding:1px 5px;font-size:10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;line-height:1.4;" title="ขยายคอลัมน์">▶</button>'+
+    '</span></div>';
+
+  el.innerHTML = '<div style="overflow-x:auto;max-height:480px;overflow-y:auto;">'+
+    '<table id="dsd-main-table" style="width:100%;border-collapse:collapse;font-size:13px;">'+
+    '<thead style="position:sticky;top:0;z-index:2;"><tr style="background:#f8f9fc;">'+
     thSort('branch','สังกัด (สาขา)')+
     thSort('company','บริษัท')+
-    thStatic('รายชื่อหลักสูตรที่ผ่านการรับรอง')+
-    thSort('count','พนักงานใหม่ ปี 2569 (รวม)','right')+
+    '<th style="padding:10px 14px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);min-width:'+courseColW+'px;max-width:'+courseColW+'px;">'+resizeBtns+'</th>'+
+    thSort('count','พนักงานใหม่ ปี 2569','right')+
     thStatic('ส่งชื่อให้หญิงลี','right')+
-    thStatic('ส่วนต่างที่ยังไม่ส่ง','right')+
-    thStatic('หญิงลี ยื่นกรมพัฒฯ แล้ว','right')+
+    thStatic('ส่วนต่าง','right')+
+    thStatic('ยื่นกรมพัฒฯ แล้ว','right')+
     '</tr></thead><tbody>'+
     groups.map(function(g){
       var color=CO_COLORS[g.company]||'#6b7280', bg=CO_BG[g.company]||'#f9fafb';
-      // ชื่อเต็มสาขา
-      var fullName = dsdBranchMap[g.branch] || '';
-      // หลักสูตร — key = "สังกัด||ชื่อเต็มสาขา"
-      var courseKey = g.company + '||' + fullName;
-      var courses = dsdCourseMap[courseKey] || [];
+      var fullName  = dsdBranchMap[g.branch]||'';
+      var courseKey = g.company+'||'+fullName;
+      var courses   = dsdCourseMap[courseKey]||[];
       var coursesHtml = courses.length
         ? courses.map(function(cr){
             var s=dsdCourseStyle(cr.status);
-            return '<span style="display:inline-block;background:'+s.bg+';color:'+s.color+';border-radius:6px;padding:3px 9px;font-size:11px;font-weight:500;margin-bottom:3px;">'+cr.name+'</span>';
+            return '<span style="display:inline-block;background:'+s.bg+';color:'+s.color+';border-radius:6px;padding:3px 9px;font-size:11px;font-weight:500;margin-bottom:3px;white-space:normal;">'+cr.name+'</span>';
           }).join('<br>')
         : '<span style="color:var(--text3);font-size:12px;">—</span>';
-      // HR data — key = "co||branch (ชื่อสาขาจาก HR Sheet)"
-      var hrKey = g.company+'||'+(fullName||g.branch); // ใช้ชื่อเต็มสาขา match กับ HR Sheet
-      var hrInfo = hrMap[hrKey] || {sent:0, filed:0};
-      var diff = g.count - hrInfo.sent;
-      var diffColor = diff>0?'#dc2626':diff===0?'#16a34a':'#f97316';
+      var hrKey    = g.company+'||'+(fullName||g.branch);
+      var hrInfo   = hrMap[hrKey]||{sent:0,filed:0};
+      var diff     = g.count - hrInfo.sent;
+      var hasSent  = hrInfo.sent > 0;
+      var diffTxt  = hasSent ? (diff>0?'-'+diff : diff<0?'+'+Math.abs(diff) : '0') : '—';
+      var dColor   = !hasSent?'var(--text3)' : diff>0?'#dc2626' : diff<0?'#16a34a' : '#16a34a';
       return '<tr style="border-bottom:1px solid var(--border);">'+
-        '<td style="padding:10px 14px;">'+
+        '<td style="padding:8px 14px;vertical-align:top;">'+
           '<div style="font-weight:500;color:var(--text);">'+(fullName||g.branch)+'</div>'+
           (fullName&&fullName!==g.branch?'<div style="font-size:11px;color:var(--text3);">'+g.branch+'</div>':'')+
         '</td>'+
-        '<td style="padding:10px 14px;"><span style="background:'+bg+';color:'+color+';border:1.5px solid '+color+';border-radius:6px;padding:2px 10px;font-size:12px;font-weight:700;">'+g.company+'</span></td>'+
-        '<td style="padding:10px 14px;">'+coursesHtml+'</td>'+
-        '<td style="padding:10px 14px;text-align:right;font-weight:700;font-size:15px;color:var(--tos);">'+g.count+'</td>'+
-        '<td style="padding:10px 14px;text-align:right;font-weight:600;color:var(--text);">'+(hrInfo.sent>0?hrInfo.sent.toLocaleString():'—')+'</td>'+
-        '<td style="padding:10px 14px;text-align:right;font-weight:600;color:'+diffColor+';">'+(hrInfo.sent>0?(diff>0?'+':'')+diff:'—')+'</td>'+
-        '<td style="padding:10px 14px;text-align:right;font-weight:600;color:#16a34a;">'+(hrInfo.filed>0?hrInfo.filed.toLocaleString():'—')+'</td>'+
+        '<td style="padding:8px 14px;vertical-align:top;"><span style="background:'+bg+';color:'+color+';border:1.5px solid '+color+';border-radius:6px;padding:2px 10px;font-size:12px;font-weight:700;">'+g.company+'</span></td>'+
+        '<td style="padding:8px 14px;vertical-align:top;min-width:'+courseColW+'px;max-width:'+courseColW+'px;word-break:break-word;">'+coursesHtml+'</td>'+
+        '<td style="padding:8px 14px;text-align:right;vertical-align:top;font-weight:700;font-size:15px;color:var(--tos);">'+g.count+'</td>'+
+        '<td style="padding:8px 14px;text-align:right;vertical-align:top;font-weight:600;color:var(--text);">'+(hasSent?hrInfo.sent.toLocaleString():'—')+'</td>'+
+        '<td style="padding:8px 14px;text-align:right;vertical-align:top;font-weight:700;color:'+dColor+';">'+diffTxt+'</td>'+
+        '<td style="padding:8px 14px;text-align:right;vertical-align:top;font-weight:600;color:#16a34a;">'+(hrInfo.filed>0?hrInfo.filed.toLocaleString():'—')+'</td>'+
       '</tr>';
     }).join('')+
-    '<tfoot><tr style="background:#f8f9fc;font-weight:700;">'+
-    '<td colspan="3" style="padding:10px 14px;">รวมทั้งหมด (แสดง '+groups.length+' สาขา)</td>'+
-    '<td style="padding:10px 14px;text-align:right;font-size:15px;color:var(--tos);">'+groups.reduce(function(s,g){return s+g.count;},0)+'</td>'+
-    '<td colspan="3"></td></tr></tfoot>'+
+    '<tfoot><tr style="background:#f8f9fc;font-weight:700;position:sticky;bottom:0;">'+
+    '<td colspan="3" style="padding:10px 14px;">รวมทั้งหมด ('+groups.length+' สาขา)</td>'+
+    '<td style="padding:10px 14px;text-align:right;font-size:15px;color:var(--tos);">'+totalCount.toLocaleString()+'</td>'+
+    '<td style="padding:10px 14px;text-align:right;color:var(--text);">'+(totalSent>0?totalSent.toLocaleString():'—')+'</td>'+
+    '<td style="padding:10px 14px;text-align:right;color:'+diffTotalColor+';">'+(totalSent>0?diffTotalText:'—')+'</td>'+
+    '<td style="padding:10px 14px;text-align:right;color:#16a34a;">'+(totalFiled>0?totalFiled.toLocaleString():'—')+'</td>'+
+    '</tr></tfoot>'+
     '</tbody></table></div>';
+}
+
+// ตัวแปรความกว้างคอลัมน์หลักสูตร
+var dsdCourseColW = 220;
+function dsdResizeCourse(delta) {
+  dsdCourseColW = Math.max(120, Math.min(600, dsdCourseColW + delta));
+  renderDsdDashboard();
 }
 
 function switchTrainingTab(e, name) {
