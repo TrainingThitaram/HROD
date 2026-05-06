@@ -1654,8 +1654,15 @@ function renderDsdMatrix() {
   // HR Map
   var hrMap = buildDsdHrMap(dsdSelHrMonths);
 
-  // หา monthNums ที่มีข้อมูล
-  var monthNums = Array.from(new Set(modeFiltered.map(function(r){return r.month;}))).sort(function(a,b){return a-b;});
+  // หา monthNums — รวมทั้งเดือนพนักงานเริ่มงาน และเดือนที่ HR ส่ง
+  var empMonths = new Set(modeFiltered.map(function(r){return r.month;}));
+  // เพิ่มเดือน HR ส่งที่ filter ผ่านด้วย
+  var hrMonthSet = new Set();
+  dsdHrData.forEach(function(r){
+    if(dsdSelHrMonths.has(r.hrMonthN)) hrMonthSet.add(r.hrMonthN);
+  });
+  var allMonths = new Set([...empMonths, ...hrMonthSet]);
+  var monthNums = Array.from(allMonths).sort(function(a,b){return a-b;});
 
   var COS = ['TRC','TOS','VJP'];
   var CO_COLORS = {TRC:'#ed1c24', TOS:'#26276f', VJP:'#e97b2e'};
@@ -1675,17 +1682,22 @@ function renderDsdMatrix() {
     function countByMonth(arr, m){ return arr.filter(function(r){return r.month===m;}).length; }
 
     // HR sent แยกเดือน — ต้องคิดจากสาขาที่ filter ผ่านแล้ว
+    // branches เป็น shortname → แปลงเป็นชื่อเต็มก่อน match กับ HR Sheet
     var branches = Array.from(new Set(coData.map(function(r){return r.branch;})));
+    var branchFullNames = branches.map(function(b){ return dsdBranchMap[b]||b; });
+
+    var MTH_FULL = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+
     function hrSentMonth(m) {
-      var mTxt = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'][m-1];
+      var mTxt = MTH_FULL[m-1];
       return dsdHrData.filter(function(r){
-        return r.co===co && r.hrMonth===mTxt && branches.indexOf(r.branch)>=0;
+        return r.co===co && r.hrMonth===mTxt && branchFullNames.indexOf(r.branch)>=0;
       }).reduce(function(s,r){return s+r.count;},0);
     }
     function hrFiledMonth(m) {
-      var mTxt = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'][m-1];
+      var mTxt = MTH_FULL[m-1];
       return dsdHrData.filter(function(r){
-        return r.co===co && r.hrMonth===mTxt && r.filed && branches.indexOf(r.branch)>=0;
+        return r.co===co && r.hrMonth===mTxt && r.filed && branchFullNames.indexOf(r.branch)>=0;
       }).reduce(function(s,r){return s+r.count;},0);
     }
 
