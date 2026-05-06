@@ -1615,9 +1615,24 @@ function renderWxDashboard() {
   if(wxLineChart) wxLineChart.destroy();
   wxLineChart=new Chart(document.getElementById('wx-line-chart'),{type:'line',data:{labels:monthLabels,datasets:lineDS},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom',labels:{color:'#5c6080',font:{family:'Sarabun',size:11},boxWidth:12,padding:10}},tooltip:{callbacks:{label:function(c){return ' '+c.dataset.label+': '+(c.parsed.y!=null?c.parsed.y.toFixed(1)+'%':'—');}}}},scales:{x:{grid:{color:'#e2e4ec'},ticks:{color:'#5c6080',font:{family:'Sarabun',size:11},maxRotation:45}},y:{min:0,max:100,grid:{color:'#e2e4ec'},ticks:{color:'#5c6080',font:{family:'Sarabun',size:11},callback:function(v){return v+'%';}}}}}}); 
 
-  // Bar Chart
+  // Mixed Chart: Stacked Bar + Line รวมทุกหมวด
+  var wpActivity=monthKeys.map(function(mk){return sumF.filter(function(r){return r.monthKey===mk;}).reduce(function(a,r){return a+r.given;},0);});
+  var wpBirthday=monthKeys.map(function(mk){return transF.filter(function(r){return r.type==='birthday'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0);});
+  var wpAnniversary=monthKeys.map(function(mk){return transF.filter(function(r){return r.type==='anniversary'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0);});
+  var wpOther=monthKeys.map(function(mk){return transF.filter(function(r){return r.type==='other'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0);});
+  var wpTotal=monthKeys.map(function(_,i){return wpActivity[i]+wpBirthday[i]+wpAnniversary[i]+wpOther[i];});
   if(wxBarChart) wxBarChart.destroy();
-  wxBarChart=new Chart(document.getElementById('wx-bar-chart'),{type:'bar',data:{labels:monthLabels,datasets:[{label:'กิจกรรม',data:monthKeys.map(function(mk){return sumF.filter(function(r){return r.monthKey===mk;}).reduce(function(a,r){return a+r.given;},0);}),backgroundColor:'#4f7cff'},{label:'วันเกิด',data:monthKeys.map(function(mk){return transF.filter(function(r){return r.type==='birthday'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0);}),backgroundColor:'#DF1882'},{label:'ครบอายุงาน',data:monthKeys.map(function(mk){return transF.filter(function(r){return r.type==='anniversary'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0);}),backgroundColor:'#16a34a'},{label:'อื่นๆ',data:monthKeys.map(function(mk){return transF.filter(function(r){return r.type==='other'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0);}),backgroundColor:'#94a3b8'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#5c6080',font:{family:'Sarabun',size:12},boxWidth:12,padding:12}},tooltip:{callbacks:{label:function(c){return ' '+c.dataset.label+': '+Math.round(c.parsed.y).toLocaleString()+' WP';}}}},scales:{x:{grid:{display:false},ticks:{color:'#5c6080',font:{family:'Sarabun',size:11},maxRotation:45}},y:{grid:{color:'#e2e4ec'},ticks:{color:'#5c6080',font:{family:'Sarabun',size:11},callback:function(v){return v.toLocaleString();}}}}}}); 
+  wxBarChart=new Chart(document.getElementById('wx-bar-chart'),{data:{labels:monthLabels,datasets:[
+    {type:'bar',label:'กิจกรรม',data:wpActivity,backgroundColor:'#4f7cff',yAxisID:'y',order:2,stack:'wp'},
+    {type:'bar',label:'วันเกิด',data:wpBirthday,backgroundColor:'#DF1882',yAxisID:'y',order:2,stack:'wp'},
+    {type:'bar',label:'ครบอายุงาน',data:wpAnniversary,backgroundColor:'#16a34a',yAxisID:'y',order:2,stack:'wp'},
+    {type:'bar',label:'อื่นๆ',data:wpOther,backgroundColor:'#94a3b8',yAxisID:'y',order:2,stack:'wp'},
+    {type:'line',label:'รวมทุกหมวด',data:wpTotal,borderColor:'#1e293b',backgroundColor:'#1e293b',borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#1e293b',tension:0.3,yAxisID:'y',order:1}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{color:'#5c6080',font:{family:'Sarabun',size:12},boxWidth:12,padding:12}},
+    tooltip:{callbacks:{label:function(c){return ' '+c.dataset.label+': '+Math.round(c.parsed.y).toLocaleString()+' WP';},afterBody:function(items){var t=items.filter(function(i){return i.dataset.type==='bar';}).reduce(function(s,i){return s+i.parsed.y;},0);return ['','รวม: '+Math.round(t).toLocaleString()+' WP'];}}}},
+    scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#5c6080',font:{family:'Sarabun',size:11},maxRotation:45}},y:{stacked:true,grid:{color:'#e2e4ec'},ticks:{color:'#5c6080',font:{family:'Sarabun',size:11},callback:function(v){return v.toLocaleString();}}}}
+  }});
 
   // Monthly Table
   renderWxMonthlyTable(sumF, monthKeys);
@@ -1659,7 +1674,11 @@ function renderWxMonthlyTable(sumF, monthKeys) {
   });
   html += '</tr></thead><tbody>';
 
-  // แต่ละ factory = 1 แถว
+  factories.sort(function(a,b){
+    var ra=factRegion[a]||'', rb=factRegion[b]||'';
+    if(ra!==rb) return ra.localeCompare(rb,'th');
+    return a.localeCompare(b,'th');
+  });
   factories.forEach(function(f){
     var avgs = factMonthAvg[f];
     // ข้ามถ้าไม่มีข้อมูลเลย
@@ -1817,7 +1836,7 @@ function renderWxForecast() {
       '</tbody></table></div>';
   }
 
-  // Balance Cards
+  // Balance Cards — แบ่งตามเขตพื้นที่
   var balEl=document.getElementById('wx2-balance-content');
   var balFiltered=wxBalanceData.filter(function(r){return wx2SelectedFactories.has(r.factory);});
   var byFactory={};
@@ -1826,8 +1845,25 @@ function renderWxForecast() {
   // Destroy old charts
   Object.values(wx2BalCharts).forEach(function(c){try{c.destroy();}catch(e){}});wx2BalCharts={};
   if(!Object.keys(byFactory).length){balEl.innerHTML='<div style="text-align:center;color:var(--text3);padding:40px;">ไม่มีข้อมูล Point Balance</div>';return;}
-  var grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;';
+  // factory → region lookup
+  var balRegionMap={};
+  Object.keys(REGION_MAP_WX).forEach(function(reg){REGION_MAP_WX[reg].forEach(function(f){balRegionMap[f]=reg;});});
+  var byRegion={};
   Object.keys(byFactory).sort().forEach(function(factory){
+    var reg=balRegionMap[factory]||'อื่นๆ';
+    if(!byRegion[reg]) byRegion[reg]=[];
+    byRegion[reg].push(factory);
+  });
+  balEl.innerHTML='';
+  Object.keys(byRegion).sort().forEach(function(region){
+    var header=document.createElement('div');
+    header.style.cssText='font-size:13px;font-weight:700;color:var(--tos);margin:16px 0 10px;padding-bottom:8px;border-bottom:2px solid var(--border);';
+    header.textContent=region;
+    balEl.appendChild(header);
+    var grid=document.createElement('div');
+    grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-bottom:8px;';
+  Object.keys(byFactory).sort().forEach(function(factory){
+    if(balRegionMap[factory]!==region&&!(region==='อื่นๆ'&&!balRegionMap[factory])) return;
     var rows=byFactory[factory], cur=rows[rows.length-1], prev=rows.length>1?rows[rows.length-2]:null;
     var delta=prev!=null?cur.balance-prev.balance:null;
     var safeId=factory.replace(/[^a-zA-Z0-9]/g,'_'), cid='wxb-'+safeId;
@@ -1841,7 +1877,8 @@ function renderWxForecast() {
       wx2BalCharts[cid]=new Chart(canvas.getContext('2d'),{type:'line',data:{labels:labels,datasets:[{data:vals,borderColor:lc,backgroundColor:lc.replace('ff','22'),tension:0.3,pointRadius:2,borderWidth:2,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return 'Balance: '+c.parsed.y.toLocaleString()+' WP';}}}},scales:{x:{display:false},y:{display:false}}}});
     },80);
   });
-  balEl.innerHTML='';balEl.appendChild(grid);
+    balEl.appendChild(grid);
+  });
 }
 
 // ══════════════════════════════════════════════════════
@@ -1939,6 +1976,11 @@ function loadWxQuest(){
       subEl.innerHTML='<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;">'+sub+'</div>';
       var cards=document.createElement('div');cards.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;';
       var questsInSub=[...new Set(bySub[sub].map(function(r){return r.quest;}))];
+      questsInSub.sort(function(a,b){
+        var qa2=questAvg[a],qb2=questAvg[b];
+        if(!qa2) return 1; if(!qb2) return -1;
+        return (qb2.sum/qb2.count)-(qa2.sum/qa2.count);
+      });
       questsInSub.forEach(function(q){
         var qa=questAvg[q];if(!qa)return;
         var avg=qa.sum/qa.count;
