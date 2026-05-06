@@ -1422,7 +1422,7 @@ function renderDsdDashboard() {
           }).join('<br>')
         : '<span style="color:var(--text3);font-size:12px;">—</span>';
       // HR data — key = "co||branch (ชื่อสาขาจาก HR Sheet)"
-      var hrKey = g.company+'||'+g.branch;
+      var hrKey = g.company+'||'+(fullName||g.branch); // ใช้ชื่อเต็มสาขา match กับ HR Sheet
       var hrInfo = hrMap[hrKey] || {sent:0, filed:0};
       var diff = g.count - hrInfo.sent;
       var diffColor = diff>0?'#dc2626':diff===0?'#16a34a':'#f97316';
