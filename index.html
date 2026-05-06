@@ -1118,11 +1118,12 @@ function parseDsdCourseMap(rows) {
 
 // ── แปลง status → style ──
 function dsdCourseStyle(status) {
-  if(/อนุมัต/i.test(status)&&!/รอ/i.test(status)&&!/ระหว่าง/i.test(status))
-    return {bg:'#EAF3DE',color:'#3B6D11'};
-  if(/รอ.*นายทะเบียน|นายทะเบียน/i.test(status))
-    return {bg:'#E6F1FB',color:'#185FA5'};
-  return {bg:'#FAEEDA',color:'#854F0B'}; // ระหว่างดำเนินการ / อื่นๆ
+  var s = String(status||'').trim();
+  if(s === 'หลักสูตรได้รับการอนุมัติ')
+    return {bg:'#EAF3DE', color:'#3B6D11'};
+  if(s === 'ระหว่างรอนายทะเบียนอนุมัติ')
+    return {bg:'#E6F1FB', color:'#185FA5'};
+  return {bg:'#FAEEDA', color:'#854F0B'};
 }
 
 function parseDsdDate(v) {
