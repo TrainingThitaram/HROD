@@ -724,6 +724,11 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
               <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">เดือนที่เริ่มงาน</div>
               <div id="dsd-month-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
             </div>
+            <!-- เดือนที่ HR ส่งข้อมูล -->
+            <div style="margin-bottom:14px;">
+              <div style="font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;">เดือนที่ HR ส่งข้อมูล</div>
+              <div id="dsd-hrmonth-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+            </div>
             <div style="display:flex;gap:8px;">
               <button onclick="applyDsdFilter()" style="padding:7px 18px;background:var(--tos);color:white;border:none;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">ค้นหา</button>
               <button onclick="resetDsdFilter()" style="padding:7px 13px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;cursor:pointer;">รีเซต</button>
@@ -1064,6 +1069,7 @@ function switchDsdTab(e, name) {
 const DSD_FILE_ID     = '01MZGTHI53PA2OE7CL5BH3LKAJ2X6CMMPV';
 const DSD_SHEET_BRANCH  = '%7B91DA7807-DCF1-451C-9E1A-14196F4E40FB%7D'; // Data สาขา - ชื่อเต็ม
 const DSD_SHEET_COURSE  = '%7BC8545935-DAE4-420A-9CBA-CDB1A9DCA43F%7D'; // Data หลักสูตรที่รับรอง
+const DSD_SHEET_HR      = '%7BFA4D1428-5E2F-4F0B-8A44-E7C86071BDCA%7D'; // Data ข้อมูลที่ HR Staff ส่งให้
 const DSD_SHEET   = '%7B05B06EA0-B885-4226-A05A-2D8F07C809CD%7D'; // Sheet ID แทนชื่อ
 const DSD_YEAR_BE = 2569; // พ.ศ. ที่ต้องการ
 const DSD_AREAS   = ['กรุงเทพฯ','สมุทรปราการ','พระประแดง','กทม.(สำนักงาน)','ชลบุรี-ระยอง','ปทุม-อยุธยา','ลาดกระบัง'];
@@ -1071,10 +1077,12 @@ const DSD_AREAS   = ['กรุงเทพฯ','สมุทรปรากา�
 let dsdRawData    = [];
 let dsdBranchMap  = {}; // สาขา → ชื่อเต็ม
 let dsdCourseMap  = {}; // "สังกัด||ชื่อเต็มสาขา" → [{name, status}]
-let dsdLoaded    = false;
-let dsdSelCo     = new Set(['TRC','TOS','VJP']);
-let dsdSelAreas  = new Set(DSD_AREAS);
-let dsdSelMonths = new Set();
+let dsdHrData     = []; // ข้อมูลที่ HR Staff ส่งให้
+let dsdLoaded     = false;
+let dsdSelCo      = new Set(['TRC','TOS','VJP']);
+let dsdSelAreas   = new Set(DSD_AREAS);
+let dsdSelMonths  = new Set();
+let dsdSelHrMonths = new Set(); // เดือนที่ HR ส่ง filter
 
 // ── Parse สาขา → ชื่อเต็ม ──
 function parseDsdBranchMap(rows) {
@@ -1155,13 +1163,15 @@ async function loadDsdNewEmp() {
   var errBox = document.getElementById('dsd-error-box'); errBox.style.display='none';
   try {
     // โหลด 3 sheets พร้อมกัน
-    var [rowsMain, rowsBranch, rowsCourse] = await Promise.all([
+    var [rowsMain, rowsBranch, rowsCourse, rowsHr] = await Promise.all([
       dsdFetch(DSD_SHEET),
       dsdFetch(DSD_SHEET_BRANCH),
       dsdFetch(DSD_SHEET_COURSE),
+      dsdFetch(DSD_SHEET_HR),
     ]);
     parseDsdBranchMap(rowsBranch);
     parseDsdCourseMap(rowsCourse);
+    parseDsdHrData(rowsHr);
     var rows = rowsMain;
     if (rows.length < 2) throw new Error('ไม่พบข้อมูลใน Sheet');
 
@@ -1205,12 +1215,71 @@ async function loadDsdNewEmp() {
     dsdLoaded = true;
     buildDsdAreaChips();
     buildDsdMonthChips();
+    buildDsdHrMonthChips();
     renderDsdDashboard();
 
   } catch(e) {
     errBox.textContent = e.message; errBox.style.display='block'; console.error(e);
   }
   setLoading(false);
+}
+
+function parseDsdHrData(rows) {
+  if(!rows||rows.length<2) return;
+  var h=rows[0].map(function(c){return String(c||'').trim();});
+  var idx={
+    co:      h.findIndex(function(c){return c==='สังกัด';}),
+    hrMonth: h.findIndex(function(c){return /เดือนที่.*HR|HR.*เดือน/i.test(c)||c==='เดือนที่ HR ส่งข้อมูลให้';}),
+    course:  h.findIndex(function(c){return c==='หลักสูตร';}),
+    branch:  h.findIndex(function(c){return c==='บริษัท';}),
+    count:   h.findIndex(function(c){return /จำนวนรวม/i.test(c);}),
+    dateSent:h.findIndex(function(c){return /วันรับพนักงาน/i.test(c);}),
+    dateFiled:h.findIndex(function(c){return /วันที่ยื่นเข้าระบบ/i.test(c);}),
+    status:  h.findIndex(function(c){return /สถานะยื่น/i.test(c);}),
+  };
+  if(idx.co<0)idx.co=0; if(idx.hrMonth<0)idx.hrMonth=1; if(idx.course<0)idx.course=2;
+  if(idx.branch<0)idx.branch=3; if(idx.count<0)idx.count=4; if(idx.status<0)idx.status=7;
+  var DSD_HR_MONTH_MAP={'มกราคม':1,'กุมภาพันธ์':2,'มีนาคม':3,'เมษายน':4,'พฤษภาคม':5,'มิถุนายน':6,'กรกฎาคม':7,'สิงหาคม':8,'กันยายน':9,'ตุลาคม':10,'พฤศจิกายน':11,'ธันวาคม':12};
+  dsdHrData=rows.slice(1).filter(function(r){return r&&r[idx.co];}).map(function(r){
+    var monthTxt=String(r[idx.hrMonth]||'').trim();
+    var monthNum=DSD_HR_MONTH_MAP[monthTxt]||null;
+    var statusRaw=String(r[idx.status]||'').trim().toUpperCase();
+    var filed=(statusRaw==='TRUE'||statusRaw==='1'||statusRaw==='ยื่นแล้ว');
+    return {
+      co:       String(r[idx.co]||'').trim().toUpperCase(),
+      hrMonth:  monthTxt,
+      hrMonthN: monthNum,
+      course:   String(r[idx.course]||'').trim(),
+      branch:   String(r[idx.branch]||'').trim(),
+      count:    parseFloat(r[idx.count])||0,
+      filed:    filed,
+    };
+  }).filter(function(r){return r.co&&r.branch;});
+}
+
+// สร้าง map: "co||branch" → {sent: N, filed: N}
+function buildDsdHrMap(hrMonthFilter) {
+  var map={};
+  dsdHrData.forEach(function(r){
+    if(hrMonthFilter.size>0 && !hrMonthFilter.has(r.hrMonthN)) return;
+    var key=r.co+'||'+r.branch;
+    if(!map[key]) map[key]={sent:0,filed:0};
+    map[key].sent+=r.count;
+    if(r.filed) map[key].filed+=r.count;
+  });
+  return map;
+}
+
+function buildDsdHrMonthChips() {
+  var months=new Set();
+  dsdHrData.forEach(function(r){if(r.hrMonthN) months.add(r.hrMonthN);});
+  var sorted=Array.from(months).sort(function(a,b){return a-b;});
+  var el=document.getElementById('dsd-hrmonth-chips'); if(!el) return;
+  var MTH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  el.innerHTML=sorted.map(function(m){
+    return '<span class="dsd-chip dsd-chip-selected" data-hrmonth="'+m+'" onclick="toggleDsdChip(this,\'hrmonth\')" style="--chip-color:#DF1882;">'+MTH[m-1]+'</span>';
+  }).join('');
+  dsdSelHrMonths=new Set(sorted);
 }
 
 function buildDsdAreaChips() {
@@ -1246,6 +1315,10 @@ function toggleDsdChip(el, type) {
     var mo = parseInt(el.dataset.month);
     if(dsdSelMonths.has(mo)){dsdSelMonths.delete(mo);el.classList.remove('dsd-chip-selected');}
     else{dsdSelMonths.add(mo);el.classList.add('dsd-chip-selected');}
+  } else if(type==='hrmonth') {
+    var hm = parseInt(el.dataset.hrmonth);
+    if(dsdSelHrMonths.has(hm)){dsdSelHrMonths.delete(hm);el.classList.remove('dsd-chip-selected');}
+    else{dsdSelHrMonths.add(hm);el.classList.add('dsd-chip-selected');}
   }
 }
 
@@ -1256,6 +1329,7 @@ function resetDsdFilter() {
   document.querySelectorAll('[data-co]').forEach(function(el){el.classList.add('dsd-chip-selected');});
   buildDsdAreaChips();
   buildDsdMonthChips();
+  buildDsdHrMonthChips();
   renderDsdDashboard();
 }
 
@@ -1288,6 +1362,9 @@ function renderDsdDashboard() {
     groupMap[key].count++;
   });
   var groups = Object.values(groupMap);
+
+  // HR map: "co||branch" → {sent, filed}  กรองตาม hrmonth filter
+  var hrMap = buildDsdHrMap(dsdSelHrMonths);
 
   // Search กรอง สังกัด
   if(searchVal) groups = groups.filter(function(g){
@@ -1344,6 +1421,11 @@ function renderDsdDashboard() {
             return '<span style="display:inline-block;background:'+s.bg+';color:'+s.color+';border-radius:6px;padding:3px 9px;font-size:11px;font-weight:500;margin-bottom:3px;">'+cr.name+'</span>';
           }).join('<br>')
         : '<span style="color:var(--text3);font-size:12px;">—</span>';
+      // HR data — key = "co||branch (ชื่อสาขาจาก HR Sheet)"
+      var hrKey = g.company+'||'+g.branch;
+      var hrInfo = hrMap[hrKey] || {sent:0, filed:0};
+      var diff = g.count - hrInfo.sent;
+      var diffColor = diff>0?'#dc2626':diff===0?'#16a34a':'#f97316';
       return '<tr style="border-bottom:1px solid var(--border);">'+
         '<td style="padding:10px 14px;">'+
           '<div style="font-weight:500;color:var(--text);">'+(fullName||g.branch)+'</div>'+
@@ -1352,9 +1434,9 @@ function renderDsdDashboard() {
         '<td style="padding:10px 14px;"><span style="background:'+bg+';color:'+color+';border:1.5px solid '+color+';border-radius:6px;padding:2px 10px;font-size:12px;font-weight:700;">'+g.company+'</span></td>'+
         '<td style="padding:10px 14px;">'+coursesHtml+'</td>'+
         '<td style="padding:10px 14px;text-align:right;font-weight:700;font-size:15px;color:var(--tos);">'+g.count+'</td>'+
-        '<td style="padding:10px 14px;text-align:right;color:var(--text3);">—</td>'+
-        '<td style="padding:10px 14px;text-align:right;color:var(--text3);">—</td>'+
-        '<td style="padding:10px 14px;text-align:right;color:var(--text3);">—</td>'+
+        '<td style="padding:10px 14px;text-align:right;font-weight:600;color:var(--text);">'+(hrInfo.sent>0?hrInfo.sent.toLocaleString():'—')+'</td>'+
+        '<td style="padding:10px 14px;text-align:right;font-weight:600;color:'+diffColor+';">'+(hrInfo.sent>0?(diff>0?'+':'')+diff:'—')+'</td>'+
+        '<td style="padding:10px 14px;text-align:right;font-weight:600;color:#16a34a;">'+(hrInfo.filed>0?hrInfo.filed.toLocaleString():'—')+'</td>'+
       '</tr>';
     }).join('')+
     '<tfoot><tr style="background:#f8f9fc;font-weight:700;">'+
