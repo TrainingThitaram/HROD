@@ -428,6 +428,15 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
           </div>
           <div style="position:relative;height:300px;"><canvas id="wx-bar-chart"></canvas></div>
         </div>
+        <!-- MONTHLY PCT TABLE -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="margin-bottom:16px;">
+            <div style="font-size:15px;font-weight:600;color:var(--text);">% เข้าร่วมกิจกรรมรายเดือน แยกโรงงาน</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:3px;">เปรียบเทียบกับเดือนก่อนหน้า | <span style="background:#f0fdf4;color:#16a34a;border-radius:4px;padding:1px 7px;font-size:11px;">เพิ่มขึ้น</span> <span style="background:#fef2f2;color:#dc2626;border-radius:4px;padding:1px 7px;font-size:11px;">ลดลง</span> <span style="background:#fefce8;color:#ca8a04;border-radius:4px;padding:1px 7px;font-size:11px;">เท่าเดิม</span></div>
+          </div>
+          <div id="wx-monthly-table" style="overflow-x:auto;"></div>
+        </div>
+
         <!-- AWARD PANEL -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);">
           <div style="margin-bottom:16px;">
@@ -1610,8 +1619,84 @@ function renderWxDashboard() {
   if(wxBarChart) wxBarChart.destroy();
   wxBarChart=new Chart(document.getElementById('wx-bar-chart'),{type:'bar',data:{labels:monthLabels,datasets:[{label:'กิจกรรม',data:monthKeys.map(function(mk){return sumF.filter(function(r){return r.monthKey===mk;}).reduce(function(a,r){return a+r.given;},0);}),backgroundColor:'#4f7cff'},{label:'วันเกิด',data:monthKeys.map(function(mk){return transF.filter(function(r){return r.type==='birthday'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0);}),backgroundColor:'#DF1882'},{label:'ครบอายุงาน',data:monthKeys.map(function(mk){return transF.filter(function(r){return r.type==='anniversary'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0);}),backgroundColor:'#16a34a'},{label:'อื่นๆ',data:monthKeys.map(function(mk){return transF.filter(function(r){return r.type==='other'&&r.monthKey===mk;}).reduce(function(a,r){return a+r.value;},0);}),backgroundColor:'#94a3b8'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#5c6080',font:{family:'Sarabun',size:12},boxWidth:12,padding:12}},tooltip:{callbacks:{label:function(c){return ' '+c.dataset.label+': '+Math.round(c.parsed.y).toLocaleString()+' WP';}}}},scales:{x:{grid:{display:false},ticks:{color:'#5c6080',font:{family:'Sarabun',size:11},maxRotation:45}},y:{grid:{color:'#e2e4ec'},ticks:{color:'#5c6080',font:{family:'Sarabun',size:11},callback:function(v){return v.toLocaleString();}}}}}}); 
 
+  // Monthly Table
+  renderWxMonthlyTable(sumF, monthKeys);
+
   // Award
   renderAwardPanel(sumF, monthKeys);
+}
+
+function renderWxMonthlyTable(sumF, monthKeys) {
+  var el = document.getElementById('wx-monthly-table');
+  if (!el) return;
+  if (!monthKeys.length) { el.innerHTML='<div style="text-align:center;color:var(--text3);padding:32px;">ไม่พบข้อมูล</div>'; return; }
+
+  // สร้าง factory → region lookup
+  var factRegion = {};
+  Object.keys(REGION_MAP_WX).forEach(function(reg){
+    REGION_MAP_WX[reg].forEach(function(f){ factRegion[f]=reg; });
+  });
+
+  // คำนวณ avg pct ต่อ factory ต่อ monthKey
+  var factories = Array.from(wxSelectedFactories).sort();
+  var factMonthAvg = {}; // factory → { monthKey: avgPct% }
+  factories.forEach(function(f){
+    factMonthAvg[f] = {};
+    monthKeys.forEach(function(mk){
+      var rows = sumF.filter(function(r){ return r.factory===f && r.monthKey===mk; });
+      factMonthAvg[f][mk] = rows.length ? rows.reduce(function(a,r){return a+r.pct*100;},0)/rows.length : null;
+    });
+  });
+
+  // สร้าง header
+  var thStyle = 'padding:7px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap;text-align:center;';
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+  html += '<thead><tr style="background:#f8f9fc;">';
+  html += '<th style="'+thStyle+'text-align:left;min-width:90px;">เขตพื้นที่</th>';
+  html += '<th style="'+thStyle+'text-align:left;min-width:80px;">โรงงาน</th>';
+  monthKeys.forEach(function(mk){
+    html += '<th style="'+thStyle+'min-width:60px;">'+formatMonthKey(mk)+'</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  // แต่ละ factory = 1 แถว
+  factories.forEach(function(f){
+    var avgs = factMonthAvg[f];
+    // ข้ามถ้าไม่มีข้อมูลเลย
+    var hasData = monthKeys.some(function(mk){ return avgs[mk] !== null; });
+    if (!hasData) return;
+
+    var region = factRegion[f] || '—';
+    var tdBase = 'padding:7px 10px;border-bottom:1px solid var(--border);text-align:center;';
+    html += '<tr>';
+    html += '<td style="'+tdBase+'text-align:left;font-size:12px;color:var(--text2);">'+region+'</td>';
+    html += '<td style="'+tdBase+'text-align:left;font-weight:600;color:var(--text);">'+f+'</td>';
+
+    monthKeys.forEach(function(mk, idx){
+      var cur  = avgs[mk];
+      var prev = idx > 0 ? avgs[monthKeys[idx-1]] : null;
+
+      if (cur === null) {
+        html += '<td style="'+tdBase+'color:var(--text3);">—</td>';
+        return;
+      }
+
+      // เดือนแรก หรือ prev = null → เหลือง
+      var bg='#fefce8', color='#ca8a04'; // เท่าเดิม / เดือนแรก
+      if (prev !== null) {
+        if (cur > prev + 0.005)      { bg='#f0fdf4'; color='#15803d'; } // เพิ่มขึ้น
+        else if (cur < prev - 0.005) { bg='#fef2f2'; color='#dc2626'; } // ลดลง
+        // เท่าเดิม → ค่าเดิม
+      }
+      html += '<td style="'+tdBase+'">';
+      html += '<span style="background:'+bg+';color:'+color+';border-radius:5px;padding:2px 6px;font-weight:500;">'+cur.toFixed(2)+'%</span>';
+      html += '</td>';
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
 }
 
 function renderAwardPanel(data, monthKeys) {
