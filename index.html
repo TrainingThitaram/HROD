@@ -805,6 +805,39 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
           </div>
           <div id="dsd-table-content"><div style="text-align:center;color:var(--text3);padding:40px;">กำลังโหลด...</div></div>
         </div>
+
+        <!-- MATRIX BOX -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-top:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+            <div>
+              <div style="font-size:15px;font-weight:600;color:var(--text);">สรุปรายเดือน — พนักงานใหม่ปี 2569</div>
+              <div style="font-size:12px;color:var(--text3);margin-top:3px;">นับเฉพาะพนักงานที่เริ่มงานในปี 2569 | ผันตาม Filter ด้านบน</div>
+            </div>
+            <!-- Mode toggle -->
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span style="font-size:12px;color:var(--text2);font-weight:500;">แสดงเฉพาะ:</span>
+              <button id="dsd-mode-has" onclick="setDsdMatrixMode('has')"
+                style="padding:6px 14px;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:2px solid #26276f;background:#26276f;color:white;">
+                มีหลักสูตร
+              </button>
+              <button id="dsd-mode-none" onclick="setDsdMatrixMode('none')"
+                style="padding:6px 14px;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:2px solid var(--border);background:none;color:var(--text2);">
+                ไม่มีหลักสูตร
+              </button>
+              <button onclick="toggleDsdBranchDetail()"
+                style="padding:6px 14px;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;cursor:pointer;border:1px solid var(--border);background:none;color:var(--text2);">
+                &#128065; ดูสังกัด
+              </button>
+            </div>
+          </div>
+          <!-- Matrix 3 ก้อน -->
+          <div id="dsd-matrix-content"></div>
+          <!-- ตารางสังกัด (toggle) -->
+          <div id="dsd-branch-detail" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;">รายชื่อสังกัดในโหมดที่เลือก</div>
+            <div id="dsd-branch-detail-content"></div>
+          </div>
+        </div>
       </div>
     </div><!-- /dsd-subtab-newemp -->
 
@@ -1271,6 +1304,7 @@ async function loadDsdNewEmp() {
     buildDsdMonthChips();
     buildDsdHrMonthChips();
     renderDsdDashboard();
+    renderDsdMatrix();
 
   } catch(e) {
     errBox.textContent = e.message; errBox.style.display='block'; console.error(e);
@@ -1376,7 +1410,7 @@ function toggleDsdChip(el, type) {
   }
 }
 
-function applyDsdFilter() { renderDsdDashboard(); }
+function applyDsdFilter() { renderDsdDashboard(); renderDsdMatrix(); }
 
 function resetDsdFilter() {
   dsdSelCo = new Set(['TRC','TOS','VJP']);
@@ -1385,6 +1419,7 @@ function resetDsdFilter() {
   buildDsdMonthChips();
   buildDsdHrMonthChips();
   renderDsdDashboard();
+  renderDsdMatrix();
 }
 
 // Sort state สำหรับตาราง DSD
@@ -1562,6 +1597,192 @@ var dsdCourseColW = 220;
 function dsdResizeCourse(delta) {
   dsdCourseColW = Math.max(120, Math.min(600, dsdCourseColW + delta));
   renderDsdDashboard();
+}
+
+// ══════════════════════════════════════════════════════
+// DSD MATRIX — สรุปรายเดือน
+// ══════════════════════════════════════════════════════
+var dsdMatrixMode = 'has'; // 'has' = มีหลักสูตร, 'none' = ไม่มีหลักสูตร
+var dsdBranchDetailVisible = false;
+
+function setDsdMatrixMode(mode) {
+  dsdMatrixMode = mode;
+  // อัปเดตสีปุ่ม
+  var btnHas  = document.getElementById('dsd-mode-has');
+  var btnNone = document.getElementById('dsd-mode-none');
+  if(btnHas && btnNone) {
+    btnHas.style.background  = mode==='has'  ? '#26276f' : 'none';
+    btnHas.style.color        = mode==='has'  ? 'white'   : 'var(--text2)';
+    btnHas.style.borderColor  = mode==='has'  ? '#26276f' : 'var(--border)';
+    btnNone.style.background  = mode==='none' ? '#26276f' : 'none';
+    btnNone.style.color       = mode==='none' ? 'white'   : 'var(--text2)';
+    btnNone.style.borderColor = mode==='none' ? '#26276f' : 'var(--border)';
+  }
+  renderDsdMatrix();
+}
+
+function toggleDsdBranchDetail() {
+  dsdBranchDetailVisible = !dsdBranchDetailVisible;
+  var el = document.getElementById('dsd-branch-detail');
+  if(el) el.style.display = dsdBranchDetailVisible ? '' : 'none';
+}
+
+// ตรวจว่า branch+co มีหลักสูตรไหม
+function dsdHasCourse(co, branch) {
+  var fn  = dsdBranchMap[branch] || branch;
+  var key = co + '||' + fn;
+  return (dsdCourseMap[key] || []).length > 0;
+}
+
+function renderDsdMatrix() {
+  var el = document.getElementById('dsd-matrix-content'); if(!el) return;
+  var detailEl = document.getElementById('dsd-branch-detail-content');
+
+  var MTH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+  // กรองพนักงานตาม Filter หลัก
+  var base = dsdRawData.filter(function(r){
+    return dsdSelCo.has(r.company) && dsdSelAreas.has(r.area) && dsdSelMonths.has(r.month);
+  });
+
+  // กรองตาม mode: มี/ไม่มีหลักสูตร
+  var modeFiltered = base.filter(function(r){
+    var has = dsdHasCourse(r.company, r.branch);
+    return dsdMatrixMode === 'has' ? has : !has;
+  });
+
+  // HR Map
+  var hrMap = buildDsdHrMap(dsdSelHrMonths);
+
+  // หา monthNums ที่มีข้อมูล
+  var monthNums = Array.from(new Set(modeFiltered.map(function(r){return r.month;}))).sort(function(a,b){return a-b;});
+
+  var COS = ['TRC','TOS','VJP'];
+  var CO_COLORS = {TRC:'#ed1c24', TOS:'#26276f', VJP:'#e97b2e'};
+  var CO_BG     = {TRC:'#fff0f0', TOS:'#f0f0ff', VJP:'#fff5ee'};
+
+  // สร้าง HTML 3 ก้อน
+  var html = '<div style="display:flex;flex-direction:column;gap:16px;">';
+
+  COS.forEach(function(co){
+    if(!dsdSelCo.has(co)) return;
+    var coData = modeFiltered.filter(function(r){return r.company===co;});
+    if(!coData.length) return;
+
+    var color = CO_COLORS[co], bg = CO_BG[co];
+
+    // คำนวณแต่ละ row × เดือน
+    function countByMonth(arr, m){ return arr.filter(function(r){return r.month===m;}).length; }
+
+    // HR sent แยกเดือน — ต้องคิดจากสาขาที่ filter ผ่านแล้ว
+    var branches = Array.from(new Set(coData.map(function(r){return r.branch;})));
+    function hrSentMonth(m) {
+      var mTxt = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'][m-1];
+      return dsdHrData.filter(function(r){
+        return r.co===co && r.hrMonth===mTxt && branches.indexOf(r.branch)>=0;
+      }).reduce(function(s,r){return s+r.count;},0);
+    }
+    function hrFiledMonth(m) {
+      var mTxt = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'][m-1];
+      return dsdHrData.filter(function(r){
+        return r.co===co && r.hrMonth===mTxt && r.filed && branches.indexOf(r.branch)>=0;
+      }).reduce(function(s,r){return s+r.count;},0);
+    }
+
+    // Total per row
+    var totalNew   = coData.length;
+    var totalSent  = monthNums.reduce(function(s,m){return s+hrSentMonth(m);},0);
+    var totalFiled = monthNums.reduce(function(s,m){return s+hrFiledMonth(m);},0);
+
+    var thStyle = 'padding:6px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap;text-align:center;';
+    var tdStyle = 'padding:6px 10px;text-align:center;border-bottom:1px solid var(--border);font-size:13px;';
+    var tdLStyle= 'padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;white-space:nowrap;';
+
+    html += '<div style="border:1.5px solid '+color+';border-radius:var(--radius);overflow:hidden;">';
+    // Header บริษัท
+    html += '<div style="background:'+bg+';padding:10px 16px;display:flex;align-items:center;gap:8px;">';
+    html += '<span style="background:'+color+';color:white;border-radius:6px;padding:2px 10px;font-size:12px;font-weight:700;">'+co+'</span>';
+    html += '<span style="font-size:12px;color:var(--text2);">'+coData.length+' คน | '+branches.length+' สาขา</span>';
+    html += '</div>';
+    // ตาราง
+    html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">';
+    html += '<thead><tr style="background:#f8f9fc;">';
+    html += '<th style="'+thStyle+'text-align:left;min-width:130px;">รายการ</th>';
+    monthNums.forEach(function(m){ html += '<th style="'+thStyle+'">'+MTH[m-1]+'</th>'; });
+    html += '<th style="'+thStyle+'color:var(--tos);">รวม</th>';
+    html += '</tr></thead><tbody>';
+
+    // Row 1: พนักงานใหม่
+    html += '<tr>';
+    html += '<td style="'+tdLStyle+'color:#26276f;">พนักงานเข้าใหม่</td>';
+    monthNums.forEach(function(m){ html += '<td style="'+tdStyle+'font-weight:600;">'+countByMonth(coData,m)+'</td>'; });
+    html += '<td style="'+tdStyle+'font-weight:700;color:var(--tos);">'+totalNew+'</td>';
+    html += '</tr>';
+
+    // Row 2: HR ส่งข้อมูล
+    html += '<tr style="background:#fafafa;">';
+    html += '<td style="'+tdLStyle+'color:#854F0B;">HR Staff ส่งข้อมูลให้</td>';
+    monthNums.forEach(function(m){
+      var v=hrSentMonth(m);
+      html += '<td style="'+tdStyle+(v>0?'color:#854F0B;font-weight:600;':'color:var(--text3);')+'">'+( v>0?v:'—')+'</td>';
+    });
+    html += '<td style="'+tdStyle+'font-weight:700;color:#854F0B;">'+(totalSent>0?totalSent:'—')+'</td>';
+    html += '</tr>';
+
+    // Row 3: ยื่นกรมพัฒแล้ว
+    html += '<tr>';
+    html += '<td style="'+tdLStyle+'color:#16a34a;">ยื่นเข้ากรมพัฒแล้ว</td>';
+    monthNums.forEach(function(m){
+      var v=hrFiledMonth(m);
+      html += '<td style="'+tdStyle+(v>0?'color:#16a34a;font-weight:600;':'color:var(--text3);')+'">'+( v>0?v:'—')+'</td>';
+    });
+    html += '<td style="'+tdStyle+'font-weight:700;color:#16a34a;">'+(totalFiled>0?totalFiled:'—')+'</td>';
+    html += '</tr>';
+
+    html += '</tbody></table></div></div>';
+  });
+
+  html += '</div>';
+  el.innerHTML = !monthNums.length
+    ? '<div style="text-align:center;color:var(--text3);padding:32px;">ไม่พบข้อมูลในช่วงที่เลือก</div>'
+    : html;
+
+  // ── ตารางสังกัด ──
+  if(detailEl) {
+    var branches2 = [];
+    COS.forEach(function(co){
+      if(!dsdSelCo.has(co)) return;
+      var coData2 = modeFiltered.filter(function(r){return r.company===co;});
+      var bMap = {};
+      coData2.forEach(function(r){
+        if(!bMap[r.branch]) bMap[r.branch]={count:0};
+        bMap[r.branch].count++;
+      });
+      Object.keys(bMap).sort().forEach(function(b){
+        branches2.push({co:co, branch:b, fullName:dsdBranchMap[b]||b, count:bMap[b].count});
+      });
+    });
+
+    if(!branches2.length) {
+      detailEl.innerHTML='<div style="text-align:center;color:var(--text3);padding:20px;">ไม่มีสังกัดในโหมดนี้</div>';
+    } else {
+      var CO_COLORS2={TRC:'#ed1c24',TOS:'#26276f',VJP:'#e97b2e'}, CO_BG2={TRC:'#fff0f0',TOS:'#f0f0ff',VJP:'#fff5ee'};
+      var th2='padding:7px 12px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);border-bottom:1px solid var(--border);';
+      detailEl.innerHTML='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'+
+        '<thead><tr style="background:#f8f9fc;"><th style="'+th2+'text-align:left;">บริษัท</th><th style="'+th2+'text-align:left;">สังกัด (สาขา)</th><th style="'+th2+'text-align:right;">พนักงานใหม่ปี 2569</th></tr></thead><tbody>'+
+        branches2.map(function(b){
+          var c2=CO_COLORS2[b.co]||'#6b7280', bg2=CO_BG2[b.co]||'#f9fafb';
+          return '<tr style="border-bottom:1px solid var(--border);">'+
+            '<td style="padding:8px 12px;"><span style="background:'+bg2+';color:'+c2+';border:1.5px solid '+c2+';border-radius:6px;padding:2px 9px;font-size:11px;font-weight:700;">'+b.co+'</span></td>'+
+            '<td style="padding:8px 12px;font-weight:500;">'+b.fullName+(b.fullName!==b.branch?'<span style="font-size:11px;color:var(--text3);margin-left:6px;">'+b.branch+'</span>':'')+'</td>'+
+            '<td style="padding:8px 12px;text-align:right;font-weight:700;color:var(--tos);">'+b.count+'</td>'+
+          '</tr>';
+        }).join('')+
+        '<tfoot><tr style="background:#f8f9fc;font-weight:700;"><td colspan="2" style="padding:8px 12px;">รวม '+branches2.length+' สาขา</td>'+
+        '<td style="padding:8px 12px;text-align:right;color:var(--tos);">'+branches2.reduce(function(s,b){return s+b.count;},0)+'</td></tr></tfoot>'+
+        '</tbody></table></div>';
+    }
+  }
 }
 
 function switchTrainingTab(e, name) {
