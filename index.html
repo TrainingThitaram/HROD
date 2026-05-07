@@ -1443,24 +1443,25 @@ function renderDsdDashboard() {
   document.getElementById('dsd-kpi-tos').textContent = filtered.filter(function(r){return r.company==='TOS';}).length.toLocaleString();
   document.getElementById('dsd-kpi-vjp').textContent = filtered.filter(function(r){return r.company==='VJP';}).length.toLocaleString();
 
-  // คำนวณ HR sent + filed แยก TRC/TOS/VJP จาก hrMap ทั้งหมด (ไม่กรอง search)
-  var hrMapAll = buildDsdHrMap(dsdSelHrMonths);
-  var hrByco   = {TRC:{sent:0,filed:0}, TOS:{sent:0,filed:0}, VJP:{sent:0,filed:0}};
-  // loop groups (ก่อน search filter) เพื่อรวมตาม company
-  var allGroups = {};
-  filtered.forEach(function(r){
-    var key=r.branch+'||'+r.company;
-    if(!allGroups[key]) allGroups[key]={branch:r.branch,company:r.company};
+  // คำนวณ HR sent + filed — ใช้ Logic เดียวกับ Matrix (branchFullNames)
+  // loop ทุก co แยก branches → แปลงเป็นชื่อเต็ม → หา HR ที่ตรงกัน
+  var MTH_FULL_KPI = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  var hrByco = {TRC:{sent:0,filed:0}, TOS:{sent:0,filed:0}, VJP:{sent:0,filed:0}};
+
+  ['TRC','TOS','VJP'].forEach(function(co){
+    if(!dsdSelCo.has(co)) return;
+    var coData = filtered.filter(function(r){return r.company===co;});
+    var branches = Array.from(new Set(coData.map(function(r){return r.branch;})));
+    var branchFull = branches.map(function(b){return dsdBranchMap[b]||b;});
+    dsdHrData.forEach(function(r){
+      if(r.co!==co) return;
+      if(branchFull.indexOf(r.branch)<0) return;
+      if(dsdSelHrMonths.size>0 && !dsdSelHrMonths.has(r.hrMonthN)) return;
+      hrByco[co].sent  += r.count;
+      if(r.filed) hrByco[co].filed += r.count;
+    });
   });
-  Object.values(allGroups).forEach(function(g){
-    var fn   = dsdBranchMap[g.branch]||g.branch;
-    var hrK  = g.company+'||'+fn;
-    var hrI  = hrMapAll[hrK]||{sent:0,filed:0};
-    if(hrByco[g.company]){
-      hrByco[g.company].sent  += hrI.sent;
-      hrByco[g.company].filed += hrI.filed;
-    }
-  });
+
   var hrTotal    = hrByco.TRC.sent  + hrByco.TOS.sent  + hrByco.VJP.sent;
   var filedTotal = hrByco.TRC.filed + hrByco.TOS.filed  + hrByco.VJP.filed;
 
