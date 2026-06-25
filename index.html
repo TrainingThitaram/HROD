@@ -2803,15 +2803,15 @@ function ocLevelToGrade(levelStr){
 // Grade → Y pixel. Higher grade = smaller Y (higher on screen)
 // GRADE_TOP is the grade of the top-most expected employee (Rainbow 3 = 98)
 // PITCH = pixels per grade unit
-var OC_GRADE_TOP = 98;   // Rainbow 3
-var OC_PITCH     = 110;  // px per grade unit — adjust for spacing
-var OC_TOP_PAD   = 60;   // px before first row
-var OC_CARD_W    = 180;
-var OC_CARD_H    = 64;
-var OC_CARD_GAP  = 22;
+var OC_PITCH   = 110;  // px per grade step — ปรับได้
+var OC_TOP_PAD = 50;   // px margin บนสุด
+var OC_CARD_W  = 180;
+var OC_CARD_H  = 64;
+var OC_CARD_GAP= 22;
+var _ocGradeTopRef = 0; // set per render from actual max grade in dept
 
 function ocGradeToY(grade){
-  return OC_TOP_PAD + (OC_GRADE_TOP - grade) * OC_PITCH;
+  return OC_TOP_PAD + (_ocGradeTopRef - grade) * OC_PITCH;
 }
 
 // ─── POSITION / PERSON VIEW (Option A) ────────────
@@ -2849,6 +2849,11 @@ function ocRenderLane(emps, dept){
     e._grade = ocLevelToGrade(e.Level);
     empMap[e.EmpID]=e;
   });
+
+  // Set grade top from actual max grade in this dept (not global 98)
+  var maxGrade = Math.max.apply(null, emps.map(function(e){return e._grade;}));
+  var minGrade2 = Math.min.apply(null, emps.map(function(e){return e._grade;}));
+  _ocGradeTopRef = maxGrade;
 
   // ── Tree walk: assign X column per grade row ──────
   // Walk tree top-down, DFS order → preserves parent-child X alignment
@@ -2905,8 +2910,7 @@ function ocRenderLane(emps, dept){
   });
 
   // ── Canvas height ──────────────────────────────────
-  var minGrade = Math.min.apply(null, emps.map(function(e){return e._grade;}));
-  var totalH = ocGradeToY(minGrade) + OC_CARD_H + 60;
+  var totalH = ocGradeToY(minGrade2) + OC_CARD_H + 60;
 
   svg.attr('viewBox','0 0 '+totalW+' '+totalH);
 
