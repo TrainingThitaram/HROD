@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HROD Dashboard — ThitaramGroup</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
 (function(){
   function loadMsal(src, fallback){
@@ -207,6 +208,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
 
     <button class="tab-btn" onclick="switchTab(event,'dsd')">🏛️ กรมพัฒนาฝีมือแรงงาน</button>
     <button class="tab-btn" onclick="switchTab(event,'social')">📱 Social Media</button>
+    <button class="tab-btn" onclick="switchTab(event,'orgchart');initOrgChart();">🏢 Org Chart</button>
   </div>
 
   <!-- TAB: EMPLOYEE -->
@@ -847,6 +849,82 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
     </div>
   </div>
 </div>
+  <!-- ════════════════════════════════════════════
+       TAB: ORG CHART
+  ════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-orgchart">
+
+    <!-- SUB TABS BAR -->
+    <div style="background:#fff;border-bottom:1px solid var(--border);padding:0 32px;display:flex;gap:0;overflow-x:auto;">
+      <button class="tab-btn active" id="oc-btn-dept"   onclick="switchOcTab('dept')"   style="font-size:13px;padding:10px 18px;">&#127970; ภาพรวมฝ่าย</button>
+      <button class="tab-btn"        id="oc-btn-person" onclick="switchOcTab('person')" style="font-size:13px;padding:10px 18px;">&#128100; สายบังคับบัญชา</button>
+    </div>
+
+    <!-- CONTROLS -->
+    <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:10px 32px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="font-size:12px;color:var(--text3);font-weight:500;">บริษัท</span>
+      <div style="display:flex;gap:6px;">
+        <span class="chip selected" id="oc-co-ALL" onclick="ocFilterCo('ALL',this)">ทั้งหมด</span>
+        <span class="chip c-trc"    id="oc-co-TRC" onclick="ocFilterCo('TRC',this)">TRC</span>
+        <span class="chip c-tos"    id="oc-co-TOS" onclick="ocFilterCo('TOS',this)">TOS</span>
+        <span class="chip c-vjp"    id="oc-co-VJP" onclick="ocFilterCo('VJP',this)">VJP</span>
+        <span class="chip c-wellios" id="oc-co-WXP" onclick="ocFilterCo('WXP',this)">WellExp</span>
+      </div>
+      <div style="width:1px;height:24px;background:var(--border);"></div>
+      <span style="font-size:12px;color:var(--text3);font-weight:500;">สถานะ</span>
+      <select id="oc-status-filter" onchange="ocApplyFilters()" style="padding:5px 10px;border:1px solid var(--border);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;background:var(--surface);">
+        <option value="คงสภาพ">คงสภาพ</option>
+        <option value="ALL">ทั้งหมด</option>
+      </select>
+      <div style="width:1px;height:24px;background:var(--border);"></div>
+      <div class="search-box" style="max-width:220px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ea3bc" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="oc-search" placeholder="ค้นหาชื่อ / ตำแหน่ง..." oninput="ocSearch(this.value)">
+      </div>
+      <button onclick="ocReset()" style="padding:6px 14px;border:1px solid var(--border);border-radius:8px;background:none;font-family:'Sarabun',sans-serif;font-size:13px;cursor:pointer;color:var(--text2);">&#8617; รีเซต</button>
+      <span id="oc-last-update" style="font-size:11px;color:var(--text3);margin-left:auto;"></span>
+    </div>
+
+    <!-- STATS -->
+    <div id="oc-stats" style="background:var(--surface2);border-bottom:1px solid var(--border);padding:6px 32px;display:none;align-items:center;gap:20px;font-size:12px;color:var(--text2);">
+      <span>&#128100; คงสภาพ <strong id="oc-stat-active" style="color:#16a34a;">—</strong></span>
+      <span>&#9898; สิ้นสภาพ <strong id="oc-stat-inactive" style="color:var(--text3);">—</strong></span>
+      <span>รวม <strong id="oc-stat-total" style="color:var(--tos);">—</strong> คน</span>
+      <span id="oc-breadcrumb" style="margin-left:auto;font-size:12px;color:var(--text2);"></span>
+    </div>
+
+    <!-- MAIN LAYOUT -->
+    <div style="display:flex;height:calc(100vh - 200px);overflow:hidden;">
+
+      <!-- SIDEBAR -->
+      <div style="width:220px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:8px 0;">
+        <div id="oc-sidebar"></div>
+      </div>
+
+      <!-- CHART AREA -->
+      <div style="flex:1;overflow:hidden;position:relative;background:var(--bg);">
+        <div class="error-box" id="oc-error-box" style="margin:16px;"></div>
+        <div id="oc-loader" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:var(--bg);z-index:10;">
+          <div style="width:120px;height:3px;background:linear-gradient(90deg,var(--trc),var(--tos),var(--vjp),var(--wellios));background-size:200%;animation:lb 1.2s infinite;border-radius:2px;"></div>
+          <span id="oc-loader-text" style="font-size:13px;color:var(--text3);">รอโหลดข้อมูล...</span>
+        </div>
+        <!-- Zoom -->
+        <div style="position:absolute;right:16px;top:12px;z-index:10;display:flex;flex-direction:column;gap:4px;">
+          <button onclick="ocZoom(1.25)" style="width:32px;height:32px;background:var(--surface);border:1px solid var(--border);border-radius:7px;font-size:18px;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;">+</button>
+          <button onclick="ocZoom(0.8)"  style="width:32px;height:32px;background:var(--surface);border:1px solid var(--border);border-radius:7px;font-size:18px;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;">&minus;</button>
+          <button onclick="ocFit()"      style="width:32px;height:32px;background:var(--surface);border:1px solid var(--border);border-radius:7px;font-size:13px;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;" title="Fit">&#8859;</button>
+        </div>
+        <!-- Legend -->
+        <div style="position:absolute;left:12px;bottom:12px;z-index:10;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:11px;">
+          <div style="display:flex;align-items:center;gap:6px;color:var(--text2);margin-bottom:4px;"><div style="width:9px;height:9px;border-radius:50%;background:#16a34a;"></div>คงสภาพ</div>
+          <div style="display:flex;align-items:center;gap:6px;color:var(--text2);"><div style="width:9px;height:9px;border-radius:50%;background:#d1d5db;"></div>สิ้นสภาพ</div>
+        </div>
+        <svg id="oc-svg" style="width:100%;height:100%;"></svg>
+        <div id="oc-tooltip" style="position:absolute;display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12px;z-index:100;max-width:220px;pointer-events:none;box-shadow:var(--shadow);"></div>
+      </div>
+    </div>
+  </div><!-- /tab-orgchart -->
+
 
 <script>
 const CLIENT_ID  = 'f597fe26-1426-4c3f-869a-c5c2044b894f';
@@ -2530,6 +2608,323 @@ function renderWxCompany(){
     sorted2.map(function(r){return '<tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 14px;color:var(--text2);">'+(r.created?(MONTH_TH[r.created.getMonth()]+' '+r.created.getFullYear()):'—')+'</td><td style="padding:10px 14px;font-weight:600;">'+r.factory+'</td><td style="padding:10px 14px;"><span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:12px;">'+r.package+'</span></td><td style="padding:10px 14px;text-align:right;font-weight:700;color:var(--wellios);">'+r.wellpoint.toLocaleString()+'</td><td style="padding:10px 14px;text-align:right;color:#16a34a;font-weight:600;">'+r.price.toLocaleString()+'</td></tr>';}).join('')+
     '<tfoot><tr style="background:#f8f9fc;font-weight:700;"><td colspan="3" style="padding:10px 14px;">รวมทั้งหมด</td><td style="padding:10px 14px;text-align:right;color:var(--wellios);">'+totalWP.toLocaleString()+'</td><td style="padding:10px 14px;text-align:right;color:#16a34a;">'+totalPrice.toLocaleString()+'</td></tr></tfoot></table></div>';
 }
+
+
+// ══════════════════════════════════════════════════════
+// ORG CHART MODULE
+// ══════════════════════════════════════════════════════
+const OC_FILE_ID = '01M5SVO63UYQGAAKYMW5H367USC6PZST7Q';
+const OC_DRIVE_ID = 'b!Q6WBRjNmxUaGpa_PVc_OmM7yWwkYrfVDpmT337_bHJWkYp3bLNpnSrWRpDky5-Tt';
+
+const OC_CO_COLORS = {
+  TRC: {fill:'#E6F1FB',stroke:'#185FA5',text:'#0C447C'},
+  TOS: {fill:'#E1F5EE',stroke:'#0F6E56',text:'#085041'},
+  VJP: {fill:'#FAEEDA',stroke:'#BA7517',text:'#633806'},
+  WXP: {fill:'#FBEAF0',stroke:'#993556',text:'#72243E'},
+  DEFAULT:{fill:'#EEEDFE',stroke:'#534AB7',text:'#3C3489'}
+};
+const OC_DISC_COLORS = {
+  'บริหารกรรมการผู้จัดการ':'#534AB7','บริหารรองกรรมการผู้จัดการ':'#185FA5',
+  'ปฏิบัติการ':'#1D9E75','สำนักงาน':'#BA7517','สานักงาน':'#BA7517'
+};
+
+let ocEmps=[], ocDepts=[], ocLoaded=false;
+let ocCurrentCo='ALL', ocCurrentStatus='คงสภาพ';
+let ocCurrentView='dept', ocCurrentDept=null;
+let ocSvg=null, ocG=null, ocZoomBeh=null;
+
+async function initOrgChart(){
+  if(ocLoaded){ocShowLoader(false);return;}
+  ocShowLoader(true,'กำลังโหลดข้อมูล Org Chart...');
+  try{
+    var tok=await getToken();
+    if(!tok){ocShowLoader(false);return;}
+    var base='https://graph.microsoft.com/v1.0/drives/'+OC_DRIVE_ID+'/items/'+OC_FILE_ID+'/workbook/worksheets';
+    var h={'Authorization':'Bearer '+tok};
+    var sRes=await fetch(base,{headers:h});
+    var sData=await sRes.json();
+    var sheets=sData.value||[];
+    var empSheet=sheets.find(function(s){return s.name==='Employees';});
+    var deptSheet=sheets.find(function(s){return s.name==='Departments';});
+    if(!empSheet||!deptSheet){throw new Error('ไม่พบ Sheet Employees หรือ Departments');}
+    var eId=encodeURIComponent(empSheet.id);
+    var dId=encodeURIComponent(deptSheet.id);
+    ocShowLoader(true,'กำลังโหลดรายชื่อพนักงาน...');
+    var [eRes,dRes]=await Promise.all([
+      fetch(base+'/'+eId+'/usedRange',{headers:h}),
+      fetch(base+'/'+dId+'/usedRange',{headers:h})
+    ]);
+    var [eData,dData]=await Promise.all([eRes.json(),dRes.json()]);
+    ocEmps=ocParseSheet(eData.values,['EmpID','FullName','NickName','Position','Level','ManagerID','Dept','DeptID','Company','Status','StartDate']);
+    ocDepts=ocParseSheet(dData.values,['DeptID','DeptNameTH','DeptNameEN','Discipline','ColorCode','HeadEmpID','HeadEmpName','SortOrder']);
+    ocEmps=ocEmps.filter(function(e){return e.EmpID&&e.EmpID.trim()!=='';});
+    ocLoaded=true;
+    document.getElementById('oc-last-update').textContent='อัปเดต '+new Date().toLocaleTimeString('th-TH');
+    ocBuildSidebar();
+    ocApplyFilters();
+  }catch(e){
+    document.getElementById('oc-error-box').textContent='โหลดไม่สำเร็จ: '+e.message;
+    document.getElementById('oc-error-box').style.display='block';
+  }
+  ocShowLoader(false);
+}
+
+function ocParseSheet(values,cols){
+  if(!values||values.length<2)return[];
+  var h=values[0].map(function(c){return String(c||'').trim();});
+  return values.slice(1).map(function(row){
+    var o={};cols.forEach(function(c){var i=h.indexOf(c);o[c]=i>=0?String(row[i]||'').trim():'';});return o;
+  }).filter(function(r){return Object.values(r).some(function(v){return v!=='';});});
+}
+
+function ocGetFiltered(){
+  return ocEmps.filter(function(e){
+    var co=ocCurrentCo==='ALL'||e.Company===ocCurrentCo;
+    var st=ocCurrentStatus==='ALL'||e.Status===ocCurrentStatus;
+    return co&&st;
+  });
+}
+
+function switchOcTab(tab){
+  ['dept','person'].forEach(function(t){
+    var b=document.getElementById('oc-btn-'+t);
+    if(b)b.classList.toggle('active',t===tab);
+  });
+  if(tab==='dept'){ocShowDeptView();}
+  else if(ocCurrentDept){ocShowPersonView(ocCurrentDept);}
+  else{ocShowDeptView();}
+}
+
+function ocFilterCo(co,el){
+  ocCurrentCo=co;
+  document.querySelectorAll('[id^="oc-co-"]').forEach(function(c){c.classList.remove('selected');});
+  el.classList.add('selected');
+  ocApplyFilters();
+}
+
+function ocApplyFilters(){
+  ocCurrentStatus=document.getElementById('oc-status-filter').value;
+  ocBuildSidebar();
+  if(ocCurrentView==='dept')ocShowDeptView();
+  else ocShowPersonView(ocCurrentDept);
+}
+
+function ocBuildSidebar(){
+  var emps=ocGetFiltered();
+  var byDept={};emps.forEach(function(e){byDept[e.DeptID]=(byDept[e.DeptID]||0)+1;});
+  var sorted=[...ocDepts].sort(function(a,b){return (Number(a.SortOrder)||99)-(Number(b.SortOrder)||99);});
+  var discMap={};
+  sorted.forEach(function(d){
+    var disc=d.Discipline||'อื่นๆ';
+    if(!discMap[disc])discMap[disc]=[];
+    discMap[disc].push(d);
+  });
+  var html='<div onclick="ocShowDeptView()" style="display:flex;align-items:center;gap:8px;padding:6px 16px;cursor:pointer;font-size:13px;color:var(--text2);'+(ocCurrentDept===null?'background:#eef0f8;color:var(--tos);font-weight:600;border-right:2px solid var(--tos);':'')+'">&#127970; ภาพรวม</div>';
+  Object.entries(discMap).forEach(function([disc,depts]){
+    var dc=OC_DISC_COLORS[disc]||'#534AB7';
+    html+='<div style="padding:5px 16px 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-top:8px;">'+disc+'</div>';
+    depts.forEach(function(d){
+      var cnt=byDept[d.DeptID]||0;
+      if(cnt===0&&ocCurrentStatus==='คงสภาพ')return;
+      var isA=ocCurrentDept===d.DeptID;
+      html+='<div onclick="ocShowPersonView(''+d.DeptID+'')" style="display:flex;align-items:center;gap:8px;padding:5px 16px;cursor:pointer;font-size:12px;color:var(--text2);'+(isA?'background:#eef0f8;color:var(--tos);font-weight:600;border-right:2px solid var(--tos);':'')+'"><div style="width:7px;height:7px;border-radius:50%;background:'+dc+';flex-shrink:0;"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(d.DeptNameTH||d.DeptNameEN)+'</span><span style="font-size:10px;color:var(--text3);background:var(--surface2);padding:1px 5px;border-radius:8px;">'+cnt+'</span></div>';
+    });
+  });
+  document.getElementById('oc-sidebar').innerHTML=html;
+}
+
+function ocUpdateStats(emps){
+  var act=emps.filter(function(e){return e.Status==='คงสภาพ';}).length;
+  var inact=emps.filter(function(e){return e.Status==='สิ้นสภาพ';}).length;
+  document.getElementById('oc-stat-active').textContent=act;
+  document.getElementById('oc-stat-inactive').textContent=inact;
+  document.getElementById('oc-stat-total').textContent=emps.length;
+  document.getElementById('oc-stats').style.display='flex';
+}
+
+// ─── DEPT OVERVIEW ───────────────────────────────
+function ocShowDeptView(){
+  ocCurrentView='dept';ocCurrentDept=null;
+  document.getElementById('oc-breadcrumb').textContent='';
+  ocBuildSidebar();
+  var emps=ocGetFiltered();
+  var byDept={};emps.forEach(function(e){byDept[e.DeptID]=(byDept[e.DeptID]||0)+1;});
+  var depts=ocDepts.filter(function(d){return (byDept[d.DeptID]||0)>0;})
+    .sort(function(a,b){return (Number(a.SortOrder)||99)-(Number(b.SortOrder)||99);});
+  var discMap={};
+  depts.forEach(function(d){
+    var disc=d.Discipline||'อื่นๆ';
+    if(!discMap[disc])discMap[disc]=[];
+    discMap[disc].push({...d,count:byDept[d.DeptID]||0});
+  });
+  var nodes=[],links=[];
+  nodes.push({id:'ROOT',label:'Thitaram Group',sublabel:'กลุ่มบริษัท',type:'root',w:200,h:56});
+  Object.entries(discMap).forEach(function([disc,depts2]){
+    var did='DISC_'+disc;
+    nodes.push({id:did,label:disc,type:'disc',w:180,h:46});
+    links.push({s:'ROOT',t:did});
+    depts2.forEach(function(d){
+      var nid='D_'+d.DeptID;
+      nodes.push({id:nid,deptId:d.DeptID,label:d.DeptNameTH||d.DeptNameEN,sublabel:d.DeptNameEN||'',count:d.count,type:'dept',w:160,h:64});
+      links.push({s:did,t:nid});
+    });
+  });
+  ocUpdateStats(emps);
+  ocRenderTree(nodes,links,'dept');
+}
+
+// ─── POSITION / PERSON VIEW ──────────────────────
+function ocShowPersonView(deptId){
+  ocCurrentView='person';ocCurrentDept=deptId;
+  var dept=ocDepts.find(function(d){return d.DeptID===deptId;});
+  if(!dept)return;
+  document.getElementById('oc-breadcrumb').textContent='ภาพรวม › '+(dept.DeptNameTH||dept.DeptNameEN);
+  ocBuildSidebar();
+  var emps=ocGetFiltered().filter(function(e){return e.DeptID===deptId;});
+  var empMap={};emps.forEach(function(e){empMap[e.EmpID]=e;});
+  var nodes=[],links=[];
+  emps.forEach(function(e){
+    nodes.push({id:e.EmpID,label:e.FullName,sublabel:e.Position,level:e.Level,status:e.Status,company:e.Company,nick:e.NickName,type:'person',w:170,h:70});
+  });
+  emps.forEach(function(e){if(e.ManagerID&&empMap[e.ManagerID])links.push({s:e.ManagerID,t:e.EmpID});});
+  var hasParent=new Set(links.map(function(l){return l.t;}));
+  var roots=nodes.filter(function(n){return !hasParent.has(n.id);});
+  if(roots.length>1){
+    nodes.unshift({id:'VROOT',label:dept.DeptNameTH||dept.DeptNameEN,type:'droot',w:180,h:50});
+    roots.forEach(function(r){links.push({s:'VROOT',t:r.id});});
+  }
+  ocUpdateStats(emps);
+  ocRenderTree(nodes,links,'person');
+}
+
+// ─── D3 RENDER ───────────────────────────────────
+function ocRenderTree(nodes,links,viewType){
+  if(typeof d3==='undefined'){
+    document.getElementById('oc-error-box').textContent='กำลังโหลด D3.js... กรุณารอสักครู่แล้วลองอีกครั้ง';
+    document.getElementById('oc-error-box').style.display='block';return;
+  }
+  var svg=d3.select('#oc-svg');
+  svg.selectAll('*').remove();
+  var W=document.getElementById('oc-svg').clientWidth||800;
+  var H=document.getElementById('oc-svg').clientHeight||600;
+  var g=svg.append('g');
+  ocSvg=svg;ocG=g;
+  ocZoomBeh=d3.zoom().scaleExtent([0.1,3]).on('zoom',function(e){g.attr('transform',e.transform);});
+  svg.call(ocZoomBeh);
+  // Build map
+  var nodeMap={};nodes.forEach(function(n){nodeMap[n.id]=n;});
+  var childMap={};links.forEach(function(l){if(!childMap[l.s])childMap[l.s]=[];childMap[l.s].push(l.t);});
+  var linked=new Set(links.map(function(l){return l.t;}));
+  var rootId=nodes.find(function(n){return !linked.has(n.id);})||nodes[0];
+  if(!rootId){return;}
+  rootId=rootId.id;
+  function buildH(id){
+    var n=nodeMap[id];if(!n)return null;
+    var ch=(childMap[id]||[]).map(buildH).filter(Boolean);
+    return Object.assign({},n,{children:ch.length?ch:null});
+  }
+  var hData=buildH(rootId);if(!hData)return;
+  var root=d3.hierarchy(hData);
+  d3.tree().nodeSize([200,110]).separation(function(a,b){return a.parent===b.parent?1.1:1.4;})(root);
+  // Links
+  g.selectAll('.oc-link').data(root.links()).join('path').attr('class','oc-link')
+    .attr('fill','none').attr('stroke','#D3D1C7').attr('stroke-width',1.2)
+    .attr('d',d3.linkVertical().x(function(d){return d.x;}).y(function(d){return d.y+28;}));
+  // Nodes
+  var ngs=g.selectAll('.oc-node').data(root.descendants()).join('g').attr('class','oc-node')
+    .attr('transform',function(d){return 'translate('+(d.x-d.data.w/2)+','+d.y+')';})
+    .style('cursor','pointer');
+  ngs.each(function(d){
+    var el=d3.select(this);
+    var nd=d.data;
+    var w=nd.w,h=nd.h;
+    var fill,stroke,tcolor,sub;
+    if(nd.type==='root'){fill='#EEEDFE';stroke='#534AB7';tcolor='#26215C';sub='#534AB7';}
+    else if(nd.type==='disc'){var dc=OC_DISC_COLORS[nd.label]||'#534AB7';fill=dc+'1A';stroke=dc;tcolor=dc;sub=dc;}
+    else if(nd.type==='dept'||nd.type==='droot'){fill='#F8F7F4';stroke='#B4B2A9';tcolor='#1C1B19';sub='#6B6963';}
+    else{
+      var isIn=nd.status==='สิ้นสภาพ';
+      var cc=isIn?{fill:'#F1EFE8',stroke:'#B4B2A9',text:'#6B6963'}:(OC_CO_COLORS[nd.company]||OC_CO_COLORS.DEFAULT);
+      fill=cc.fill;stroke=cc.stroke;tcolor=cc.text;sub=isIn?'#9B9890':tcolor;
+    }
+    el.append('rect').attr('width',w).attr('height',h).attr('rx',8).attr('fill',fill).attr('stroke',stroke).attr('stroke-width',1);
+    // Main text (wrap)
+    var lbl=nd.label||'';var maxC=Math.floor((w-16)/7.5);
+    var lines=lbl.length<=maxC?[lbl]:[lbl.slice(0,Math.floor(lbl.length/2)),lbl.slice(Math.floor(lbl.length/2))];
+    var yStart=lines.length>1?15:(nd.sublabel?18:h/2+4);
+    lines.forEach(function(ln,i){
+      el.append('text').attr('x',w/2).attr('y',yStart+i*15).attr('text-anchor','middle')
+        .attr('font-size',11.5).attr('font-weight','500').attr('fill',tcolor)
+        .attr('font-family',"'Sarabun',sans-serif").text(ln);
+    });
+    var yAfter=yStart+lines.length*15;
+    if(nd.sublabel){
+      var sl=nd.sublabel.length<=Math.floor((w-16)/6.5)?[nd.sublabel]:[nd.sublabel.slice(0,Math.floor(nd.sublabel.length/2)),nd.sublabel.slice(Math.floor(nd.sublabel.length/2))];
+      sl.slice(0,2).forEach(function(ln,i){
+        el.append('text').attr('x',w/2).attr('y',yAfter+2+i*12).attr('text-anchor','middle')
+          .attr('font-size',9.5).attr('fill',sub||'#6B6963').attr('font-family',"'Sarabun',sans-serif").text(ln);
+      });
+    }
+    if(nd.count!==undefined){
+      el.append('text').attr('x',w-8).attr('y',h-7).attr('text-anchor','end').attr('font-size',9.5).attr('fill','#9B9890').attr('font-family',"'Sarabun',sans-serif").text(nd.count+' คน');
+    }
+    if(nd.level){
+      el.append('rect').attr('x',6).attr('y',h-17).attr('width',Math.min(nd.level.length*7+8,70)).attr('height',13).attr('rx',4).attr('fill',fill).attr('stroke',stroke).attr('stroke-width',0.5);
+      el.append('text').attr('x',10).attr('y',h-7).attr('font-size',8.5).attr('fill',stroke).attr('font-family',"'Sarabun',sans-serif").text(nd.level);
+    }
+    if(nd.status){
+      var dotc=nd.status==='คงสภาพ'?'#16a34a':'#d1d5db';
+      el.append('circle').attr('cx',w-9).attr('cy',9).attr('r',4).attr('fill',dotc);
+    }
+  });
+  ngs.on('click',function(event,d){
+    if(d.data.deptId){ocShowPersonView(d.data.deptId);}
+  }).on('mouseover',function(event,d){
+    var nd=d.data;var tt=document.getElementById('oc-tooltip');
+    var html='<div style="font-weight:600;font-size:13px;margin-bottom:4px;">'+nd.label+'</div>';
+    if(nd.nick)html+='<div style="color:var(--text2);margin-bottom:2px;">ชื่อเล่น: '+nd.nick+'</div>';
+    if(nd.sublabel)html+='<div style="color:var(--text2);margin-bottom:2px;">'+nd.sublabel+'</div>';
+    if(nd.level)html+='<div style="color:var(--text2);margin-bottom:2px;">Level: '+nd.level+'</div>';
+    if(nd.status){var sc=nd.status==='คงสภาพ'?'background:#f0fdf4;color:#16a34a':'background:#f1f0ee;color:#888';html+='<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;'+sc+';">'+nd.status+'</span>';}
+    if(nd.count!==undefined)html+='<div style="color:var(--text2);margin-top:4px;">'+nd.count+' คน</div>';
+    tt.innerHTML=html;tt.style.display='block';
+    var rect=document.getElementById('oc-svg').getBoundingClientRect();
+    tt.style.left=(event.clientX-rect.left+12)+'px';tt.style.top=(event.clientY-rect.top+12)+'px';
+  }).on('mouseout',function(){document.getElementById('oc-tooltip').style.display='none';});
+  setTimeout(function(){ocFit();},100);
+}
+
+function ocFit(){
+  if(!ocSvg||!ocG)return;
+  var el=document.getElementById('oc-svg');
+  if(!el)return;
+  var W=el.clientWidth,H=el.clientHeight;
+  try{var bb=ocG.node().getBBox();if(!bb.width||!bb.height)return;
+  var sc=Math.min(0.9*W/bb.width,0.85*H/bb.height,1.6);
+  var tx=W/2-sc*(bb.x+bb.width/2);var ty=30-sc*bb.y+10;
+  ocSvg.transition().duration(400).call(ocZoomBeh.transform,d3.zoomIdentity.translate(tx,ty).scale(sc));}catch(e){}
+}
+function ocZoom(f){if(ocSvg)ocSvg.transition().duration(200).call(ocZoomBeh.scaleBy,f);}
+function ocSearch(v){
+  if(!ocG)return;
+  var lv=v.toLowerCase();
+  ocG.selectAll('.oc-node').attr('opacity',function(d){
+    if(!v)return 1;
+    var nd=d.data;
+    var txt=[nd.label,nd.sublabel,nd.nick].filter(Boolean).join(' ').toLowerCase();
+    return txt.includes(lv)?1:0.15;
+  });
+}
+function ocReset(){
+  document.getElementById('oc-search').value='';
+  if(ocG)ocG.selectAll('.oc-node').attr('opacity',1);
+  ocShowDeptView();
+}
+function ocShowLoader(show,msg){
+  var l=document.getElementById('oc-loader');
+  if(l){l.style.display=show?'flex':'none';if(msg)document.getElementById('oc-loader-text').textContent=msg;}
+}
+
 
 </script>
 </body>
