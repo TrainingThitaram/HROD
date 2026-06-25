@@ -2927,17 +2927,26 @@ function ocRenderLane(emps, dept){
 
   // ── Compute Y from grade ──────────────────────────
   // Use max grade in dept as reference top
-  var maxGrade = Math.max.apply(null, emps.map(function(e){ return e._grade; }));
-  var minGrade = Math.min.apply(null, emps.map(function(e){ return e._grade; }));
-  // virtualRoot sits one VPITCH above the actual top employee
-  if(virtualRoot) empMap[virtualRoot]._grade = maxGrade + 1;
-  if(virtualRoot) maxGrade = maxGrade + 1;
+  // Compress: collect unique grades actually used → rank them top-down
+  var usedGrades = [];
+  emps.forEach(function(e){
+    if(usedGrades.indexOf(e._grade)<0) usedGrades.push(e._grade);
+  });
+  usedGrades.sort(function(a,b){ return b-a; }); // desc: highest grade = rank 0
 
-  function gradeToY(g){
-    return TOP_PAD + (maxGrade - g) * VPITCH;
+  if(virtualRoot){
+    var vGrade = usedGrades[0] + 1;
+    empMap[virtualRoot]._grade = vGrade;
+    usedGrades.unshift(vGrade);
   }
 
-  var totalH = gradeToY(minGrade) + CH + 60;
+  function gradeToY(g){
+    var rank = usedGrades.indexOf(g);
+    if(rank < 0) rank = usedGrades.length - 1;
+    return TOP_PAD + rank * VPITCH;
+  }
+
+  var totalH = gradeToY(usedGrades[usedGrades.length-1]) + CH + 60;
   svg.attr('viewBox','0 0 '+totalW+' '+totalH);
 
   var g = svg.append('g');
