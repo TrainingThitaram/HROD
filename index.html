@@ -2783,50 +2783,38 @@ function ocShowDeptView(){
   ocRenderTree(nodes,links,'dept');
 }
 
-// ─── LEVEL UTILS ─────────────────────────────────
-// Lane definitions: label, priority (0=top), level numbers it covers
-var OC_LANES = [
-  {id:'R3',  label:'Rainbow 3', pri:0,  nums:[],    rainbow:['Rainbow 3','Rainbow3']},
-  {id:'R2',  label:'Rainbow 2', pri:1,  nums:[],    rainbow:['Rainbow 2','Rainbow2']},
-  {id:'R1',  label:'Rainbow 1', pri:2,  nums:[],    rainbow:['Rainbow 1','Rainbow1']},
-  {id:'L14', label:'L.13-14',   pri:3,  nums:[13,14], rainbow:[]},
-  {id:'L12', label:'L.10-12',   pri:4,  nums:[10,11,12], rainbow:[]},
-  {id:'L9',  label:'L.8-9',     pri:5,  nums:[8,9],  rainbow:[]},
-  {id:'L7',  label:'L.6-7',     pri:6,  nums:[6,7],  rainbow:[]},
-  {id:'L5',  label:'L.4-5',     pri:7,  nums:[4,5],  rainbow:[]},
-  {id:'L3',  label:'L.1-3',     pri:8,  nums:[1,2,3],rainbow:[]}
-];
-
-function ocGetLane(levelStr){
-  if(!levelStr||levelStr.trim()==='') return OC_LANES[OC_LANES.length-1];
-  var s = levelStr.trim();
-  // Check Rainbow
-  for(var i=0;i<OC_LANES.length;i++){
-    var ln=OC_LANES[i];
-    if(ln.rainbow.length){
-      for(var j=0;j<ln.rainbow.length;j++){
-        if(s.toLowerCase().replace(/\s+/g,'')===ln.rainbow[j].toLowerCase().replace(/\s+/g,'')) return ln;
-      }
-    }
-  }
-  // Parse number(s) from string — handles "10", "8-9", "10-12", "L10" etc.
-  var nums = s.match(/\d+/g);
-  if(!nums||!nums.length) return OC_LANES[OC_LANES.length-1];
-  // Use average of parsed numbers to find best lane
-  var avg = nums.reduce(function(a,b){return a+Number(b);},0)/nums.length;
-  // Find lane whose nums range covers avg, or closest
-  var best=null, bestDist=999;
-  for(var i=0;i<OC_LANES.length;i++){
-    var ln=OC_LANES[i];
-    if(!ln.nums.length) continue;
-    var min=Math.min.apply(null,ln.nums), max=Math.max.apply(null,ln.nums);
-    if(avg>=min && avg<=max) return ln;
-    var dist=Math.min(Math.abs(avg-min),Math.abs(avg-max));
-    if(dist<bestDist){bestDist=dist;best=ln;}
-  }
-  return best||OC_LANES[OC_LANES.length-1];
+// ─── LEVEL UTILS (Option A: Y per real level number) ──
+// Map level string → numeric grade for Y positioning
+// Rainbow3=100, Rainbow2=99, Rainbow1=98, then numeric
+// Range "8-9" → average 8.5 so it lands between L8 and L9
+function ocLevelToGrade(levelStr){
+  if(!levelStr||!levelStr.trim()) return 1;
+  var s=levelStr.trim();
+  // Rainbow
+  var rm=s.match(/rainbow\s*(\d)/i);
+  if(rm) return 95+Number(rm[1]); // R1=96, R2=97, R3=98
+  // Numeric (handles "5", "8-9", "L10", "10-12")
+  var nums=s.match(/\d+/g);
+  if(!nums||!nums.length) return 1;
+  var sum=nums.reduce(function(a,b){return a+Number(b);},0);
+  return sum/nums.length; // average for ranges
 }
 
+// Grade → Y pixel. Higher grade = smaller Y (higher on screen)
+// GRADE_TOP is the grade of the top-most expected employee (Rainbow 3 = 98)
+// PITCH = pixels per grade unit
+var OC_GRADE_TOP = 98;   // Rainbow 3
+var OC_PITCH     = 110;  // px per grade unit — adjust for spacing
+var OC_TOP_PAD   = 60;   // px before first row
+var OC_CARD_W    = 180;
+var OC_CARD_H    = 64;
+var OC_CARD_GAP  = 22;
+
+function ocGradeToY(grade){
+  return OC_TOP_PAD + (OC_GRADE_TOP - grade) * OC_PITCH;
+}
+
+// ─── POSITION / PERSON VIEW (Option A) ────────────
 // ─── POSITION / PERSON VIEW (Lane Layout) ────────
 function ocShowPersonView(deptId){
   ocCurrentView='person'; ocCurrentDept=deptId;
@@ -2839,11 +2827,12 @@ function ocShowPersonView(deptId){
   ocRenderLane(emps, dept);
 }
 
-// ─── LANE RENDER (Person View) ───────────────────
+// ─── PERSON VIEW RENDER (Option A: Y = grade) ───────
 function ocRenderLane(emps, dept){
   if(typeof d3==='undefined') return;
   var svg=d3.select('#oc-svg');
   svg.selectAll('*').remove();
+  svg.attr('viewBox',null).style('overflow','visible');
   var svgEl=document.getElementById('oc-svg');
   var W=svgEl.clientWidth||900;
   ocSvg=svg; ocG=null;
@@ -2855,201 +2844,164 @@ function ocRenderLane(emps, dept){
     return;
   }
 
-  // Build manager map
   var empMap={};
-  emps.forEach(function(e){empMap[e.EmpID]=e;});
-
-  // Assign lane to each employee
-  emps.forEach(function(e){e._lane=ocGetLane(e.Level);});
-
-  // Find used lanes (in priority order)
-  var usedLaneIds={};
-  emps.forEach(function(e){usedLaneIds[e._lane.id]=e._lane;});
-  var usedLanes=OC_LANES.filter(function(ln){return usedLaneIds[ln.id];});
-
-  // Layout constants
-  var LANE_LABEL_W = 90;   // left label column
-  var CARD_W = 176;        // card width
-  var CARD_H = 62;         // card height
-  var CARD_GAP_X = 20;     // horizontal gap between cards
-  var LANE_PAD_Y = 16;     // top/bottom padding inside lane
-  var LANE_GAP = 0;        // gap between lanes
-  var FONT_NAME_MAX = 12;  // max font size for name
-  var FONT_NAME_MIN = 7;   // min font size for name
-
-  // Group employees by lane
-  var byLane={};
   emps.forEach(function(e){
-    if(!byLane[e._lane.id]) byLane[e._lane.id]=[]; 
-    byLane[e._lane.id].push(e);
+    e._grade = ocLevelToGrade(e.Level);
+    empMap[e.EmpID]=e;
   });
 
-  // Sort within each lane by level number desc then name
-  Object.keys(byLane).forEach(function(lid){
-    byLane[lid].sort(function(a,b){
-      var na=parseInt((a.Level||'0').match(/\d+/)||[0]);
-      var nb=parseInt((b.Level||'0').match(/\d+/)||[0]);
-      return nb-na||a.FullName.localeCompare(b.FullName,'th');
+  // ── Tree walk: assign X column per grade row ──────
+  // Walk tree top-down, DFS order → preserves parent-child X alignment
+  var hasParentInDept = new Set(
+    emps.filter(function(e){return empMap[e.ManagerID];}).map(function(e){return e.EmpID;})
+  );
+  var roots = emps.filter(function(e){return !hasParentInDept.has(e.EmpID);})
+    .sort(function(a,b){return b._grade - a._grade;});
+
+  // colCountByGrade: how many cards placed at each grade row so far
+  var colCountByGrade={};
+  var empPos={};
+  var visited=new Set();
+
+  function placeNode(e){
+    if(visited.has(e.EmpID)) return;
+    visited.add(e.EmpID);
+    var g=Math.round(e._grade*2)/2; // round to 0.5 for ranges
+    if(!colCountByGrade[g]) colCountByGrade[g]=0;
+    var col=colCountByGrade[g]++;
+    // X will be recalculated after we know total columns per row
+    empPos[e.EmpID]={grade:e._grade, gradeKey:g, col:col, emp:e};
+    // Place children sorted by grade desc
+    var children=emps.filter(function(c){return c.ManagerID===e.EmpID;})
+      .sort(function(a,b){return b._grade-a._grade;});
+    children.forEach(placeNode);
+  }
+  roots.forEach(placeNode);
+  // unvisited (no manager link found)
+  emps.forEach(function(e){placeNode(e);});
+
+  // ── Compute X: center each grade row ──────────────
+  // Group by gradeKey
+  var byGradeKey={};
+  Object.values(empPos).forEach(function(p){
+    if(!byGradeKey[p.gradeKey]) byGradeKey[p.gradeKey]=[];
+    byGradeKey[p.gradeKey].push(p);
+  });
+
+  var maxCols = Math.max.apply(null, Object.values(colCountByGrade).concat([1]));
+  var totalContentW = maxCols * (OC_CARD_W + OC_CARD_GAP) - OC_CARD_GAP;
+  var totalW = Math.max(W, totalContentW + 80);
+  var originX = totalW / 2 - totalContentW / 2; // left edge of first card in full row
+
+  Object.values(byGradeKey).forEach(function(row){
+    var n = row.length;
+    var rowW = n*(OC_CARD_W+OC_CARD_GAP) - OC_CARD_GAP;
+    var startX = totalW/2 - rowW/2; // center this row
+    row.sort(function(a,b){return a.col-b.col;});
+    row.forEach(function(p,i){
+      p.x = startX + i*(OC_CARD_W+OC_CARD_GAP) + OC_CARD_W/2;
+      p.y = ocGradeToY(p.grade);
     });
   });
 
-  // Calculate lane heights: 1 row of cards per lane
-  var laneH={};
-  usedLanes.forEach(function(ln){
-    laneH[ln.id] = LANE_PAD_Y*2 + CARD_H;
-  });
+  // ── Canvas height ──────────────────────────────────
+  var minGrade = Math.min.apply(null, emps.map(function(e){return e._grade;}));
+  var totalH = ocGradeToY(minGrade) + OC_CARD_H + 60;
 
-  // Calculate total canvas height
-  var totalH = usedLanes.reduce(function(s,ln){return s+laneH[ln.id]+LANE_GAP;},0)+20;
-
-  // Calculate lane Y positions
-  var laneY={};
-  var cy=10;
-  usedLanes.forEach(function(ln){laneY[ln.id]=cy; cy+=laneH[ln.id]+LANE_GAP;});
-
-  // Position each card: place in their lane, spread horizontally
-  // We need to figure out x positions based on manager tree
-  // Simple approach: sort by ManagerID tree order within lane
-  var ordered=[];
-  var visited=new Set();
-  function visit(empId){
-    if(visited.has(empId))return;
-    visited.add(empId);
-    var e=empMap[empId];
-    if(e) ordered.push(e);
-    emps.forEach(function(c){if(c.ManagerID===empId) visit(c.EmpID);});
-  }
-  // Find roots (no manager in this dept)
-  var hasParent=new Set(emps.filter(function(e){return empMap[e.ManagerID];}).map(function(e){return e.EmpID;}));
-  emps.filter(function(e){return !hasParent.has(e.EmpID);}).forEach(function(e){visit(e.EmpID);});
-  // Any unvisited
-  emps.forEach(function(e){visit(e.EmpID);});
-
-  // Assign X per lane using tree order
-  var laneCounter={};
-  var empPos={};
-  ordered.forEach(function(e){
-    var lid=e._lane.id;
-    if(!laneCounter[lid]) laneCounter[lid]=0;
-    var col=laneCounter[lid]++;
-    empPos[e.EmpID]={
-      x: LANE_LABEL_W + col*(CARD_W+CARD_GAP_X) + CARD_W/2,
-      y: laneY[lid] + LANE_PAD_Y + CARD_H/2
-    };
-  });
-
-  // Total width
-  var maxCols=0;
-  usedLanes.forEach(function(ln){maxCols=Math.max(maxCols,laneCounter[ln.id]||0);});
-  var totalW=Math.max(W, LANE_LABEL_W + maxCols*(CARD_W+CARD_GAP_X) + 40);
-
-  svg.attr('viewBox','0 0 '+totalW+' '+totalH).style('overflow','visible');
+  svg.attr('viewBox','0 0 '+totalW+' '+totalH);
 
   var g=svg.append('g');
   ocG=g;
   ocZoomBeh=d3.zoom().scaleExtent([0.08,3]).on('zoom',function(ev){g.attr('transform',ev.transform);});
   svg.call(ocZoomBeh);
 
-  // ── Draw lane bands ──
-  usedLanes.forEach(function(ln){
-    var y=laneY[ln.id], h=laneH[ln.id];
-    // Alternating subtle bg
-    g.append('rect').attr('x',0).attr('y',y).attr('width',totalW).attr('height',h)
-      .attr('fill', ln.pri%2===0?'#f8f9fc':'#ffffff').attr('opacity',0.9);
-    // Dashed separator line
-    g.append('line').attr('x1',0).attr('y1',y).attr('x2',totalW).attr('y2',y)
-      .attr('stroke','#D3D1C7').attr('stroke-width',1).attr('stroke-dasharray','4,3');
-    // Lane label
-    g.append('text').attr('x',8).attr('y',y+h/2+5)
-      .attr('font-size',11).attr('font-weight','700').attr('fill','#5c6080')
-      .attr('font-family',"'Sarabun',sans-serif").text(ln.label);
+  // ── Guide lines (very subtle horizontal per grade row) ──
+  var drawnGuides=new Set();
+  Object.values(empPos).forEach(function(p){
+    var yg=Math.round(p.y);
+    if(drawnGuides.has(yg)) return;
+    drawnGuides.add(yg);
+    g.append('line')
+      .attr('x1',0).attr('y1',p.y).attr('x2',totalW).attr('y2',p.y)
+      .attr('stroke','#F0F1F6').attr('stroke-width',1);
   });
-  // Bottom border
-  g.append('line').attr('x1',0).attr('y1',totalH-10).attr('x2',totalW).attr('y2',totalH-10)
-    .attr('stroke','#D3D1C7').attr('stroke-width',1).attr('stroke-dasharray','4,3');
 
-  // Vertical divider after label
-  g.append('line').attr('x1',LANE_LABEL_W-4).attr('y1',0).attr('x2',LANE_LABEL_W-4).attr('y2',totalH)
-    .attr('stroke','#e2e4ec').attr('stroke-width',1);
-
-  // ── Draw links (manager → employee) ──
+  // ── Links ─────────────────────────────────────────
   emps.forEach(function(e){
     if(!e.ManagerID||!empMap[e.ManagerID]) return;
-    var p=empPos[e.ManagerID], c=empPos[e.EmpID];
-    if(!p||!c) return;
-    var px=p.x, py=p.y+CARD_H/2+2;
-    var cx2=c.x, cy2=c.y-CARD_H/2-2;
-    if(Math.abs(py-cy2)<4){
-      g.append('line').attr('x1',px).attr('y1',py).attr('x2',cx2).attr('y2',cy2)
-        .attr('stroke','#C8CADB').attr('stroke-width',1.2).attr('fill','none');
+    var pp=empPos[e.ManagerID], cp=empPos[e.EmpID];
+    if(!pp||!cp) return;
+    var x1=pp.x, y1=pp.y+OC_CARD_H/2+2;
+    var x2=cp.x, y2=cp.y-OC_CARD_H/2-2;
+    var dy=y2-y1;
+    if(dy<8){
+      // Same-grade or very close → horizontal L-bend to avoid overlap
+      var midY=y1+30;
+      g.append('path')
+        .attr('d','M'+x1+','+y1+' L'+x1+','+midY+' L'+x2+','+midY+' L'+x2+','+y2)
+        .attr('fill','none').attr('stroke','#C8CADB').attr('stroke-width',1.2);
     } else {
-      var midY=(py+cy2)/2;
-      g.append('path').attr('d','M'+px+','+py+' C'+px+','+(py+30)+' '+cx2+','+(cy2-30)+' '+cx2+','+cy2)
-        .attr('stroke','#C8CADB').attr('stroke-width',1.2).attr('fill','none');
+      // Normal curved link
+      var midY2=(y1+y2)/2;
+      g.append('path')
+        .attr('d','M'+x1+','+y1+' C'+x1+','+(y1+Math.min(dy*0.4,40))+' '+x2+','+(y2-Math.min(dy*0.4,40))+' '+x2+','+y2)
+        .attr('fill','none').attr('stroke','#C8CADB').attr('stroke-width',1.2);
     }
+    // Arrowhead
+    g.append('path').attr('d','M'+(x2-4)+','+(y2-8)+' L'+x2+','+y2+' L'+(x2+4)+','+(y2-8))
+      .attr('fill','none').attr('stroke','#C8CADB').attr('stroke-width',1.2).attr('stroke-linecap','round').attr('stroke-linejoin','round');
   });
 
-  // ── Draw cards ──
+  // ── Cards ──────────────────────────────────────────
   var cardGs=g.selectAll('.oc-node').data(emps).join('g').attr('class','oc-node')
     .attr('transform',function(e){
       var p=empPos[e.EmpID];
-      return p?'translate('+(p.x-CARD_W/2)+','+(p.y-CARD_H/2)+')':'translate(0,0)';
+      return p?'translate('+(p.x-OC_CARD_W/2)+','+(p.y-OC_CARD_H/2)+')':'translate(-9999,0)';
     }).style('cursor','default');
 
   cardGs.each(function(e){
     var el=d3.select(this);
     var isIn=e.Status==='สิ้นสภาพ';
     var cc=isIn?{fill:'#F1EFE8',stroke:'#B4B2A9',text:'#6B6963'}:(OC_CO_COLORS[e.Company]||OC_CO_COLORS.DEFAULT);
+    var W2=OC_CARD_W, H2=OC_CARD_H;
+    var maxTxtW=W2-22;
 
-    // Card background
-    el.append('rect').attr('width',CARD_W).attr('height',CARD_H).attr('rx',8)
+    el.append('rect').attr('width',W2).attr('height',H2).attr('rx',8)
       .attr('fill',cc.fill).attr('stroke',cc.stroke).attr('stroke-width',1);
 
     // Status dot
-    var dotc=isIn?'#d1d5db':'#16a34a';
-    el.append('circle').attr('cx',CARD_W-9).attr('cy',10).attr('r',4).attr('fill',dotc);
+    el.append('circle').attr('cx',W2-9).attr('cy',10).attr('r',4)
+      .attr('fill',isIn?'#d1d5db':'#16a34a');
 
-    // ── Name: auto-fit font size, always 1 line ──
-    var nameEl=el.append('text')
-      .attr('x',CARD_W/2).attr('y',22)
+    // Name — 1 line auto-fit
+    var nameEl=el.append('text').attr('x',W2/2).attr('y',22)
       .attr('text-anchor','middle').attr('dominant-baseline','middle')
       .attr('font-weight','600').attr('fill',cc.text)
-      .attr('font-family',"'Sarabun',sans-serif")
-      .text(e.FullName||'');
-    // Auto-fit: try sizes from max down until it fits
-    var maxTextW=CARD_W-22;
-    for(var fs=FONT_NAME_MAX; fs>=FONT_NAME_MIN; fs--){
+      .attr('font-family',"'Sarabun',sans-serif").text(e.FullName||'');
+    for(var fs=12;fs>=7;fs--){
       nameEl.attr('font-size',fs);
-      try{
-        var tl=nameEl.node().getComputedTextLength();
-        if(tl<=maxTextW) break;
-      }catch(ex){ break; }
+      try{if(nameEl.node().getComputedTextLength()<=maxTxtW)break;}catch(ex){break;}
     }
 
-    // ── Position: auto-fit, 1 line ──
-    var pos=e.Position||'';
-    var posEl=el.append('text')
-      .attr('x',CARD_W/2).attr('y',38)
+    // Position — 1 line auto-fit
+    var posEl=el.append('text').attr('x',W2/2).attr('y',39)
       .attr('text-anchor','middle').attr('dominant-baseline','middle')
-      .attr('fill', isIn?'#9B9890':cc.text).attr('opacity',0.75)
-      .attr('font-family',"'Sarabun',sans-serif")
-      .text(pos);
-    for(var fs2=10; fs2>=6; fs2--){
+      .attr('fill',isIn?'#9B9890':cc.text).attr('opacity',0.72)
+      .attr('font-family',"'Sarabun',sans-serif").text(e.Position||'');
+    for(var fs2=10;fs2>=6.5;fs2-=0.5){
       posEl.attr('font-size',fs2);
-      try{
-        var tl2=posEl.node().getComputedTextLength();
-        if(tl2<=maxTextW) break;
-      }catch(ex){ break; }
+      try{if(posEl.node().getComputedTextLength()<=maxTxtW)break;}catch(ex){break;}
     }
 
     // Level badge
     if(e.Level){
-      var lw=Math.min(e.Level.toString().length*7+10,68);
-      el.append('rect').attr('x',6).attr('y',CARD_H-17).attr('width',lw).attr('height',13)
+      var lvStr=String(e.Level);
+      var lw=Math.min(lvStr.length*7+10,72);
+      el.append('rect').attr('x',5).attr('y',H2-17).attr('width',lw).attr('height',13)
         .attr('rx',4).attr('fill',cc.fill).attr('stroke',cc.stroke).attr('stroke-width',0.5);
-      el.append('text').attr('x',10).attr('y',CARD_H-7)
+      el.append('text').attr('x',9).attr('y',H2-7)
         .attr('font-size',8.5).attr('fill',cc.stroke).attr('font-family',"'Sarabun',sans-serif")
-        .text(e.Level);
+        .text(lvStr);
     }
   });
 
@@ -3068,7 +3020,6 @@ function ocRenderLane(emps, dept){
     tt.style.top=(event.clientY-rect.top+12)+'px';
   }).on('mouseout',function(){document.getElementById('oc-tooltip').style.display='none';});
 
-  // Fit
   setTimeout(function(){ocFit();},100);
 }
 
