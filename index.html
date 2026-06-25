@@ -2912,7 +2912,7 @@ function ocRenderLane(emps, dept){
   if(allRoots.length > 1){
     virtualRoot = '__VROOT__';
     children[virtualRoot] = allRoots;
-    empMap[virtualRoot] = {EmpID:virtualRoot, FullName:dept?dept.DeptNameTH||dept.DeptNameEN:'', Position:'', Level:'', Status:'', Company:'', _grade:99};
+    empMap[virtualRoot] = {EmpID:virtualRoot, FullName:dept?dept.DeptNameTH||dept.DeptNameEN:'', Position:'', Level:'', Status:'', Company:'', _grade:-1};
     allRoots = [virtualRoot];
   }
 
@@ -2929,7 +2929,9 @@ function ocRenderLane(emps, dept){
   // Use max grade in dept as reference top
   var maxGrade = Math.max.apply(null, emps.map(function(e){ return e._grade; }));
   var minGrade = Math.min.apply(null, emps.map(function(e){ return e._grade; }));
-  if(virtualRoot) maxGrade = 99;
+  // virtualRoot sits one VPITCH above the actual top employee
+  if(virtualRoot) empMap[virtualRoot]._grade = maxGrade + 1;
+  if(virtualRoot) maxGrade = maxGrade + 1;
 
   function gradeToY(g){
     return TOP_PAD + (maxGrade - g) * VPITCH;
