@@ -2827,183 +2827,265 @@ function ocShowPersonView(deptId){
   ocRenderLane(emps, dept);
 }
 
-// ─── PERSON VIEW RENDER (Option A: Y = grade) ───────
+// ─── PERSON VIEW RENDER (Bus Connector) ─────────────
 function ocRenderLane(emps, dept){
   if(typeof d3==='undefined') return;
   var svg=d3.select('#oc-svg');
   svg.selectAll('*').remove();
   svg.attr('viewBox',null).style('overflow','visible');
   var svgEl=document.getElementById('oc-svg');
-  var W=svgEl.clientWidth||900;
   ocSvg=svg; ocG=null;
 
   if(!emps.length){
-    svg.append('text').attr('x',W/2).attr('y',200).attr('text-anchor','middle')
+    var W0=svgEl.clientWidth||800;
+    svg.append('text').attr('x',W0/2).attr('y',200).attr('text-anchor','middle')
       .attr('font-size',14).attr('fill','#9ea3bc').attr('font-family',"'Sarabun',sans-serif")
       .text('ไม่มีพนักงานในฝ่ายนี้');
     return;
   }
 
-  var empMap={};
+  // ── Constants ────────────────────────────────────
+  var CW = 176, CH = 60;   // card width/height
+  var HGAP = 16;           // horizontal gap between cards
+  var VPITCH = 110;        // vertical pitch per grade unit
+  var TOP_PAD = 40;        // top margin
+  var BUS_OFFSET = 30;     // bus line sits this far below parent bottom edge
+
+  // ── Grade mapping ─────────────────────────────────
+  var empMap = {};
   emps.forEach(function(e){
     e._grade = ocLevelToGrade(e.Level);
-    empMap[e.EmpID]=e;
+    empMap[e.EmpID] = e;
   });
 
-  // Set grade top from actual max grade in this dept (not global 98)
-  var maxGrade = Math.max.apply(null, emps.map(function(e){return e._grade;}));
-  var minGrade2 = Math.min.apply(null, emps.map(function(e){return e._grade;}));
-  _ocGradeTopRef = maxGrade;
-
-  // ── Tree walk: assign X column per grade row ──────
-  // Walk tree top-down, DFS order → preserves parent-child X alignment
-  var hasParentInDept = new Set(
-    emps.filter(function(e){return empMap[e.ManagerID];}).map(function(e){return e.EmpID;})
-  );
-  var roots = emps.filter(function(e){return !hasParentInDept.has(e.EmpID);})
-    .sort(function(a,b){return b._grade - a._grade;});
-
-  // colCountByGrade: how many cards placed at each grade row so far
-  var colCountByGrade={};
-  var empPos={};
-  var visited=new Set();
-
-  function placeNode(e){
-    if(visited.has(e.EmpID)) return;
-    visited.add(e.EmpID);
-    var g=Math.round(e._grade*2)/2; // round to 0.5 for ranges
-    if(!colCountByGrade[g]) colCountByGrade[g]=0;
-    var col=colCountByGrade[g]++;
-    // X will be recalculated after we know total columns per row
-    empPos[e.EmpID]={grade:e._grade, gradeKey:g, col:col, emp:e};
-    // Place children sorted by grade desc
-    var children=emps.filter(function(c){return c.ManagerID===e.EmpID;})
-      .sort(function(a,b){return b._grade-a._grade;});
-    children.forEach(placeNode);
-  }
-  roots.forEach(placeNode);
-  // unvisited (no manager link found)
-  emps.forEach(function(e){placeNode(e);});
-
-  // ── Compute X: center each grade row ──────────────
-  // Group by gradeKey
-  var byGradeKey={};
-  Object.values(empPos).forEach(function(p){
-    if(!byGradeKey[p.gradeKey]) byGradeKey[p.gradeKey]=[];
-    byGradeKey[p.gradeKey].push(p);
+  // ── Build tree structure ──────────────────────────
+  var children = {};  // parentId → [childId]
+  var roots = [];
+  emps.forEach(function(e){
+    if(e.ManagerID && empMap[e.ManagerID]){
+      if(!children[e.ManagerID]) children[e.ManagerID] = [];
+      children[e.ManagerID].push(e.EmpID);
+    } else {
+      roots.push(e.EmpID);
+    }
   });
 
-  var maxCols = Math.max.apply(null, Object.values(colCountByGrade).concat([1]));
-  var totalContentW = maxCols * (OC_CARD_W + OC_CARD_GAP) - OC_CARD_GAP;
-  var totalW = Math.max(W, totalContentW + 80);
-  var originX = totalW / 2 - totalContentW / 2; // left edge of first card in full row
-
-  Object.values(byGradeKey).forEach(function(row){
-    var n = row.length;
-    var rowW = n*(OC_CARD_W+OC_CARD_GAP) - OC_CARD_GAP;
-    var startX = totalW/2 - rowW/2; // center this row
-    row.sort(function(a,b){return a.col-b.col;});
-    row.forEach(function(p,i){
-      p.x = startX + i*(OC_CARD_W+OC_CARD_GAP) + OC_CARD_W/2;
-      p.y = ocGradeToY(p.grade);
+  // Sort children by grade desc, then name
+  Object.keys(children).forEach(function(pid){
+    children[pid].sort(function(a,b){
+      return empMap[b]._grade - empMap[a]._grade || (empMap[a].FullName||'').localeCompare(empMap[b].FullName||'','th');
     });
   });
 
-  // ── Canvas height ──────────────────────────────────
-  var totalH = ocGradeToY(minGrade2) + OC_CARD_H + 60;
+  // ── Compute subtree leaf count (for X allocation) ─
+  function leafCount(id){
+    var ch = children[id];
+    if(!ch || !ch.length) return 1;
+    return ch.reduce(function(s,c){ return s + leafCount(c); }, 0);
+  }
 
+  // ── Assign X via DFS (proportional to subtree width) ─
+  var nodeX = {};
+  function assignX(id, xLeft, totalW){
+    var ch = children[id] || [];
+    if(!ch.length){
+      nodeX[id] = xLeft + totalW / 2;
+      return;
+    }
+    var total = leafCount(id);
+    var cursor = xLeft;
+    ch.forEach(function(cid){
+      var frac = leafCount(cid) / total;
+      var w = totalW * frac;
+      assignX(cid, cursor, w);
+      cursor += w;
+    });
+    // Parent centered over its children span
+    var firstX = nodeX[ch[0]];
+    var lastX  = nodeX[ch[ch.length-1]];
+    nodeX[id]  = (firstX + lastX) / 2;
+  }
+
+  // Multiple roots → virtual root
+  var virtualRoot = null;
+  var allRoots = roots.slice();
+  if(allRoots.length > 1){
+    virtualRoot = '__VROOT__';
+    children[virtualRoot] = allRoots;
+    empMap[virtualRoot] = {EmpID:virtualRoot, FullName:dept?dept.DeptNameTH||dept.DeptNameEN:'', Position:'', Level:'', Status:'', Company:'', _grade:99};
+    allRoots = [virtualRoot];
+  }
+
+  // ── Compute total canvas width from leaf count ────
+  var totalLeaves = allRoots.reduce(function(s,r){ return s+leafCount(r); }, 0);
+  var totalW = Math.max((svgEl.clientWidth||800), totalLeaves*(CW+HGAP) - HGAP + 80);
+  var leftPad = 40;
+
+  allRoots.forEach(function(r){
+    assignX(r, leftPad, totalW - leftPad*2);
+  });
+
+  // ── Compute Y from grade ──────────────────────────
+  // Use max grade in dept as reference top
+  var maxGrade = Math.max.apply(null, emps.map(function(e){ return e._grade; }));
+  var minGrade = Math.min.apply(null, emps.map(function(e){ return e._grade; }));
+  if(virtualRoot) maxGrade = 99;
+
+  function gradeToY(g){
+    return TOP_PAD + (maxGrade - g) * VPITCH;
+  }
+
+  var totalH = gradeToY(minGrade) + CH + 60;
   svg.attr('viewBox','0 0 '+totalW+' '+totalH);
 
-  var g=svg.append('g');
-  ocG=g;
-  ocZoomBeh=d3.zoom().scaleExtent([0.08,3]).on('zoom',function(ev){g.attr('transform',ev.transform);});
+  var g = svg.append('g');
+  ocG = g;
+  ocZoomBeh = d3.zoom().scaleExtent([0.08,3]).on('zoom',function(ev){ g.attr('transform',ev.transform); });
   svg.call(ocZoomBeh);
 
-  // ── Guide lines (very subtle horizontal per grade row) ──
-  var drawnGuides=new Set();
-  Object.values(empPos).forEach(function(p){
-    var yg=Math.round(p.y);
-    if(drawnGuides.has(yg)) return;
-    drawnGuides.add(yg);
-    g.append('line')
-      .attr('x1',0).attr('y1',p.y).attr('x2',totalW).attr('y2',p.y)
+  // ── Draw subtle grade guide lines ─────────────────
+  var drawnY = new Set();
+  emps.forEach(function(e){
+    var y = Math.round(gradeToY(e._grade));
+    if(drawnY.has(y)) return;
+    drawnY.add(y);
+    g.append('line').attr('x1',0).attr('y1',y).attr('x2',totalW).attr('y2',y)
       .attr('stroke','#F0F1F6').attr('stroke-width',1);
   });
 
-  // ── Links ─────────────────────────────────────────
-  emps.forEach(function(e){
-    if(!e.ManagerID||!empMap[e.ManagerID]) return;
-    var pp=empPos[e.ManagerID], cp=empPos[e.EmpID];
-    if(!pp||!cp) return;
-    var x1=pp.x, y1=pp.y+OC_CARD_H/2+2;
-    var x2=cp.x, y2=cp.y-OC_CARD_H/2-2;
-    var dy=y2-y1;
-    if(dy<8){
-      // Same-grade or very close → horizontal L-bend to avoid overlap
-      var midY=y1+30;
-      g.append('path')
-        .attr('d','M'+x1+','+y1+' L'+x1+','+midY+' L'+x2+','+midY+' L'+x2+','+y2)
-        .attr('fill','none').attr('stroke','#C8CADB').attr('stroke-width',1.2);
-    } else {
-      // Normal curved link
-      var midY2=(y1+y2)/2;
-      g.append('path')
-        .attr('d','M'+x1+','+y1+' C'+x1+','+(y1+Math.min(dy*0.4,40))+' '+x2+','+(y2-Math.min(dy*0.4,40))+' '+x2+','+y2)
-        .attr('fill','none').attr('stroke','#C8CADB').attr('stroke-width',1.2);
-    }
-    // Arrowhead
-    g.append('path').attr('d','M'+(x2-4)+','+(y2-8)+' L'+x2+','+y2+' L'+(x2+4)+','+(y2-8))
-      .attr('fill','none').attr('stroke','#C8CADB').attr('stroke-width',1.2).attr('stroke-linecap','round').attr('stroke-linejoin','round');
-  });
+  // ── Draw bus connectors ───────────────────────────
+  function drawBus(parentId){
+    var ch = children[parentId];
+    if(!ch || !ch.length) return;
 
-  // ── Cards ──────────────────────────────────────────
-  var cardGs=g.selectAll('.oc-node').data(emps).join('g').attr('class','oc-node')
+    var px = nodeX[parentId];
+    var pe = empMap[parentId];
+    var parentY = pe ? gradeToY(pe._grade) : TOP_PAD;
+    var parentBottom = parentY + CH;
+
+    // Bus line Y = midpoint between parent bottom and first child top
+    // First child has highest grade among children
+    var topChildGrade = Math.max.apply(null, ch.map(function(c){ return empMap[c]._grade; }));
+    var childTopY = gradeToY(topChildGrade);
+    var busY = parentBottom + (childTopY - parentBottom) / 2;
+
+    // Stem: parent bottom → bus
+    g.append('line')
+      .attr('x1', px).attr('y1', parentBottom)
+      .attr('x2', px).attr('y2', busY)
+      .attr('stroke','#C8CADB').attr('stroke-width',1.2).attr('fill','none');
+
+    if(ch.length === 1){
+      // Single child: just continue straight down
+      var cx = nodeX[ch[0]];
+      var cy = gradeToY(empMap[ch[0]]._grade);
+      if(Math.abs(cx - px) > 2){
+        // L-bend
+        g.append('line').attr('x1',px).attr('y1',busY).attr('x2',cx).attr('y2',busY)
+          .attr('stroke','#C8CADB').attr('stroke-width',1.2).attr('fill','none');
+        g.append('line').attr('x1',cx).attr('y1',busY).attr('x2',cx).attr('y2',cy)
+          .attr('stroke','#C8CADB').attr('stroke-width',1.2).attr('fill','none').attr('marker-end','url(#oc-arrow)');
+      } else {
+        g.append('line').attr('x1',px).attr('y1',busY).attr('x2',cx).attr('y2',cy)
+          .attr('stroke','#C8CADB').attr('stroke-width',1.2).attr('fill','none').attr('marker-end','url(#oc-arrow)');
+      }
+    } else {
+      // Multiple children: horizontal bus, then drop to each
+      var xs = ch.map(function(c){ return nodeX[c]; });
+      var busLeft  = Math.min.apply(null, xs);
+      var busRight = Math.max.apply(null, xs);
+
+      // Horizontal bus bar
+      g.append('line').attr('x1',busLeft).attr('y1',busY).attr('x2',busRight).attr('y2',busY)
+        .attr('stroke','#C8CADB').attr('stroke-width',1.2).attr('fill','none');
+
+      // Drop from bus to each child (at that child's actual grade Y)
+      ch.forEach(function(cid){
+        var cx = nodeX[cid];
+        var cy = gradeToY(empMap[cid]._grade);
+        // Stem from bus down to child top
+        if(Math.abs(cy - busY) > 2){
+          g.append('line').attr('x1',cx).attr('y1',busY).attr('x2',cx).attr('y2',cy)
+            .attr('stroke','#C8CADB').attr('stroke-width',1.2).attr('fill','none').attr('marker-end','url(#oc-arrow)');
+        }
+      });
+    }
+
+    ch.forEach(drawBus);
+  }
+
+  // Arrow marker
+  var defs = g.append('defs');
+  defs.append('marker').attr('id','oc-arrow').attr('viewBox','0 0 10 10')
+    .attr('refX',8).attr('refY',5).attr('markerWidth',5).attr('markerHeight',5).attr('orient','auto-start-reverse')
+    .append('path').attr('d','M2 2L8 5L2 8').attr('fill','none').attr('stroke','#C8CADB')
+    .attr('stroke-width',1.5).attr('stroke-linecap','round').attr('stroke-linejoin','round');
+
+  allRoots.forEach(drawBus);
+
+  // ── Draw cards ────────────────────────────────────
+  var drawList = virtualRoot ? emps : emps;
+
+  var cardGs = g.selectAll('.oc-node').data(drawList).join('g').attr('class','oc-node')
     .attr('transform',function(e){
-      var p=empPos[e.EmpID];
-      return p?'translate('+(p.x-OC_CARD_W/2)+','+(p.y-OC_CARD_H/2)+')':'translate(-9999,0)';
+      var x = nodeX[e.EmpID];
+      var y = gradeToY(e._grade);
+      return x!=null ? 'translate('+(x-CW/2)+','+(y)+')' : 'translate(-9999,0)';
     }).style('cursor','default');
 
-  cardGs.each(function(e){
-    var el=d3.select(this);
-    var isIn=e.Status==='สิ้นสภาพ';
-    var cc=isIn?{fill:'#F1EFE8',stroke:'#B4B2A9',text:'#6B6963'}:(OC_CO_COLORS[e.Company]||OC_CO_COLORS.DEFAULT);
-    var W2=OC_CARD_W, H2=OC_CARD_H;
-    var maxTxtW=W2-22;
+  // Virtual root card (if any)
+  if(virtualRoot && nodeX[virtualRoot]!=null){
+    var vx = nodeX[virtualRoot] - CW/2;
+    var vy = TOP_PAD;
+    g.append('rect').attr('x',vx).attr('y',vy).attr('width',CW).attr('height',CH)
+      .attr('rx',8).attr('fill','#EEEDFE').attr('stroke','#534AB7').attr('stroke-width',1);
+    g.append('text').attr('x',nodeX[virtualRoot]).attr('y',vy+CH/2)
+      .attr('text-anchor','middle').attr('dominant-baseline','middle')
+      .attr('font-size',11).attr('font-weight','600').attr('fill','#26215C')
+      .attr('font-family',"'Sarabun',sans-serif")
+      .text(empMap[virtualRoot].FullName||'');
+  }
 
-    el.append('rect').attr('width',W2).attr('height',H2).attr('rx',8)
+  cardGs.each(function(e){
+    var el = d3.select(this);
+    var isIn = e.Status==='สิ้นสภาพ';
+    var cc = isIn ? {fill:'#F1EFE8',stroke:'#B4B2A9',text:'#6B6963'} : (OC_CO_COLORS[e.Company]||OC_CO_COLORS.DEFAULT);
+    var maxTW = CW - 22;
+
+    el.append('rect').attr('width',CW).attr('height',CH).attr('rx',8)
       .attr('fill',cc.fill).attr('stroke',cc.stroke).attr('stroke-width',1);
 
     // Status dot
-    el.append('circle').attr('cx',W2-9).attr('cy',10).attr('r',4)
+    el.append('circle').attr('cx',CW-9).attr('cy',10).attr('r',4)
       .attr('fill',isIn?'#d1d5db':'#16a34a');
 
     // Name — 1 line auto-fit
-    var nameEl=el.append('text').attr('x',W2/2).attr('y',22)
+    var nameEl = el.append('text').attr('x',CW/2).attr('y',21)
       .attr('text-anchor','middle').attr('dominant-baseline','middle')
       .attr('font-weight','600').attr('fill',cc.text)
       .attr('font-family',"'Sarabun',sans-serif").text(e.FullName||'');
     for(var fs=12;fs>=7;fs--){
       nameEl.attr('font-size',fs);
-      try{if(nameEl.node().getComputedTextLength()<=maxTxtW)break;}catch(ex){break;}
+      try{ if(nameEl.node().getComputedTextLength()<=maxTW) break; }catch(ex){ break; }
     }
 
     // Position — 1 line auto-fit
-    var posEl=el.append('text').attr('x',W2/2).attr('y',39)
+    var posEl = el.append('text').attr('x',CW/2).attr('y',38)
       .attr('text-anchor','middle').attr('dominant-baseline','middle')
       .attr('fill',isIn?'#9B9890':cc.text).attr('opacity',0.72)
       .attr('font-family',"'Sarabun',sans-serif").text(e.Position||'');
     for(var fs2=10;fs2>=6.5;fs2-=0.5){
       posEl.attr('font-size',fs2);
-      try{if(posEl.node().getComputedTextLength()<=maxTxtW)break;}catch(ex){break;}
+      try{ if(posEl.node().getComputedTextLength()<=maxTW) break; }catch(ex){ break; }
     }
 
     // Level badge
     if(e.Level){
-      var lvStr=String(e.Level);
-      var lw=Math.min(lvStr.length*7+10,72);
-      el.append('rect').attr('x',5).attr('y',H2-17).attr('width',lw).attr('height',13)
+      var lvStr = String(e.Level);
+      var lw = Math.min(lvStr.length*7+10,72);
+      el.append('rect').attr('x',5).attr('y',CH-17).attr('width',lw).attr('height',13)
         .attr('rx',4).attr('fill',cc.fill).attr('stroke',cc.stroke).attr('stroke-width',0.5);
-      el.append('text').attr('x',9).attr('y',H2-7)
+      el.append('text').attr('x',9).attr('y',CH-7)
         .attr('font-size',8.5).attr('fill',cc.stroke).attr('font-family',"'Sarabun',sans-serif")
         .text(lvStr);
     }
@@ -3011,20 +3093,20 @@ function ocRenderLane(emps, dept){
 
   // Tooltip
   cardGs.on('mouseover',function(event,e){
-    var tt=document.getElementById('oc-tooltip');
-    var html='<div style="font-weight:600;font-size:13px;margin-bottom:4px;">'+e.FullName+'</div>';
-    if(e.NickName) html+='<div style="color:var(--text2);margin-bottom:2px;">ชื่อเล่น: '+e.NickName+'</div>';
-    if(e.Position) html+='<div style="color:var(--text2);margin-bottom:2px;">'+e.Position+'</div>';
-    if(e.Level)    html+='<div style="color:var(--text2);margin-bottom:2px;">Level: '+e.Level+'</div>';
-    var sc=e.Status==='คงสภาพ'?'background:#f0fdf4;color:#16a34a':'background:#f1f0ee;color:#888';
-    html+='<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;'+sc+';">'+e.Status+'</span>';
-    tt.innerHTML=html; tt.style.display='block';
-    var rect=svgEl.getBoundingClientRect();
-    tt.style.left=(event.clientX-rect.left+12)+'px';
-    tt.style.top=(event.clientY-rect.top+12)+'px';
-  }).on('mouseout',function(){document.getElementById('oc-tooltip').style.display='none';});
+    var tt = document.getElementById('oc-tooltip');
+    var html = '<div style="font-weight:600;font-size:13px;margin-bottom:4px;">'+e.FullName+'</div>';
+    if(e.NickName) html += '<div style="color:var(--text2);margin-bottom:2px;">ชื่อเล่น: '+e.NickName+'</div>';
+    if(e.Position) html += '<div style="color:var(--text2);margin-bottom:2px;">'+e.Position+'</div>';
+    if(e.Level)    html += '<div style="color:var(--text2);margin-bottom:2px;">Level: '+e.Level+'</div>';
+    var sc = e.Status==='คงสภาพ'?'background:#f0fdf4;color:#16a34a':'background:#f1f0ee;color:#888';
+    html += '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;'+sc+';">'+e.Status+'</span>';
+    tt.innerHTML = html; tt.style.display = 'block';
+    var rect = svgEl.getBoundingClientRect();
+    tt.style.left = (event.clientX-rect.left+12)+'px';
+    tt.style.top  = (event.clientY-rect.top+12)+'px';
+  }).on('mouseout',function(){ document.getElementById('oc-tooltip').style.display='none'; });
 
-  setTimeout(function(){ocFit();},100);
+  setTimeout(function(){ ocFit(); }, 100);
 }
 
 // ─── DEPT TREE RENDER (unchanged) ────────────────
