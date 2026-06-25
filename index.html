@@ -11,7 +11,13 @@
   function loadMsal(src, fallback){
     var s = document.createElement('script');
     s.src = src;
-    s.onload = function(){ initMsal(); };
+    s.onload = function(){
+      if(document.readyState === 'complete' || document.readyState === 'interactive'){
+        setTimeout(function(){ initMsal(); }, 0);
+      } else {
+        document.addEventListener('DOMContentLoaded', function(){ initMsal(); });
+      }
+    };
     s.onerror = function(){
       if(fallback){
         loadMsal(fallback, null);
@@ -2708,6 +2714,11 @@ function ocApplyFilters(){
   else ocShowPersonView(ocCurrentDept);
 }
 
+
+function ocSidebarClick(el){
+  var deptId=el.getAttribute('data-dept');
+  if(deptId) ocShowPersonView(deptId);
+}
 function ocBuildSidebar(){
   var emps=ocGetFiltered();
   var byDept={};emps.forEach(function(e){byDept[e.DeptID]=(byDept[e.DeptID]||0)+1;});
@@ -2726,7 +2737,7 @@ function ocBuildSidebar(){
       var cnt=byDept[d.DeptID]||0;
       if(cnt===0&&ocCurrentStatus==='คงสภาพ')return;
       var isA=ocCurrentDept===d.DeptID;
-      html+='<div onclick="ocShowPersonView(''+d.DeptID+'')" style="display:flex;align-items:center;gap:8px;padding:5px 16px;cursor:pointer;font-size:12px;color:var(--text2);'+(isA?'background:#eef0f8;color:var(--tos);font-weight:600;border-right:2px solid var(--tos);':'')+'"><div style="width:7px;height:7px;border-radius:50%;background:'+dc+';flex-shrink:0;"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(d.DeptNameTH||d.DeptNameEN)+'</span><span style="font-size:10px;color:var(--text3);background:var(--surface2);padding:1px 5px;border-radius:8px;">'+cnt+'</span></div>';
+      html+='<div data-dept="'+d.DeptID+'" onclick="ocSidebarClick(this)" style="display:flex;align-items:center;gap:8px;padding:5px 16px;cursor:pointer;font-size:12px;color:var(--text2);'+(isA?'background:#eef0f8;color:var(--tos);font-weight:600;border-right:2px solid var(--tos);':'')+'"><div style="width:7px;height:7px;border-radius:50%;background:'+dc+';flex-shrink:0;"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(d.DeptNameTH||d.DeptNameEN)+'</span><span style="font-size:10px;color:var(--text3);background:var(--surface2);padding:1px 5px;border-radius:8px;">'+cnt+'</span></div>';
     });
   });
   document.getElementById('oc-sidebar').innerHTML=html;
