@@ -209,7 +209,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
 
   <div class="tabs-bar">
     <button class="tab-btn active" onclick="switchTab(event,'employee')">👥 Employee Data</button>
-    <button class="tab-btn" onclick="switchTab(event,'training')">📚 Training</button>
+    <button class="tab-btn" onclick="switchTab(event,'training');initTrainingRecord();">📚 Training</button>
     <button class="tab-btn" onclick="switchTab(event,'wellexp');loadWxData();">💪 WellEXP</button>
 
     <button class="tab-btn" onclick="switchTab(event,'dsd')">🏛️ กรมพัฒนาฝีมือแรงงาน</button>
@@ -313,10 +313,107 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
     <!-- Training Record -->
     <div id="tr-subtab-record">
       <div class="content">
-        <div class="coming-soon">
-          <div class="coming-soon-icon">&#128221;</div>
-          <h3>Training Record</h3>
-          <p>อยู่ระหว่างการพัฒนา — เชื่อมต่อ SharePoint</p>
+        <div class="error-box" id="tr-error-box"></div>
+
+        <!-- KPI ROW -->
+        <div class="section-title">ภาพรวม Training Record</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;">
+          <div class="kpi-card total">
+            <div class="kpi-label">ครั้งอบรมทั้งหมด</div>
+            <div class="kpi-value" id="tr-kpi-total">—</div>
+            <div class="kpi-sub">รายการ</div>
+          </div>
+          <div class="kpi-card" style="border-left:4px solid #1D9E75;">
+            <div class="kpi-label">พนักงานที่เข้าอบรม</div>
+            <div class="kpi-value" id="tr-kpi-emp" style="color:#1D9E75;">—</div>
+            <div class="kpi-sub">คน (unique)</div>
+          </div>
+          <div class="kpi-card" style="border-left:4px solid #BA7517;">
+            <div class="kpi-label">หลักสูตรทั้งหมด</div>
+            <div class="kpi-value" id="tr-kpi-course" style="color:#BA7517;">—</div>
+            <div class="kpi-sub">หลักสูตร</div>
+          </div>
+          <div class="kpi-card" style="border-left:4px solid #534AB7;">
+            <div class="kpi-label">Internal / In-house / Public</div>
+            <div class="kpi-value" id="tr-kpi-type" style="color:#534AB7;font-size:20px;">—</div>
+            <div class="kpi-sub">แยกตาม Type</div>
+          </div>
+        </div>
+
+        <!-- FILTER PANEL -->
+        <div class="section-title">Filter</div>
+        <div class="filter-panel" style="margin-bottom:28px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:16px;">
+            <!-- ปีงบประมาณ -->
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">ปีงบประมาณ</div>
+              <select id="tr-fy-select" onchange="trApplyFilter()" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);cursor:pointer;"></select>
+            </div>
+            <!-- Company -->
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">Company</div>
+              <div class="chips" id="tr-co-chips"></div>
+            </div>
+            <!-- แผนก -->
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">แผนก</div>
+              <select id="tr-dept-select" onchange="trApplyFilter()" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);cursor:pointer;">
+                <option value="ALL">ทั้งหมด</option>
+              </select>
+            </div>
+            <!-- หลักสูตร -->
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">หลักสูตร</div>
+              <select id="tr-course-select" onchange="trApplyFilter()" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);cursor:pointer;">
+                <option value="ALL">ทั้งหมด</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button onclick="trApplyFilter()" style="padding:8px 20px;background:var(--tos);color:white;border:none;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:600;cursor:pointer;">ค้นหา</button>
+            <button onclick="trResetFilter()" style="padding:8px 16px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;cursor:pointer;">รีเซต</button>
+          </div>
+        </div>
+
+        <!-- TABLE -->
+        <div class="section-title">รายการอบรม</div>
+        <div class="table-card">
+          <div class="table-header">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span style="font-size:13px;color:var(--text2);">แสดง</span>
+              <select id="tr-page-size" onchange="trChangePage(1)" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);cursor:pointer;">
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span style="font-size:13px;color:var(--text2);">รายการ</span>
+            </div>
+            <div class="search-box">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ea3bc" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input type="text" id="tr-search" placeholder="ค้นหาชื่อ, หลักสูตร..." oninput="trApplyFilter()">
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th onclick="trSort('FullName')" style="cursor:pointer;user-select:none;">#&nbsp;&nbsp;ชื่อ-นามสกุล <span id="tr-sort-FullName"></span></th>
+                  <th onclick="trSort('Dept')" style="cursor:pointer;user-select:none;">แผนก <span id="tr-sort-Dept"></span></th>
+                  <th onclick="trSort('Position')" style="cursor:pointer;user-select:none;">ตำแหน่ง <span id="tr-sort-Position"></span></th>
+                  <th onclick="trSort('Course')" style="cursor:pointer;user-select:none;">หลักสูตร <span id="tr-sort-Course"></span></th>
+                  <th onclick="trSort('Type')" style="cursor:pointer;user-select:none;">Type <span id="tr-sort-Type"></span></th>
+                  <th onclick="trSort('StartDate')" style="cursor:pointer;user-select:none;">วันที่อบรม <span id="tr-sort-StartDate"></span></th>
+                </tr>
+              </thead>
+              <tbody id="tr-table-body">
+                <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px">กำลังโหลดข้อมูล...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span id="tr-table-count">—</span>
+            <div class="pagination" id="tr-pagination"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -3181,6 +3278,307 @@ function ocShowLoader(show,msg){
   if(l){l.style.display=show?'flex':'none';if(msg)document.getElementById('oc-loader-text').textContent=msg;}
 }
 
+// ══════════════════════════════════════════════════════
+// TRAINING RECORD MODULE
+// ══════════════════════════════════════════════════════
+const TR_FILE_ID  = '01M5SVO653YRWW5AUFFRAZ6R6UYCQOV3RS';
+const TR_DRIVE_ID = 'b!Q6WBRjNmxUaGpa_PVc_OmM7yWwkYrfVDpmT337_bHJWkYp3bLNpnSrWRpDky5-Tt';
+const TR_SHEET    = 'TRCG';
+
+let trRawData   = [];   // joined rows
+let trFiltered  = [];   // after filter
+let trLoaded    = false;
+let trPage      = 1;
+let trSortCol   = 'StartDate';
+let trSortAsc   = false;
+let trSelCo     = new Set(['TRC','TOS','VJP','Wellios']);
+
+const TR_FY_LIST = (function(){
+  var list = [{label:'ทั้งหมด', value:'ALL'}];
+  var curY = new Date().getFullYear();
+  // ปีงบประมาณไทย: ต.ค.(N-1)–ก.ย.(N) → พ.ศ. = ค.ศ.+543
+  for(var y = curY+543; y >= (curY+543-6); y--){
+    list.push({
+      label: 'ปีงบประมาณ '+y+' (ต.ค.'+(y-1)+' \u2013 ก.ย.'+y+')',
+      value: String(y)
+    });
+  }
+  return list;
+})();
+
+const TR_TYPE_STYLE = {
+  'Internal': {bg:'#E1F5EE', color:'#085041'},
+  'In-house': {bg:'#FAEEDA', color:'#633806'},
+  'Public'  : {bg:'#E6F1FB', color:'#0C447C'}
+};
+
+// ── ปีงบประมาณ (พ.ศ.) จากวันที่ ──
+function trFiscalYear(d){
+  if(!d) return null;
+  var m = d.getMonth()+1; // 1-12
+  var y = d.getFullYear()+543;
+  return m >= 10 ? y+1 : y;
+}
+
+// ── init (เรียกเมื่อ switch tab Training) ──
+async function initTrainingRecord(){
+  if(trLoaded) return;
+  setLoading(true);
+  var errBox = document.getElementById('tr-error-box');
+  if(errBox) errBox.style.display='none';
+  try{
+    var tok = await getToken();
+    if(!tok) throw new Error('ไม่มี Token');
+
+    // 1) โหลด Training Record Sheet TRCG
+    var base = 'https://graph.microsoft.com/v1.0/drives/'+TR_DRIVE_ID+'/items/'+TR_FILE_ID+'/workbook/worksheets';
+    var h    = {Authorization:'Bearer '+tok};
+    var sRes = await fetch(base, {headers:h});
+    var sData= await sRes.json();
+    var sheets= sData.value||[];
+    var trSheet = sheets.find(function(s){return s.name===TR_SHEET;});
+    if(!trSheet) throw new Error('ไม่พบ Sheet: '+TR_SHEET);
+    var tId = encodeURIComponent(trSheet.id);
+    var trRes = await fetch(base+'/'+tId+'/usedRange',{headers:h});
+    var trData= await trRes.json();
+    var trRows= trData.values||[];
+
+    // 2) โหลด Employee Data จาก Org Chart file (sheet Employees)
+    var ocBase = 'https://graph.microsoft.com/v1.0/drives/'+OC_DRIVE_ID+'/items/'+OC_FILE_ID+'/workbook/worksheets';
+    var sRes2  = await fetch(ocBase,{headers:h});
+    var sData2 = await sRes2.json();
+    var empSheet = (sData2.value||[]).find(function(s){return s.name==='Employees';});
+    var empMap = {};
+    if(empSheet){
+      var eId2 = encodeURIComponent(empSheet.id);
+      var eRes2= await fetch(ocBase+'/'+eId2+'/usedRange',{headers:h});
+      var eData2=(await eRes2.json()).values||[];
+      var empRows= ocParseSheet(eData2,['EmpID','FullName','NickName','Position','Level','ManagerID','Dept','DeptID','Company','Status','StartDate']);
+      empRows.forEach(function(e){ if(e.EmpID) empMap[e.EmpID.trim()]=e; });
+    }
+
+    // 3) Parse Training rows
+    trRawData = trParseSheet(trRows, empMap);
+    trLoaded  = true;
+
+    // 4) Build dropdowns & chips
+    trBuildFySelect();
+    trBuildCoChips();
+    trBuildDeptSelect();
+    trBuildCourseSelect();
+
+    trApplyFilter();
+  } catch(e){
+    if(errBox){ errBox.textContent='โหลดข้อมูล Training Record ไม่สำเร็จ: '+e.message; errBox.style.display='block'; }
+    console.error(e);
+  }
+  setLoading(false);
+}
+
+function trParseSheet(rows, empMap){
+  if(!rows||rows.length<2) return [];
+  var h = rows[0].map(function(c){return String(c||'').trim();});
+  var idx = {
+    status : h.indexOf('Status'),
+    empid  : h.indexOf('EmpID'),
+    type   : h.indexOf('Type'),
+    course : h.indexOf('Course'),
+    inst   : h.indexOf('Institute / Speaker'),
+    loc    : h.indexOf('Location'),
+    start  : h.indexOf('Start Date')
+  };
+  return rows.slice(1).map(function(r){
+    if(!r || !r[idx.empid]) return null;
+    var empId = String(r[idx.empid]||'').trim();
+    var emp   = empMap[empId]||{};
+    var d     = parseExcelDate(r[idx.start]);
+    return {
+      EmpID    : empId,
+      Status   : idx.status>=0 ? String(r[idx.status]||'').trim() : '',
+      Type     : idx.type>=0   ? String(r[idx.type]||'').trim()   : '',
+      Course   : idx.course>=0 ? String(r[idx.course]||'').trim() : '',
+      Institute: idx.inst>=0   ? String(r[idx.inst]||'').trim()   : '',
+      Location : idx.loc>=0    ? String(r[idx.loc]||'').trim()    : '',
+      StartDate: d,
+      FiscalYear: trFiscalYear(d),
+      FullName : emp.FullName  ||'',
+      Position : emp.Position  ||'',
+      Dept     : emp.Dept      ||'',
+      Company  : emp.Company   ||''
+    };
+  }).filter(function(r){ return r && r.EmpID; });
+}
+
+// ── Build Fiscal Year Select ──
+function trBuildFySelect(){
+  var sel = document.getElementById('tr-fy-select'); if(!sel) return;
+  sel.innerHTML = TR_FY_LIST.map(function(f){
+    return '<option value="'+f.value+'">'+f.label+'</option>';
+  }).join('');
+  // default = ปีงบประมาณปัจจุบัน
+  var curFy = trFiscalYear(new Date());
+  var opt = sel.querySelector('option[value="'+curFy+'"]');
+  if(opt) opt.selected = true;
+}
+
+// ── Build Company Chips ──
+function trBuildCoChips(){
+  var c = document.getElementById('tr-co-chips'); if(!c) return;
+  var cos = ['TRC','TOS','VJP','Wellios'];
+  var cls = {TRC:'c-trc',TOS:'c-tos',VJP:'c-vjp',Wellios:'c-wellios'};
+  c.innerHTML = cos.map(function(co){
+    return '<span class="chip '+cls[co]+' selected" onclick="trToggleCo(this,\''+co+'\')">'+co+'</span>';
+  }).join('');
+}
+
+function trToggleCo(el,co){
+  if(trSelCo.has(co)){trSelCo.delete(co);el.classList.remove('selected');}
+  else{trSelCo.add(co);el.classList.add('selected');}
+  trApplyFilter();
+}
+
+// ── Build Dept Select (dynamic จาก data) ──
+function trBuildDeptSelect(){
+  var sel = document.getElementById('tr-dept-select'); if(!sel) return;
+  var depts = Array.from(new Set(trRawData.map(function(r){return r.Dept;}).filter(Boolean))).sort();
+  sel.innerHTML = '<option value="ALL">ทั้งหมด</option>'+
+    depts.map(function(d){return '<option value="'+d+'">'+d+'</option>';}).join('');
+}
+
+// ── Build Course Select (dynamic จาก data) ──
+function trBuildCourseSelect(){
+  var sel = document.getElementById('tr-course-select'); if(!sel) return;
+  var courses = Array.from(new Set(trRawData.map(function(r){return r.Course;}).filter(Boolean))).sort();
+  sel.innerHTML = '<option value="ALL">ทั้งหมด</option>'+
+    courses.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
+}
+
+// ── Apply Filter ──
+function trApplyFilter(){
+  if(!trLoaded) return;
+  var fyVal    = (document.getElementById('tr-fy-select')||{}).value||'ALL';
+  var deptVal  = (document.getElementById('tr-dept-select')||{}).value||'ALL';
+  var courseVal= (document.getElementById('tr-course-select')||{}).value||'ALL';
+  var search   = ((document.getElementById('tr-search')||{}).value||'').trim().toLowerCase();
+
+  trFiltered = trRawData.filter(function(r){
+    if(fyVal!=='ALL' && r.FiscalYear!==parseInt(fyVal)) return false;
+    if(!trSelCo.has(r.Company) && r.Company!=='') return false;
+    if(deptVal!=='ALL' && r.Dept!==deptVal) return false;
+    if(courseVal!=='ALL' && r.Course!==courseVal) return false;
+    if(search){
+      var hay = (r.FullName+' '+r.Course+' '+r.Dept+' '+r.Position).toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  trSortData();
+  trPage = 1;
+  trRenderKpi();
+  trRenderTable();
+}
+
+function trResetFilter(){
+  var sel = document.getElementById('tr-fy-select');
+  if(sel){ var curFy=trFiscalYear(new Date()); var opt=sel.querySelector('option[value="'+curFy+'"]'); if(opt) opt.selected=true; else sel.value='ALL'; }
+  var d=document.getElementById('tr-dept-select'); if(d) d.value='ALL';
+  var c=document.getElementById('tr-course-select'); if(c) c.value='ALL';
+  var s=document.getElementById('tr-search'); if(s) s.value='';
+  trSelCo=new Set(['TRC','TOS','VJP','Wellios']);
+  document.querySelectorAll('#tr-co-chips .chip').forEach(function(el){el.classList.add('selected');});
+  trApplyFilter();
+}
+
+// ── Sort ──
+function trSort(col){
+  if(trSortCol===col){ trSortAsc=!trSortAsc; } else { trSortCol=col; trSortAsc=true; }
+  trSortData();
+  trPage=1;
+  trRenderTable();
+}
+function trSortData(){
+  var col=trSortCol, asc=trSortAsc;
+  trFiltered.sort(function(a,b){
+    var va=a[col]||'', vb=b[col]||'';
+    if(col==='StartDate'){
+      va=va?va.getTime():0; vb=vb?vb.getTime():0;
+      return asc?va-vb:vb-va;
+    }
+    va=String(va).toLowerCase(); vb=String(vb).toLowerCase();
+    return asc?(va<vb?-1:va>vb?1:0):(va<vb?1:va>vb?-1:0);
+  });
+  // update sort icons
+  ['FullName','Dept','Position','Course','Type','StartDate'].forEach(function(c){
+    var el=document.getElementById('tr-sort-'+c); if(!el)return;
+    el.textContent = c===col?(asc?'▲':'▼'):'';
+  });
+}
+
+// ── KPI ──
+function trRenderKpi(){
+  var total=trFiltered.length;
+  var uniqEmp=new Set(trFiltered.map(function(r){return r.EmpID;})).size;
+  var uniqCourse=new Set(trFiltered.map(function(r){return r.Course;})).size;
+  var cnt={Internal:0,'In-house':0,Public:0};
+  trFiltered.forEach(function(r){ if(cnt[r.Type]!==undefined) cnt[r.Type]++; });
+  document.getElementById('tr-kpi-total').textContent  = total.toLocaleString();
+  document.getElementById('tr-kpi-emp').textContent    = uniqEmp.toLocaleString();
+  document.getElementById('tr-kpi-course').textContent = uniqCourse.toLocaleString();
+  document.getElementById('tr-kpi-type').textContent   = cnt['Internal']+' / '+cnt['In-house']+' / '+cnt['Public'];
+}
+
+// ── Table Render ──
+function trRenderTable(){
+  var ps   = parseInt((document.getElementById('tr-page-size')||{}).value||20);
+  var total= trFiltered.length;
+  var pages= Math.max(1,Math.ceil(total/ps));
+  if(trPage>pages) trPage=pages;
+  var start= (trPage-1)*ps;
+  var rows = trFiltered.slice(start, start+ps);
+  var MONTH_TH2=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  function fmtDate(d){ if(!d)return'—'; return d.getDate()+' '+MONTH_TH2[d.getMonth()]+' '+(d.getFullYear()+543); }
+  var tbody=document.getElementById('tr-table-body'); if(!tbody)return;
+  if(!rows.length){
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px">ไม่พบข้อมูล</td></tr>';
+  } else {
+    tbody.innerHTML=rows.map(function(r,i){
+      var ts=TR_TYPE_STYLE[r.Type]||{bg:'#f0f1f6',color:'#5c6080'};
+      var co=r.Company;
+      var coClass=co==='TRC'?'badge-trc':co==='TOS'?'badge-tos':co==='VJP'?'badge-vjp':co==='Wellios'?'badge-wellios':'badge-other';
+      return '<tr>'+
+        '<td><span style="color:var(--text3);font-size:11px;margin-right:6px;">'+(start+i+1)+'</span>'+
+          (r.Company?'<span class="badge '+coClass+'" style="margin-right:6px;font-size:10px;">'+r.Company+'</span>':'')+
+          '<span style="font-weight:600;">'+( r.FullName||r.EmpID)+'</span></td>'+
+        '<td style="color:var(--text2);">'+(r.Dept||'—')+'</td>'+
+        '<td style="color:var(--text2);">'+(r.Position||'—')+'</td>'+
+        '<td>'+(r.Course||'—')+'</td>'+
+        '<td><span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:'+ts.bg+';color:'+ts.color+';">'+( r.Type||'—')+'</span></td>'+
+        '<td style="color:var(--text2);">'+fmtDate(r.StartDate)+'</td>'+
+      '</tr>';
+    }).join('');
+  }
+  document.getElementById('tr-table-count').textContent='แสดง '+(total?start+1:0)+'–'+Math.min(start+ps,total)+' จาก '+total.toLocaleString()+' รายการ';
+  trRenderPagination(pages);
+}
+
+function trChangePage(p){
+  trPage=p;
+  trRenderTable();
+}
+function trRenderPagination(pages){
+  var el=document.getElementById('tr-pagination'); if(!el)return;
+  if(pages<=1){el.innerHTML='';return;}
+  var btns='';
+  var p=trPage;
+  btns+='<button class="page-btn" onclick="trChangePage('+(p>1?p-1:1)+')" '+(p===1?'disabled':'')+'>‹</button>';
+  var lo=Math.max(1,p-2), hi=Math.min(pages,p+2);
+  if(lo>1) btns+='<button class="page-btn" onclick="trChangePage(1)">1</button>'+(lo>2?'<span style="padding:0 4px;color:var(--text3);">…</span>':'');
+  for(var i=lo;i<=hi;i++) btns+='<button class="page-btn'+(i===p?' active':'')+'" onclick="trChangePage('+i+')">'+i+'</button>';
+  if(hi<pages) btns+=(hi<pages-1?'<span style="padding:0 4px;color:var(--text3);">…</span>':'')+'<button class="page-btn" onclick="trChangePage('+pages+')">'+pages+'</button>';
+  btns+='<button class="page-btn" onclick="trChangePage('+(p<pages?p+1:pages)+')" '+(p===pages?'disabled':'')+'>›</button>';
+  el.innerHTML=btns;
+}
 
 </script>
 </body>
