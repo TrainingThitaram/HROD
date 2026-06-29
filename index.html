@@ -3730,6 +3730,8 @@ function bkFmtDate(d){
 // ══ INIT ══
 async function initBasicKnowledge(){
   if(bkLoaded) return;
+  // ── โหลด Training Record ก่อนเสมอ (มี guard ถ้าโหลดแล้วจะ return ทันที) ──
+  await initTrainingRecord();
   setLoading(true);
   var errBox=document.getElementById('bk-error-box');
   if(errBox) errBox.style.display='none';
