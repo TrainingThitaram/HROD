@@ -560,21 +560,24 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
           </select>
         </div>
         <input id="sc-search" oninput="scApplyFilter()" placeholder="ค้นหาชื่อ / รหัสพนักงาน" style="padding:7px 12px;border:1px solid var(--border);border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);min-width:200px;"/>
+        <button onclick="scExportExcel()" style="margin-left:auto;padding:7px 16px;border-radius:9px;border:1px solid #16a34a;background:#f0fdf4;color:#16a34a;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          &#128190; Export Excel
+        </button>
       </div>
 
       <!-- Table -->
       <div class="table-card">
         <div class="table-wrap">
-          <table>
+          <table id="sc-table">
             <thead>
-              <tr>
+              <tr id="sc-thead-row">
                 <th style="width:44px;">#</th>
-                <th>ชื่อ-สกุล</th>
-                <th style="width:100px;text-align:center;">ฝ่าย</th>
-                <th style="width:110px;text-align:center;">คะแนนต่ำสุด</th>
-                <th style="width:110px;text-align:center;">คะแนนสูงสุด</th>
-                <th style="width:90px;text-align:center;">ครั้งที่สอบ</th>
-                <th style="width:100px;text-align:center;">สถานะ</th>
+                <th onclick="scSort('name')"    style="cursor:pointer;user-select:none;">ชื่อ-สกุล <span id="sc-sort-name"></span></th>
+                <th onclick="scSort('deptId')"  style="width:100px;text-align:center;cursor:pointer;user-select:none;">ฝ่าย <span id="sc-sort-deptId"></span></th>
+                <th onclick="scSort('min')"     style="width:110px;text-align:center;cursor:pointer;user-select:none;">คะแนนต่ำสุด <span id="sc-sort-min"></span></th>
+                <th onclick="scSort('max')"     style="width:110px;text-align:center;cursor:pointer;user-select:none;">คะแนนสูงสุด <span id="sc-sort-max"></span></th>
+                <th onclick="scSort('count')"   style="width:90px;text-align:center;cursor:pointer;user-select:none;">ครั้งที่สอบ <span id="sc-sort-count"></span></th>
+                <th onclick="scSort('status')"  style="width:100px;text-align:center;cursor:pointer;user-select:none;">สถานะ <span id="sc-sort-status"></span></th>
               </tr>
             </thead>
             <tbody id="sc-tbody">
@@ -4410,6 +4413,11 @@ function scApplyFilter(){
   });
 
   scRenderKPI();
+  // reset sort indicator ให้ตรงกับ scSortKey ปัจจุบัน
+  ['name','deptId','min','max','count','status'].forEach(function(k){
+    var el=document.getElementById('sc-sort-'+k);
+    if(el) el.textContent=k===scSortKey?(scSortDir===1?' ▲':' ▼'):'';
+  });
   scRenderTable();
 }
 
@@ -4434,39 +4442,76 @@ function scRenderKPI(){
   el=document.getElementById('sc-kpi-none');       if(el) el.textContent=notYet.length;
 }
 
+// ── sort state ──
+var scSortKey = 'deptId';
+var scSortDir = 1;   // 1=asc, -1=desc
+
+function scSort(key){
+  if(scSortKey===key){ scSortDir*=-1; }
+  else { scSortKey=key; scSortDir=1; }
+  // update indicators
+  ['name','deptId','min','max','count','status'].forEach(function(k){
+    var el=document.getElementById('sc-sort-'+k);
+    if(!el) return;
+    el.textContent = k===scSortKey ? (scSortDir===1?' ▲':' ▼') : '';
+  });
+  scRenderTable();
+}
+
+function scGetSortVal(r,key){
+  if(key==='name')   return (r.name||'');
+  if(key==='deptId') return (r.deptId||'');
+  if(key==='min')    return r.min===null?-1:r.min;
+  if(key==='max')    return r.max===null?-1:r.max;
+  if(key==='count')  return r.count||0;
+  if(key==='status'){
+    var order={ผ่าน:0,ไม่ผ่าน:1,ยังไม่สอบ:2};
+    return order[r.status]!==undefined?order[r.status]:9;
+  }
+  return '';
+}
+
 function scRenderTable(){
   var tbody=document.getElementById('sc-tbody'); if(!tbody) return;
   if(!scFilteredRows.length){
     tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:30px;">ไม่พบข้อมูล</td></tr>';
-    var ft=document.getElementById('sc-footer'); if(ft) ft.innerHTML='';
-    return;
+    var ft=document.getElementById('sc-footer'); if(ft) ft.innerHTML=''; return;
   }
-  tbody.innerHTML=scFilteredRows.map(function(r,i){
-    var minHtml,maxHtml;
-    if(r.status==='ยังไม่สอบ'){
-      minHtml='<span style="color:var(--text3)">—</span>';
-      maxHtml='<span style="color:var(--text3)">—</span>';
-    } else {
-      var tot=r.total||20;
-      var mkColor=function(v){return v/tot>=SC_PASS_PCT?'#16a34a':v/tot>=0.6?'#BA7517':'#dc2626';};
-      minHtml='<span style="font-weight:600;color:'+mkColor(r.min)+'">'+r.min+'/'+tot+'</span>';
-      maxHtml='<span style="font-weight:600;color:'+mkColor(r.max)+'">'+r.max+'/'+tot+'</span>';
-    }
-    var stBadge=r.status==='ผ่าน'
-      ?'<span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;background:#f0fdf4;color:#16a34a;">ผ่าน</span>'
-      :r.status==='ไม่ผ่าน'
-        ?'<span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;background:#fef2f2;color:#dc2626;">ไม่ผ่าน</span>'
-        :'<span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:500;background:var(--surface2);color:var(--text3);">ยังไม่สอบ</span>';
-    return '<tr style="'+(r.status==='ยังไม่สอบ'?'opacity:.6':'')+'">'
-      +'<td style="font-size:11px;color:var(--text3);">'+(i+1)+'</td>'
-      +'<td style="font-size:13px;">'+r.name+'</td>'
-      +'<td style="text-align:center;font-size:11px;color:var(--text2);">'+r.deptId+'</td>'
-      +'<td style="text-align:center;">'+minHtml+'</td>'
-      +'<td style="text-align:center;">'+maxHtml+'</td>'
-      +'<td style="text-align:center;font-size:13px;color:var(--text2);">'+r.count+'</td>'
-      +'<td style="text-align:center;">'+stBadge+'</td>'
-    +'</tr>';
-  }).join('');
+
+  // sort a copy
+  var sorted=scFilteredRows.slice().sort(function(a,b){
+    var va=scGetSortVal(a,scSortKey), vb=scGetSortVal(b,scSortKey);
+    if(typeof va==='string') return va.localeCompare(vb,'th')*scSortDir;
+    return (va-vb)*scSortDir;
+  });
+
+  // แบ่งกลุ่มตามฝ่าย (deptId) ตามลำดับที่ปรากฏหลัง sort
+  // ถ้า sort key = deptId → group หัว; ถ้า key อื่น → ไม่แบ่ง group (แสดง flat)
+  var groupByDept = (scSortKey==='deptId');
+
+  var html='';
+  if(!groupByDept){
+    // flat mode
+    sorted.forEach(function(r,i){ html+=scBuildRow(r,i+1); });
+  } else {
+    // grouped by dept
+    var seen={}, idx=0;
+    sorted.forEach(function(r){
+      if(!seen[r.deptId]){
+        seen[r.deptId]=true;
+        // dept header row
+        html+='<tr>'
+          +'<td colspan="7" style="background:var(--surface2);padding:7px 14px;'
+          +'font-size:12px;font-weight:600;color:var(--tos);border-bottom:1px solid var(--border);">'
+          +r.deptId+'</td></tr>';
+      }
+      idx++;
+      html+=scBuildRow(r,idx);
+    });
+  }
+
+  tbody.innerHTML=html;
+
   var ft=document.getElementById('sc-footer');
   if(ft){
     var p=scFilteredRows.filter(function(r){return r.status==='ผ่าน';}).length;
@@ -4474,6 +4519,77 @@ function scRenderTable(){
     ft.innerHTML='<span>แสดง '+scFilteredRows.length+' รายการ</span>'
       +'<span style="color:var(--tos);font-weight:500;">ผ่าน '+p+' · ยังไม่สอบ '+n+'</span>';
   }
+}
+
+function scBuildRow(r,idx){
+  var minHtml,maxHtml;
+  if(r.status==='ยังไม่สอบ'){
+    minHtml='<span style="color:var(--text3)">—</span>';
+    maxHtml='<span style="color:var(--text3)">—</span>';
+  } else {
+    var tot=r.total||20;
+    var mkColor=function(v){return v/tot>=SC_PASS_PCT?'#16a34a':v/tot>=0.6?'#BA7517':'#dc2626';};
+    minHtml='<span style="font-weight:600;color:'+mkColor(r.min)+'">'+r.min+'/'+tot+'</span>';
+    maxHtml='<span style="font-weight:600;color:'+mkColor(r.max)+'">'+r.max+'/'+tot+'</span>';
+  }
+  var stBadge=r.status==='ผ่าน'
+    ?'<span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;background:#f0fdf4;color:#16a34a;">ผ่าน</span>'
+    :r.status==='ไม่ผ่าน'
+      ?'<span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;background:#fef2f2;color:#dc2626;">ไม่ผ่าน</span>'
+      :'<span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:500;background:var(--surface2);color:var(--text3);">ยังไม่สอบ</span>';
+  return '<tr style="'+(r.status==='ยังไม่สอบ'?'opacity:.6':'')+'">'
+    +'<td style="font-size:11px;color:var(--text3);">'+idx+'</td>'
+    +'<td style="font-size:13px;">'+r.name+'</td>'
+    +'<td style="text-align:center;font-size:11px;color:var(--text2);">'+r.deptId+'</td>'
+    +'<td style="text-align:center;">'+minHtml+'</td>'
+    +'<td style="text-align:center;">'+maxHtml+'</td>'
+    +'<td style="text-align:center;font-size:13px;color:var(--text2);">'+r.count+'</td>'
+    +'<td style="text-align:center;">'+stBadge+'</td>'
+  +'</tr>';
+}
+
+// ── Export Excel (CSV UTF-8 BOM) → Excel เปิดได้ทันที ──
+function scExportExcel(){
+  if(!scFilteredRows.length){ alert('ไม่มีข้อมูลที่จะ Export'); return; }
+  var selEl=document.getElementById('sc-subject-select');
+  var subjLabel=selEl?selEl.options[selEl.selectedIndex].text:'';
+
+  var rows=[['#','ชื่อ-สกุล','ฝ่าย','คะแนนต่ำสุด','คะแนนสูงสุด','คะแนนเต็ม','ครั้งที่สอบ','สถานะ']];
+  scFilteredRows.forEach(function(r,i){
+    var tot=r.total||20;
+    rows.push([
+      i+1,
+      r.name,
+      r.deptId,
+      r.min!==null?r.min:'',
+      r.max!==null?r.max:'',
+      r.min!==null?tot:'',
+      r.count,
+      r.status
+    ]);
+  });
+
+  var csv='\uFEFF'+rows.map(function(row){
+    return row.map(function(c){
+      var s=String(c||'');
+      if(s.includes(',')||s.includes('"')||s.includes('\n'))
+        s='"'+s.replace(/"/g,'""')+'"';
+      return s;
+    }).join(',');
+  }).join('\r\n');
+
+  // ชื่อไฟล์
+  var today=new Date();
+  var dd=String(today.getDate()).padStart(2,'0');
+  var mm=String(today.getMonth()+1).padStart(2,'0');
+  var yy=today.getFullYear()+543;
+  var fname='Score_'+subjLabel.replace(/[^a-zA-Zก-๙0-9]/g,'_')+'_'+dd+mm+yy+'.csv';
+
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download=fname; a.click();
+  URL.revokeObjectURL(url);
 }
 
 </script>
