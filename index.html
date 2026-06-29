@@ -309,6 +309,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
       <button class="tab-btn"        id="tr-btn-report"  onclick="switchTrainingTab(event,'report')"  style="font-size:13px;padding:10px 18px;">&#128202; Training Report</button>
       <button class="tab-btn"        id="tr-btn-budget"  onclick="switchTrainingTab(event,'budget')"  style="font-size:13px;padding:10px 18px;">&#128176; Budget</button>
       <button class="tab-btn"        id="tr-btn-basic"   onclick="switchTrainingTab(event,'basic');initBasicKnowledge();"   style="font-size:13px;padding:10px 18px;">&#128218; Basic Knowledge</button>
+      <button class="tab-btn"        id="tr-btn-score"   onclick="switchTrainingTab(event,'score');initBkScore();"          style="font-size:13px;padding:10px 18px;">&#127942; Score</button>
     </div>
     <!-- Training Record -->
     <div id="tr-subtab-record">
@@ -509,6 +510,81 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
         <div id="bk-plan-container"></div>
 
       </div>
+    </div>
+  </div>
+
+  <!-- ══ SCORE SUB-TAB ══ -->
+  <div id="tr-subtab-score" style="display:none;">
+    <div class="content">
+      <div class="error-box" id="sc-error-box"></div>
+
+      <div class="section-title">คะแนนสอบ Basic Knowledge</div>
+
+      <!-- KPI -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+        <div class="kpi-card total">
+          <div class="kpi-label">ค่าเฉลี่ยคะแนน</div>
+          <div class="kpi-value" id="sc-kpi-avg" style="color:#BA7517;">—</div>
+          <div class="kpi-sub" id="sc-kpi-avg-sub">ของผู้ที่สอบแล้ว</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid var(--tos);">
+          <div class="kpi-label">ทำสอบแล้ว / ทั้งหมด</div>
+          <div class="kpi-value" id="sc-kpi-tested" style="color:var(--tos);">—</div>
+          <div class="kpi-sub" id="sc-kpi-tested-sub">คน</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #16a34a;">
+          <div class="kpi-label">ผ่านสอบ</div>
+          <div class="kpi-value" id="sc-kpi-pass" style="color:#16a34a;">—</div>
+          <div class="kpi-sub" id="sc-kpi-pass-sub">คน</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #dc2626;">
+          <div class="kpi-label">ยังไม่สอบ</div>
+          <div class="kpi-value" id="sc-kpi-none" style="color:#dc2626;">—</div>
+          <div class="kpi-sub">คน (target วิชานี้)</div>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;color:var(--text2);font-weight:500;">วิชา</span>
+          <select id="sc-subject-select" onchange="scApplyFilter()" style="padding:7px 10px;border:1px solid var(--border);border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);cursor:pointer;min-width:320px;"></select>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;color:var(--text2);font-weight:500;">สถานะ</span>
+          <select id="sc-status-filter" onchange="scApplyFilter()" style="padding:7px 10px;border:1px solid var(--border);border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);cursor:pointer;">
+            <option value="ALL">ทั้งหมด</option>
+            <option value="ผ่าน">ผ่าน</option>
+            <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+            <option value="ยังไม่สอบ">ยังไม่สอบ</option>
+          </select>
+        </div>
+        <input id="sc-search" oninput="scApplyFilter()" placeholder="ค้นหาชื่อ / รหัสพนักงาน" style="padding:7px 12px;border:1px solid var(--border);border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);min-width:200px;"/>
+      </div>
+
+      <!-- Table -->
+      <div class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:44px;">#</th>
+                <th>ชื่อ-สกุล</th>
+                <th style="width:100px;text-align:center;">ฝ่าย</th>
+                <th style="width:110px;text-align:center;">คะแนนต่ำสุด</th>
+                <th style="width:110px;text-align:center;">คะแนนสูงสุด</th>
+                <th style="width:90px;text-align:center;">ครั้งที่สอบ</th>
+                <th style="width:100px;text-align:center;">สถานะ</th>
+              </tr>
+            </thead>
+            <tbody id="sc-tbody">
+              <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:40px;">กำลังโหลดข้อมูล...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="sc-footer" style="padding:10px 16px;background:var(--surface2);border-top:1px solid var(--border);font-size:12px;color:var(--text2);display:flex;justify-content:space-between;"></div>
+      </div>
+
     </div>
   </div>
 
@@ -2081,7 +2157,7 @@ function renderDsdMatrix() {
 function switchTrainingTab(e, name) {
   document.querySelectorAll('[id^="tr-btn-"]').forEach(function(b){b.classList.remove('active');});
   e.currentTarget.classList.add('active');
-  ['record','report','budget','basic'].forEach(function(n){
+  ['record','report','budget','basic','score'].forEach(function(n){
     var el=document.getElementById('tr-subtab-'+n);
     if(el) el.style.display=n===name?'':'none';
   });
@@ -3858,9 +3934,12 @@ function bkBuildDeptMap(rows){
   if(!rows||rows.length<2) return {deptMap:{},total:0};
   var h=rows[0].map(function(c){return String(c||'').trim();});
   var iStat  = h.indexOf('Status');
-  var iDeptID= h.indexOf('DeptID');   // ← ใช้ DeptID เพื่อ match กับ header ใน Subject sheet
+  var iDeptID= h.indexOf('DeptID');
+  var iEmpID = h.indexOf('EmpID');
+  var iName  = h.indexOf('FullName');
   if(iStat<0||iDeptID<0) return {deptMap:{},total:0};
   var map={}, total=0;
+  bkEmpRows=[];   // reset & populate รายชื่อสำหรับ Score module
   rows.slice(1).forEach(function(r){
     if(!r) return;
     var st=String(r[iStat]||'').trim();
@@ -3868,6 +3947,12 @@ function bkBuildDeptMap(rows){
     total++;
     var deptId=String(r[iDeptID]||'').trim();
     if(deptId) map[deptId]=(map[deptId]||0)+1;
+    // เก็บรายชื่อ
+    bkEmpRows.push({
+      empId : iEmpID>=0 ? String(r[iEmpID]||'').trim() : '',
+      name  : iName>=0  ? String(r[iName] ||'').trim() : '',
+      deptId: deptId
+    });
   });
   return {deptMap:map,total:total};
 }
@@ -4194,6 +4279,201 @@ function bkRenderPlanGrouped(futurePlan,fyVal){
   }).join('');
 
   container.innerHTML=html;
+}
+
+// ══════════════════════════════════════════════════════
+// SCORE MODULE  —  Basic Knowledge Quiz Results
+// ══════════════════════════════════════════════════════
+const SC_CSV_URL  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRnlnyUcMO7akJAAUhUtcFAknM6o9E2hihiDJKKNH_Lh9m5LmfWLF_dacBIx5bUaYD5kZszrh7UEvuu/pub?gid=1898085370&single=true&output=csv';
+const SC_PASS_PCT = 0.80;
+
+let scLoaded       = false;
+let scScoreRows    = [];
+let scAllRows      = [];
+let scFilteredRows = [];
+
+// bkEmpRows: รายชื่อพนักงานคงสภาพ [{empId, name, deptId}]
+// จะถูก populate ใน initBasicKnowledge ขณะ parse Employee Data
+var bkEmpRows = [];
+
+async function initBkScore(){
+  if(scLoaded) return;
+  await initBasicKnowledge();   // guard: ถ้าโหลดแล้วจะ return ทันที
+  setLoading(true);
+  var errBox=document.getElementById('sc-error-box');
+  if(errBox) errBox.style.display='none';
+  try{
+    var res=await fetch(SC_CSV_URL);
+    if(!res.ok) throw new Error('โหลด CSV ไม่สำเร็จ: '+res.status);
+    var text=await res.text();
+    scScoreRows=scParseCSV(text);
+    scBuildSubjectSelect();
+    scLoaded=true;
+    scApplyFilter();
+  }catch(e){
+    if(errBox){errBox.textContent='โหลดข้อมูล Score ไม่สำเร็จ: '+e.message;errBox.style.display='block';}
+    console.error(e);
+  }
+  setLoading(false);
+}
+
+function scParseCSV(text){
+  var lines=text.split('\n').filter(function(l){return l.trim();});
+  if(lines.length<2) return [];
+  var hdr=scSplitCSVLine(lines[0]).map(function(c){return c.trim();});
+  var iTs    =hdr.findIndex(function(c){return /ประทับเวลา|timestamp/i.test(c);});
+  var iScore =hdr.findIndex(function(c){return /คะแนน|score/i.test(c);});
+  var iEmp   =hdr.findIndex(function(c){return /รหัสพนักงาน|empid/i.test(c);});
+  var iCourse=hdr.findIndex(function(c){return /^course$/i.test(c);});
+  return lines.slice(1).map(function(line){
+    var cols=scSplitCSVLine(line);
+    var scoreRaw=String(cols[iScore]||'').trim();
+    var parts=scoreRaw.replace(/\s/g,'').split('/');
+    return {
+      ts        :String(cols[iTs>=0?iTs:0]||'').trim(),
+      empId     :String(cols[iEmp>=0?iEmp:2]||'').trim(),
+      score     :parseFloat(parts[0])||0,
+      total     :parseFloat(parts[1])||0,
+      courseCode:String(cols[iCourse>=0?iCourse:4]||'').trim()
+    };
+  }).filter(function(r){return r.empId&&r.courseCode;});
+}
+
+function scSplitCSVLine(line){
+  var result=[],cur='',inQ=false;
+  for(var i=0;i<line.length;i++){
+    var c=line[i];
+    if(c==='"'){inQ=!inQ;}
+    else if(c===','&&!inQ){result.push(cur);cur='';}
+    else cur+=c;
+  }
+  result.push(cur);
+  return result;
+}
+
+function scBuildSubjectSelect(){
+  var sel=document.getElementById('sc-subject-select'); if(!sel) return;
+  var openSubjs=bkSubjects.filter(function(s){return s.status==='เปิดสอน';});
+  sel.innerHTML=openSubjs.map(function(s){
+    return '<option value="'+s.code+'">'+s.code+' — '+s.name+'</option>';
+  }).join('');
+}
+
+function scApplyFilter(){
+  if(!scLoaded) return;
+  var selEl=document.getElementById('sc-subject-select');
+  var stEl =document.getElementById('sc-status-filter');
+  var srEl =document.getElementById('sc-search');
+  var selCode=(selEl&&selEl.value)||'';
+  var stVal  =(stEl&&stEl.value)||'ALL';
+  var srVal  =((srEl&&srEl.value)||'').trim().toLowerCase();
+
+  var subj=bkSubjects.find(function(s){return s.code===selCode;});
+  if(!subj){
+    document.getElementById('sc-tbody').innerHTML=
+      '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:30px;">กรุณาเลือกวิชา</td></tr>';
+    return;
+  }
+
+  // รายชื่อพนักงาน target
+  var baseEmps=bkEmpRows.filter(function(e){return subj.deptFlags[e.deptId]===true;});
+
+  // group score by empId
+  var scoreByEmp={};
+  scScoreRows.filter(function(r){return r.courseCode===selCode;}).forEach(function(r){
+    if(!scoreByEmp[r.empId]) scoreByEmp[r.empId]={scores:[],total:r.total};
+    scoreByEmp[r.empId].scores.push(r.score);
+    if(r.total>0) scoreByEmp[r.empId].total=r.total;
+  });
+
+  // build rows
+  scAllRows=baseEmps.map(function(emp){
+    var sd=scoreByEmp[emp.empId];
+    if(!sd||!sd.scores.length)
+      return {empId:emp.empId,name:emp.name,deptId:emp.deptId,min:null,max:null,total:0,count:0,status:'ยังไม่สอบ'};
+    var mn=Math.min.apply(null,sd.scores);
+    var mx=Math.max.apply(null,sd.scores);
+    var tot=sd.total||20;
+    return {empId:emp.empId,name:emp.name,deptId:emp.deptId,
+      min:mn,max:mx,total:tot,count:sd.scores.length,
+      status:mx/tot>=SC_PASS_PCT?'ผ่าน':'ไม่ผ่าน'};
+  });
+
+  // filter
+  scFilteredRows=scAllRows.filter(function(r){
+    if(stVal!=='ALL'&&r.status!==stVal) return false;
+    if(srVal){
+      if(!(r.name||'').toLowerCase().includes(srVal)&&
+         !(r.empId||'').toLowerCase().includes(srVal)) return false;
+    }
+    return true;
+  });
+
+  scRenderKPI();
+  scRenderTable();
+}
+
+function scRenderKPI(){
+  var tested=scAllRows.filter(function(r){return r.status!=='ยังไม่สอบ';});
+  var passed=scAllRows.filter(function(r){return r.status==='ผ่าน';});
+  var notYet=scAllRows.filter(function(r){return r.status==='ยังไม่สอบ';});
+  var avgVal='—';
+  if(tested.length){
+    var tot0=tested[0].total||20;
+    var sum=tested.reduce(function(a,r){return a+(r.max||0);},0);
+    avgVal=(sum/tested.length).toFixed(1)+'/'+tot0;
+  }
+  var pPct=tested.length?Math.round(passed.length/tested.length*100):0;
+  var el;
+  el=document.getElementById('sc-kpi-avg');        if(el) el.textContent=avgVal;
+  el=document.getElementById('sc-kpi-avg-sub');    if(el) el.textContent='ของผู้ที่สอบแล้ว ('+tested.length+' คน)';
+  el=document.getElementById('sc-kpi-tested');     if(el) el.textContent=tested.length;
+  el=document.getElementById('sc-kpi-tested-sub'); if(el) el.textContent='จาก '+scAllRows.length+' คน (target ฝ่ายที่ต้องเรียน)';
+  el=document.getElementById('sc-kpi-pass');       if(el) el.textContent=passed.length;
+  el=document.getElementById('sc-kpi-pass-sub');   if(el) el.textContent='คน ('+pPct+'% ของผู้ที่สอบ)';
+  el=document.getElementById('sc-kpi-none');       if(el) el.textContent=notYet.length;
+}
+
+function scRenderTable(){
+  var tbody=document.getElementById('sc-tbody'); if(!tbody) return;
+  if(!scFilteredRows.length){
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:30px;">ไม่พบข้อมูล</td></tr>';
+    var ft=document.getElementById('sc-footer'); if(ft) ft.innerHTML='';
+    return;
+  }
+  tbody.innerHTML=scFilteredRows.map(function(r,i){
+    var minHtml,maxHtml;
+    if(r.status==='ยังไม่สอบ'){
+      minHtml='<span style="color:var(--text3)">—</span>';
+      maxHtml='<span style="color:var(--text3)">—</span>';
+    } else {
+      var tot=r.total||20;
+      var mkColor=function(v){return v/tot>=SC_PASS_PCT?'#16a34a':v/tot>=0.6?'#BA7517':'#dc2626';};
+      minHtml='<span style="font-weight:600;color:'+mkColor(r.min)+'">'+r.min+'/'+tot+'</span>';
+      maxHtml='<span style="font-weight:600;color:'+mkColor(r.max)+'">'+r.max+'/'+tot+'</span>';
+    }
+    var stBadge=r.status==='ผ่าน'
+      ?'<span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;background:#f0fdf4;color:#16a34a;">ผ่าน</span>'
+      :r.status==='ไม่ผ่าน'
+        ?'<span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;background:#fef2f2;color:#dc2626;">ไม่ผ่าน</span>'
+        :'<span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:500;background:var(--surface2);color:var(--text3);">ยังไม่สอบ</span>';
+    return '<tr style="'+(r.status==='ยังไม่สอบ'?'opacity:.6':'')+'">'
+      +'<td style="font-size:11px;color:var(--text3);">'+(i+1)+'</td>'
+      +'<td style="font-size:13px;">'+r.name+'</td>'
+      +'<td style="text-align:center;font-size:11px;color:var(--text2);">'+r.deptId+'</td>'
+      +'<td style="text-align:center;">'+minHtml+'</td>'
+      +'<td style="text-align:center;">'+maxHtml+'</td>'
+      +'<td style="text-align:center;font-size:13px;color:var(--text2);">'+r.count+'</td>'
+      +'<td style="text-align:center;">'+stBadge+'</td>'
+    +'</tr>';
+  }).join('');
+  var ft=document.getElementById('sc-footer');
+  if(ft){
+    var p=scFilteredRows.filter(function(r){return r.status==='ผ่าน';}).length;
+    var n=scFilteredRows.filter(function(r){return r.status==='ยังไม่สอบ';}).length;
+    ft.innerHTML='<span>แสดง '+scFilteredRows.length+' รายการ</span>'
+      +'<span style="color:var(--tos);font-weight:500;">ผ่าน '+p+' · ยังไม่สอบ '+n+'</span>';
+  }
 }
 
 </script>
