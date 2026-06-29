@@ -308,7 +308,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
       <button class="tab-btn active" id="tr-btn-record"  onclick="switchTrainingTab(event,'record')"  style="font-size:13px;padding:10px 18px;">&#128221; Training Record</button>
       <button class="tab-btn"        id="tr-btn-report"  onclick="switchTrainingTab(event,'report')"  style="font-size:13px;padding:10px 18px;">&#128202; Training Report</button>
       <button class="tab-btn"        id="tr-btn-budget"  onclick="switchTrainingTab(event,'budget')"  style="font-size:13px;padding:10px 18px;">&#128176; Budget</button>
-      <button class="tab-btn"        id="tr-btn-basic"   onclick="switchTrainingTab(event,'basic')"   style="font-size:13px;padding:10px 18px;">&#128218; Basic Knowledge</button>
+      <button class="tab-btn"        id="tr-btn-basic"   onclick="switchTrainingTab(event,'basic');initBasicKnowledge();"   style="font-size:13px;padding:10px 18px;">&#128218; Basic Knowledge</button>
     </div>
     <!-- Training Record -->
     <div id="tr-subtab-record">
@@ -432,7 +432,98 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
     <!-- Basic Knowledge -->
     <div id="tr-subtab-basic" style="display:none;">
       <div class="content">
-        <div class="coming-soon"><div class="coming-soon-icon">&#128218;</div><h3>Basic Knowledge</h3><p>อยู่ระหว่างการพัฒนา</p></div>
+        <div class="error-box" id="bk-error-box"></div>
+
+        <!-- KPI ROW -->
+        <div class="section-title">ภาพรวม Basic Knowledge — FY<span id="bk-fy-label">—</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+          <div class="kpi-card total">
+            <div class="kpi-label">วิชาเปิดสอนแล้ว</div>
+            <div class="kpi-value" id="bk-kpi-open" style="color:var(--tos);">—</div>
+            <div class="kpi-sub" id="bk-kpi-open-sub">จาก — วิชาทั้งหมด</div>
+          </div>
+          <div class="kpi-card" style="border-left:4px solid #16a34a;">
+            <div class="kpi-label">ผู้เข้าอบรมสะสม</div>
+            <div class="kpi-value" id="bk-kpi-total" style="color:#16a34a;">—</div>
+            <div class="kpi-sub">รายการ (ปีงบประมาณ)</div>
+          </div>
+          <div class="kpi-card" style="border-left:4px solid #BA7517;">
+            <div class="kpi-label">รุ่นที่จัดแล้ว</div>
+            <div class="kpi-value" id="bk-kpi-sessions" style="color:#BA7517;">—</div>
+            <div class="kpi-sub">session ในปีนี้</div>
+          </div>
+          <div class="kpi-card" style="border-left:4px solid #534AB7;">
+            <div class="kpi-label">พนักงานคงสภาพ (target)</div>
+            <div class="kpi-value" id="bk-kpi-emp" style="color:#534AB7;">—</div>
+            <div class="kpi-sub">คน TRCG ทั้งหมด</div>
+          </div>
+        </div>
+
+        <!-- FILTER -->
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;color:var(--text2);font-weight:500;">ปีงบประมาณ</span>
+            <select id="bk-fy-select" onchange="bkApplyFilter()" style="padding:7px 10px;border:1px solid var(--border);border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);cursor:pointer;"></select>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;color:var(--text2);font-weight:500;">สถานะวิชา</span>
+            <select id="bk-status-select" onchange="bkApplyFilter()" style="padding:7px 10px;border:1px solid var(--border);border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);cursor:pointer;">
+              <option value="ALL">ทั้งหมด</option>
+              <option value="เปิดสอน">เปิดสอนแล้ว</option>
+              <option value="ระหว่างจัดทำ">ระหว่างจัดทำ</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- BAR CHART — รายเดือน -->
+        <div class="section-title">จำนวนผู้เข้าอบรมรายเดือน</div>
+        <div class="table-card" style="margin-bottom:24px;padding:20px 24px;">
+          <canvas id="bk-month-chart" height="90"></canvas>
+        </div>
+
+        <!-- TABLE — รายวิชา -->
+        <div class="section-title">สถานะรายวิชา &amp; Coverage</div>
+        <div class="table-card" style="margin-bottom:24px;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:90px;">รหัส</th>
+                  <th>ชื่อหลักสูตร</th>
+                  <th style="width:120px;text-align:center;">สถานะ</th>
+                  <th style="width:80px;text-align:center;">รุ่นที่จัด</th>
+                  <th style="width:90px;text-align:center;">ผู้เข้า FY</th>
+                  <th style="width:200px;">Coverage (จากพนักงานคงสภาพ)</th>
+                </tr>
+              </thead>
+              <tbody id="bk-subject-tbody">
+                <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px">กำลังโหลดข้อมูล...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TABLE — แผนถัดไป -->
+        <div class="section-title">แผนการสอนถัดไป (จาก Plan Sheet)</div>
+        <div class="table-card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>วันที่</th>
+                  <th>รหัส</th>
+                  <th>ชื่อหลักสูตร</th>
+                  <th style="width:100px;text-align:center;">เดือน</th>
+                  <th style="width:140px;text-align:center;">วันที่จัด</th>
+                </tr>
+              </thead>
+              <tbody id="bk-plan-tbody">
+                <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:40px">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -3578,6 +3669,411 @@ function trRenderPagination(pages){
   if(hi<pages) btns+=(hi<pages-1?'<span style="padding:0 4px;color:var(--text3);">…</span>':'')+'<button class="page-btn" onclick="trChangePage('+pages+')">'+pages+'</button>';
   btns+='<button class="page-btn" onclick="trChangePage('+(p<pages?p+1:pages)+')" '+(p===pages?'disabled':'')+'>›</button>';
   el.innerHTML=btns;
+}
+
+// ══════════════════════════════════════════════════════
+// BASIC KNOWLEDGE MODULE
+// ══════════════════════════════════════════════════════
+const BK_FILE_ID  = '01M5SVO66A6TRLSSWGFJBIVB53HLJ2TJKV';
+const BK_DRIVE_ID = 'b!Q6WBRjNmxUaGpa_PVc_OmM7yWwkYrfVDpmT337_bHJWkYp3bLNpnSrWRpDky5-Tt';
+
+// ── month order: ต.ค.=01 … ก.ย.=12 (fiscal year key) ──
+const BK_MONTH_KEYS = ['10','11','12','01','02','03','04','05','06','07','08','09'];
+const BK_MONTH_LABELS = ['ต.ค.','พ.ย.','ธ.ค.','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.'];
+
+let bkSubjects  = [];   // [{code, name, status}]
+let bkPlanRows  = [];   // [{code, name, monthKey, dateStr, dateObj, fiscalYear}]
+let bkLoaded    = false;
+let bkEmpCount  = 0;    // พนักงานคงสภาพทั้งหมด
+let bkMonthChart= null;
+
+// ── ปีงบประมาณ (พ.ศ.) จากวันที่ ──
+function bkFiscalYear(d){
+  if(!d) return null;
+  var m = d.getMonth()+1;
+  var y = d.getFullYear()+543;
+  return m >= 10 ? y+1 : y;
+}
+
+// ── monthKey = zero-padded month string "01"–"12" ──
+function bkMonthKey(d){
+  if(!d) return null;
+  return String(d.getMonth()+1).padStart(2,'0');
+}
+
+// ── แปลง Excel serial date ──
+function bkParseDate(v){
+  if(!v && v!==0) return null;
+  if(v instanceof Date) return v;
+  var n = typeof v === 'number' ? v : parseFloat(v);
+  if(!isNaN(n) && n > 1000){
+    // Excel serial (Windows: 1900-based)
+    var d = new Date((n - 25569) * 86400 * 1000);
+    if(!isNaN(d.getTime())) return d;
+  }
+  if(typeof v === 'string' && v.trim()){
+    var d2 = new Date(v.trim());
+    if(!isNaN(d2.getTime())) return d2;
+  }
+  return null;
+}
+
+// ── init เมื่อ click Basic Knowledge tab ──
+async function initBasicKnowledge(){
+  if(bkLoaded) return;
+  setLoading(true);
+  var errBox = document.getElementById('bk-error-box');
+  if(errBox) errBox.style.display='none';
+  try{
+    var tok = await getToken();
+    if(!tok) throw new Error('ไม่มี Token');
+    var h = {Authorization:'Bearer '+tok};
+    var base = 'https://graph.microsoft.com/v1.0/drives/'+BK_DRIVE_ID+'/items/'+BK_FILE_ID+'/workbook/worksheets';
+
+    // 1) รายชื่อ sheets
+    var sheetsRes = await fetch(base, {headers:h});
+    var sheetsData= await sheetsRes.json();
+    var sheets    = sheetsData.value||[];
+
+    // ── helper: ดึง sheet by name ──
+    async function fetchSheet(name){
+      var s = sheets.find(function(x){return x.name===name;});
+      if(!s) throw new Error('ไม่พบ Sheet: '+name);
+      var sid = encodeURIComponent(s.id);
+      var r = await fetch(base+'/'+sid+'/usedRange',{headers:h});
+      var d = await r.json();
+      return d.values||[];
+    }
+
+    // 2) โหลด Subject sheet
+    var subjectRows = await fetchSheet('Subject');
+    bkSubjects = bkParseSubjects(subjectRows);
+
+    // 3) โหลด Plan sheet
+    var planRows = await fetchSheet('Plan');
+    bkPlanRows = bkParsePlan(planRows);
+
+    // 4) โหลด Employee Data เพื่อนับ target (คงสภาพ)
+    var ocBase2 = 'https://graph.microsoft.com/v1.0/drives/'+OC_DRIVE_ID+'/items/'+OC_FILE_ID+'/workbook/worksheets';
+    var s2Res   = await fetch(ocBase2, {headers:h});
+    var s2Data  = await s2Res.json();
+    var empSh   = (s2Data.value||[]).find(function(s){return s.name==='Employees';});
+    if(empSh){
+      var eSid = encodeURIComponent(empSh.id);
+      var eRes = await fetch(ocBase2+'/'+eSid+'/usedRange',{headers:h});
+      var eData= (await eRes.json()).values||[];
+      bkEmpCount = bkCountActiveEmp(eData);
+    }
+
+    bkLoaded = true;
+    bkBuildFySelect();
+    bkApplyFilter();
+
+  } catch(e){
+    if(errBox){ errBox.textContent='โหลดข้อมูล Basic Knowledge ไม่สำเร็จ: '+e.message; errBox.style.display='block'; }
+    console.error(e);
+  }
+  setLoading(false);
+}
+
+// ── Parse Subject sheet: [SubjectCode, SubjectName, Status, ...] ──
+function bkParseSubjects(rows){
+  if(!rows||rows.length<2) return [];
+  var h = rows[0].map(function(c){return String(c||'').trim();});
+  var iCode   = h.indexOf('SubjectCode');
+  var iName   = h.indexOf('SubjectName');
+  var iStatus = h.indexOf('Status');
+  if(iCode<0) iCode=0;
+  if(iName<0) iName=1;
+  if(iStatus<0) iStatus=2;
+  return rows.slice(1).filter(function(r){return r&&String(r[iCode]||'').trim();}).map(function(r){
+    return {
+      code   : String(r[iCode]  ||'').trim(),
+      name   : String(r[iName]  ||'').trim(),
+      status : String(r[iStatus]||'').trim()
+    };
+  });
+}
+
+// ── Parse Plan sheet: wide table ──
+// Row 1: header = [SubjectCode, SubjectName, Oct-25, Nov-25, ...]
+// Columns C onwards = months; cell = date string or empty
+function bkParsePlan(rows){
+  if(!rows||rows.length<2) return [];
+  var header = rows[0].map(function(c){return String(c||'').trim();});
+
+  // ค้นหา index ของ SubjectCode, SubjectName
+  var iCode = header.findIndex(function(c){return /SubjectCode/i.test(c);});
+  var iName = header.findIndex(function(c){return /SubjectName/i.test(c);});
+  if(iCode<0) iCode=0;
+  if(iName<0) iName=1;
+
+  // คอลัมน์ที่เป็นเดือน = ตั้งแต่ index 2 เป็นต้นไป
+  var monthCols = [];
+  for(var ci=2; ci<header.length; ci++){
+    if(header[ci]) monthCols.push({colIdx:ci, label:header[ci]});
+  }
+
+  var result = [];
+  rows.slice(1).forEach(function(r){
+    if(!r) return;
+    var code = String(r[iCode]||'').trim();
+    var name = String(r[iName]||'').trim();
+    if(!code && !name) return;
+
+    monthCols.forEach(function(mc){
+      var cell = r[mc.colIdx];
+      if(!cell && cell!==0) return;
+      var dateObj = bkParseDate(cell);
+      if(!dateObj) return;
+      var fy  = bkFiscalYear(dateObj);
+      var mk  = bkMonthKey(dateObj);
+      result.push({
+        code       : code,
+        name       : name,
+        monthLabel : mc.label,
+        monthKey   : mk,
+        dateObj    : dateObj,
+        fiscalYear : fy,
+        dateStr    : bkFmtDate(dateObj)
+      });
+    });
+  });
+
+  // sort by dateObj
+  result.sort(function(a,b){ return a.dateObj - b.dateObj; });
+  return result;
+}
+
+// ── นับพนักงานคงสภาพ ──
+function bkCountActiveEmp(rows){
+  if(!rows||rows.length<2) return 0;
+  var h = rows[0].map(function(c){return String(c||'').trim();});
+  var iStatus = h.indexOf('Status');
+  if(iStatus<0) return 0;
+  return rows.slice(1).filter(function(r){ return r && String(r[iStatus]||'').trim()==='คงสภาพ'; }).length;
+}
+
+// ── format date ──
+function bkFmtDate(d){
+  if(!d) return '—';
+  var M=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  return d.getDate()+' '+M[d.getMonth()]+' '+(d.getFullYear()+543);
+}
+
+// ── Build FY select ──
+function bkBuildFySelect(){
+  var sel = document.getElementById('bk-fy-select'); if(!sel) return;
+  var fys = Array.from(new Set(bkPlanRows.map(function(r){return r.fiscalYear;}).filter(Boolean))).sort();
+  var cur = bkFiscalYear(new Date());
+  var opts = fys.map(function(y){
+    return '<option value="'+y+'"'+(y===cur?' selected':'')+'>FY'+y+' (ต.ค.'+(y-1)+'–ก.ย.'+y+')</option>';
+  }).join('');
+  if(!opts) opts = '<option value="'+cur+'">FY'+cur+'</option>';
+  sel.innerHTML = opts;
+}
+
+// ── Apply filter & render ──
+function bkApplyFilter(){
+  if(!bkLoaded) return;
+  var fyVal = parseInt((document.getElementById('bk-fy-select')||{}).value||0) || bkFiscalYear(new Date());
+  var stVal = (document.getElementById('bk-status-select')||{}).value||'ALL';
+
+  // กรอง plan rows ตาม FY
+  var planFY = bkPlanRows.filter(function(r){return r.fiscalYear===fyVal;});
+  var today  = new Date();
+
+  // แยก "ผ่านไปแล้ว" vs "อนาคต"
+  var pastPlan   = planFY.filter(function(r){return r.dateObj <= today;});
+  var futurePlan = planFY.filter(function(r){return r.dateObj > today;});
+
+  // นับจำนวนผู้เข้าอบรมจาก Training Record ที่โหลดแล้ว (trRawData)
+  // Match: Course === plan.name AND FiscalYear === fyVal
+  var bkCourseSet = new Set(bkSubjects.map(function(s){return s.name;}));
+  var trBkRows = trRawData.filter(function(r){
+    return r.FiscalYear === fyVal && bkCourseSet.has(r.Course);
+  });
+
+  // นับ session (unique date per course)
+  var sessionSet = new Set(pastPlan.map(function(r){return r.name+'|'+r.dateStr;}));
+  var sessionCount = sessionSet.size;
+
+  // นับผู้เข้าอบรมรวม
+  var totalAttend = trBkRows.length;
+
+  // update header label
+  var fyLabel = document.getElementById('bk-fy-label');
+  if(fyLabel) fyLabel.textContent = fyVal + ' (ต.ค.'+(fyVal-1)+'–ก.ย.'+fyVal+')';
+
+  // KPI
+  var openSubj = bkSubjects.filter(function(s){return s.status==='เปิดสอน';}).length;
+  var el;
+  el=document.getElementById('bk-kpi-open'); if(el) el.textContent=openSubj;
+  el=document.getElementById('bk-kpi-open-sub'); if(el) el.textContent='จาก '+bkSubjects.length+' วิชาทั้งหมด';
+  el=document.getElementById('bk-kpi-total'); if(el) el.textContent=totalAttend.toLocaleString();
+  el=document.getElementById('bk-kpi-sessions'); if(el) el.textContent=sessionCount;
+  el=document.getElementById('bk-kpi-emp'); if(el) el.textContent=bkEmpCount.toLocaleString();
+
+  // ── Filter subjects by status ──
+  var filteredSubj = stVal==='ALL' ? bkSubjects : bkSubjects.filter(function(s){return s.status===stVal;});
+
+  bkRenderMonthChart(planFY, trBkRows, fyVal);
+  bkRenderSubjectTable(filteredSubj, planFY, trBkRows);
+  bkRenderPlanTable(futurePlan);
+}
+
+// ── Bar chart: รายเดือน (จำนวนผู้เข้าจาก trRawData + แผนจาก plan) ──
+function bkRenderMonthChart(planFY, trBkRows, fyVal){
+  var ctx = document.getElementById('bk-month-chart');
+  if(!ctx) return;
+
+  // นับผู้เข้าจริงรายเดือน (จาก Training Record)
+  var actualByMonth = {};
+  BK_MONTH_KEYS.forEach(function(mk){ actualByMonth[mk]=0; });
+  trBkRows.forEach(function(r){
+    if(!r.StartDate) return;
+    var mk = bkMonthKey(r.StartDate);
+    if(mk in actualByMonth) actualByMonth[mk]++;
+  });
+
+  // นับแผนรายเดือน (จาก Plan sheet, อนาคต)
+  var today = new Date();
+  var planByMonth = {};
+  BK_MONTH_KEYS.forEach(function(mk){ planByMonth[mk]=0; });
+  planFY.forEach(function(r){
+    if(r.dateObj > today){
+      var mk = r.monthKey;
+      if(mk in planByMonth) planByMonth[mk]++;
+    }
+  });
+
+  var actualData = BK_MONTH_KEYS.map(function(mk){ return actualByMonth[mk]; });
+  var planData   = BK_MONTH_KEYS.map(function(mk){ return planByMonth[mk]; });
+
+  if(bkMonthChart) bkMonthChart.destroy();
+  bkMonthChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: BK_MONTH_LABELS,
+      datasets: [
+        {
+          label: 'จำนวนผู้เข้าจริง (คน)',
+          data: actualData,
+          backgroundColor: 'rgba(38,39,111,0.75)',
+          borderRadius: 4,
+          order: 1
+        },
+        {
+          label: 'แผน (session)',
+          data: planData,
+          backgroundColor: 'rgba(38,39,111,0.18)',
+          borderRadius: 4,
+          order: 2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position:'top', labels:{ font:{family:'Sarabun',size:12}, boxWidth:12 } },
+        tooltip: {
+          callbacks: {
+            title: function(items){ return BK_MONTH_LABELS[items[0].dataIndex]+' (FY'+fyVal+')'; }
+          }
+        }
+      },
+      scales: {
+        x: { ticks:{ font:{family:'Sarabun',size:11} }, grid:{display:false} },
+        y: { ticks:{ font:{family:'Sarabun',size:11}, stepSize:1 }, beginAtZero:true, grid:{color:'#f0f1f6'} }
+      }
+    }
+  });
+}
+
+// ── Subject table: สถานะ + coverage ──
+function bkRenderSubjectTable(subjects, planFY, trBkRows){
+  var tbody = document.getElementById('bk-subject-tbody'); if(!tbody) return;
+  if(!subjects.length){
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:30px;">ไม่มีข้อมูล</td></tr>';
+    return;
+  }
+
+  // นับ sessions ต่อวิชา (จาก plan ที่ผ่านมาแล้ว)
+  var today = new Date();
+  var sessPerSubj = {};
+  planFY.forEach(function(r){
+    if(r.dateObj <= today){
+      sessPerSubj[r.name] = (sessPerSubj[r.name]||0)+1;
+    }
+  });
+
+  // นับผู้เข้าต่อวิชา (จาก TR)
+  var attendPerSubj = {};
+  trBkRows.forEach(function(r){
+    attendPerSubj[r.Course] = (attendPerSubj[r.Course]||0)+1;
+  });
+
+  tbody.innerHTML = subjects.map(function(s){
+    var sess    = sessPerSubj[s.name]||0;
+    var attend  = attendPerSubj[s.name]||0;
+    var pct     = bkEmpCount>0 ? Math.round(attend/bkEmpCount*100) : 0;
+
+    var statusBadge = s.status==='เปิดสอน'
+      ? '<span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:#f0fdf4;color:#16a34a;">✓ เปิดสอน</span>'
+      : '<span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:#fffbeb;color:#b45309;">⏳ ระหว่างจัดทำ</span>';
+
+    var barColor = pct>=70?'#16a34a':pct>=40?'#BA7517':'#dc2626';
+    var barHtml = s.status==='เปิดสอน'
+      ? '<div style="display:flex;align-items:center;gap:8px;">'
+        + '<div style="flex:1;height:8px;background:#f0f1f6;border-radius:4px;overflow:hidden;">'
+        + '<div style="width:'+Math.min(pct,100)+'%;height:100%;background:'+barColor+';border-radius:4px;transition:width .4s;"></div>'
+        + '</div>'
+        + '<span style="font-size:11px;color:'+barColor+';font-weight:600;min-width:36px;text-align:right;">'+pct+'%</span>'
+        + '</div>'
+        + '<div style="font-size:10px;color:var(--text3);margin-top:2px;">'+attend+' / '+bkEmpCount+' คน</div>'
+      : '<span style="color:var(--text3);font-size:12px;">—</span>';
+
+    return '<tr>'
+      +'<td style="font-weight:600;color:var(--tos);font-size:12px;">'+s.code+'</td>'
+      +'<td style="font-size:13px;">'+s.name+'</td>'
+      +'<td style="text-align:center;">'+statusBadge+'</td>'
+      +'<td style="text-align:center;font-size:13px;color:var(--text2);">'+(s.status==='เปิดสอน'?(sess||'—'):'—')+'</td>'
+      +'<td style="text-align:center;font-size:13px;'+(attend>0?'font-weight:600;':'color:var(--text3);')+'">'+( s.status==='เปิดสอน'?(attend||'—'):'—')+'</td>'
+      +'<td>'+barHtml+'</td>'
+    +'</tr>';
+  }).join('');
+}
+
+// ── Future plan table ──
+function bkRenderPlanTable(futurePlan){
+  var tbody = document.getElementById('bk-plan-tbody'); if(!tbody) return;
+  if(!futurePlan.length){
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:30px;">ไม่มีแผนที่วางไว้ในช่วงเวลาที่เลือก</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = futurePlan.map(function(r){
+    var daysLeft = Math.ceil((r.dateObj - new Date())/(1000*60*60*24));
+    var urgBadge = daysLeft<=14
+      ? '<span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:#fef2f2;color:#dc2626;margin-left:6px;">อีก '+daysLeft+' วัน</span>'
+      : daysLeft<=30
+        ? '<span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:#fffbeb;color:#b45309;margin-left:6px;">อีก '+daysLeft+' วัน</span>'
+        : '';
+
+    // หาว่า subject นี้มี status อะไร
+    var subj = bkSubjects.find(function(s){return s.name===r.name;});
+    var statusDot = subj && subj.status==='เปิดสอน'
+      ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#16a34a;margin-right:5px;vertical-align:middle;"></span>'
+      : '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#f59e0b;margin-right:5px;vertical-align:middle;"></span>';
+
+    return '<tr>'
+      +'<td style="font-size:12px;color:var(--text2);">'+r.dateStr+urgBadge+'</td>'
+      +'<td style="font-weight:600;color:var(--tos);font-size:12px;">'+r.code+'</td>'
+      +'<td>'+statusDot+'<span style="font-size:13px;">'+r.name+'</span></td>'
+      +'<td style="text-align:center;font-size:12px;color:var(--text2);">'+r.monthLabel+'</td>'
+      +'<td style="text-align:center;"><span style="font-weight:600;font-size:13px;color:var(--tos);">'+r.dateStr+'</span></td>'
+    +'</tr>';
+  }).join('');
 }
 
 </script>
