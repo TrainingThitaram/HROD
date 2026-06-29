@@ -491,9 +491,10 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
                   <th style="width:90px;">รหัส</th>
                   <th>ชื่อหลักสูตร</th>
                   <th style="width:130px;text-align:center;">สถานะ</th>
-                  <th style="width:80px;text-align:center;">รุ่นที่จัด</th>
+                  <th style="width:80px;text-align:center;">รุ่นที่จัด<br><span style="font-weight:400;font-size:10px;color:var(--text3)">(จาก TR)</span></th>
                   <th style="width:90px;text-align:center;">ผู้เข้า FY</th>
                   <th style="width:220px;">Coverage (ฝ่ายที่ต้องเรียน)</th>
+                  <th style="width:110px;"></th>
                 </tr>
               </thead>
               <tbody id="bk-subject-tbody">
@@ -508,6 +509,33 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
         <div id="bk-plan-container"></div>
 
       </div>
+    </div>
+  </div>
+
+  <!-- ══ BASIC KNOWLEDGE MODAL ══ -->
+  <div id="bk-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:500;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;width:90%;max-width:680px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.18);">
+      <div style="padding:18px 24px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div>
+          <div id="bk-modal-title" style="font-size:15px;font-weight:700;color:var(--tos);"></div>
+          <div id="bk-modal-sub" style="font-size:12px;color:var(--text2);margin-top:3px;"></div>
+        </div>
+        <button onclick="bkCloseModal()" style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>
+      </div>
+      <div style="overflow-y:auto;flex:1;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f8f9fc;border-bottom:1px solid var(--border);">
+              <th style="padding:10px 20px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);width:40px;">#</th>
+              <th style="padding:10px 20px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);">วันที่จัด</th>
+              <th style="padding:10px 20px;text-align:center;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);">จำนวนคน</th>
+              <th style="padding:10px 20px;text-align:center;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);">เดือน</th>
+            </tr>
+          </thead>
+          <tbody id="bk-modal-tbody"></tbody>
+        </table>
+      </div>
+      <div id="bk-modal-footer" style="padding:12px 24px;border-top:1px solid var(--border);background:#f8f9fc;display:flex;align-items:center;justify-content:space-between;font-size:13px;"></div>
     </div>
   </div>
 
@@ -3867,15 +3895,18 @@ function bkBuildFySelect(){
 }
 
 // ══ APPLY FILTER & render all ══
+// bkTrBkRowsCache: เก็บ trBkRows ของ FY ล่าสุด เพื่อให้ modal เรียกใช้ได้
+var bkTrBkRowsCache = [];
+var bkFyValCache = 0;
+
 function bkApplyFilter(){
   if(!bkLoaded) return;
   var fyVal=parseInt((document.getElementById('bk-fy-select')||{}).value||0)||bkFY(new Date());
   var stVal=(document.getElementById('bk-status-select')||{}).value||'ALL';
   var today=new Date();
 
-  // plan rows ของ FY
+  // plan rows ของ FY (ใช้แค่ future plan)
   var planFY=bkPlanRows.filter(function(r){return r.fiscalYear===fyVal;});
-  var pastPlan=planFY.filter(function(r){return r.dateObj<=today;});
   var futurePlan=planFY.filter(function(r){return r.dateObj>today;});
 
   // Training Record rows ของ FY ที่เป็น BK วิชา
@@ -3884,22 +3915,37 @@ function bkApplyFilter(){
     return r.FiscalYear===fyVal && bkNameSet.has(r.Course);
   });
 
+  // cache ไว้ให้ modal ใช้
+  bkTrBkRowsCache=trBkRows;
+  bkFyValCache=fyVal;
+
+  // นับรุ่นจาก TR: unique StartDate per Course
+  var sessCountMap={};  // courseName → Set of dateStr
+  trBkRows.forEach(function(r){
+    if(!r.StartDate) return;
+    var ds=bkFmtDate(r.StartDate);
+    if(!sessCountMap[r.Course]) sessCountMap[r.Course]=new Set();
+    sessCountMap[r.Course].add(ds);
+  });
+  // KPI session = unique (course+date) ทั้งหมด
+  var totalSessN=0;
+  Object.keys(sessCountMap).forEach(function(k){ totalSessN+=sessCountMap[k].size; });
+
   // KPI
   var openN=bkSubjects.filter(function(s){return s.status==='เปิดสอน';}).length;
-  var sessN=new Set(pastPlan.map(function(r){return r.name+'|'+r.dateStr;})).size;
   var el;
   el=document.getElementById('bk-fy-label');    if(el) el.textContent=fyVal+' (ต.ค.'+(fyVal-1)+'–ก.ย.'+fyVal+')';
   el=document.getElementById('bk-kpi-open');    if(el) el.textContent=openN;
   el=document.getElementById('bk-kpi-open-sub');if(el) el.textContent='จาก '+bkSubjects.length+' วิชาทั้งหมด';
   el=document.getElementById('bk-kpi-total');   if(el) el.textContent=trBkRows.length.toLocaleString();
-  el=document.getElementById('bk-kpi-sessions');if(el) el.textContent=sessN;
+  el=document.getElementById('bk-kpi-sessions');if(el) el.textContent=totalSessN;
   el=document.getElementById('bk-kpi-emp');     if(el) el.textContent=bkTotalEmp.toLocaleString();
 
   // filter subjects by status
   var filteredSubj=stVal==='ALL'?bkSubjects:bkSubjects.filter(function(s){return s.status===stVal;});
 
   bkRenderMonthChart(planFY,trBkRows,fyVal);
-  bkRenderSubjectTable(filteredSubj,planFY,trBkRows,today);
+  bkRenderSubjectTable(filteredSubj,trBkRows,sessCountMap);
   bkRenderPlanGrouped(futurePlan,fyVal);
 }
 
@@ -3908,7 +3954,7 @@ function bkRenderMonthChart(planFY,trBkRows,fyVal){
   var ctx=document.getElementById('bk-month-chart'); if(!ctx) return;
   var today=new Date();
 
-  // จำนวนคนจริงรายเดือน
+  // จำนวนคนจริงรายเดือน (จาก TR)
   var actual={};
   BK_MONTH_KEYS.forEach(function(mk){actual[mk]=0;});
   trBkRows.forEach(function(r){
@@ -3917,7 +3963,7 @@ function bkRenderMonthChart(planFY,trBkRows,fyVal){
     if(mk in actual) actual[mk]++;
   });
 
-  // session แผน (อนาคต) รายเดือน
+  // session แผน (อนาคต จาก Plan sheet) รายเดือน
   var plan={};
   BK_MONTH_KEYS.forEach(function(mk){plan[mk]=0;});
   planFY.forEach(function(r){
@@ -3950,29 +3996,23 @@ function bkRenderMonthChart(planFY,trBkRows,fyVal){
   });
 }
 
-// ══ Subject table (Coverage จากฝ่ายที่ต้องเรียน) ══
-function bkRenderSubjectTable(subjects,planFY,trBkRows,today){
+// ══ Subject table — รุ่นที่จัดนับจาก TR ══
+function bkRenderSubjectTable(subjects,trBkRows,sessCountMap){
   var tbody=document.getElementById('bk-subject-tbody'); if(!tbody) return;
   if(!subjects.length){
-    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:30px;">ไม่มีข้อมูล</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:30px;">ไม่มีข้อมูล</td></tr>';
     return;
   }
-
-  // นับ sessions ต่อวิชา (ที่จัดไปแล้ว)
-  var sessMap={};
-  planFY.forEach(function(r){
-    if(r.dateObj<=today) sessMap[r.name]=(sessMap[r.name]||0)+1;
-  });
 
   // นับผู้เข้าต่อวิชา
   var attendMap={};
   trBkRows.forEach(function(r){ attendMap[r.Course]=(attendMap[r.Course]||0)+1; });
 
   tbody.innerHTML=subjects.map(function(s){
-    var sess=sessMap[s.name]||0;
+    // รุ่นที่จัด = unique StartDate ของวิชานี้ใน TR
+    var sessSet=sessCountMap[s.name]||new Set();
+    var sess=sessSet.size;
     var attend=attendMap[s.name]||0;
-
-    // target = ผลรวมพนักงานฝ่ายที่ต้องเรียน
     var target=bkCalcTarget(s);
 
     var statusBadge=s.status==='เปิดสอน'
@@ -3996,6 +4036,14 @@ function bkRenderSubjectTable(subjects,planFY,trBkRows,today){
       coverageHtml='<span style="color:var(--text3);font-size:12px;">—</span>';
     }
 
+    // ปุ่มดูรายละเอียด (เฉพาะวิชาเปิดสอนที่มีข้อมูลใน TR)
+    var detailBtn=s.status==='เปิดสอน'&&sess>0
+      ?'<button onclick="bkOpenModal(\''+s.code+'\',\''+s.name.replace(/'/g,'\\\'')+'\')" '
+        +'style="padding:4px 12px;border-radius:8px;border:1px solid var(--tos);background:rgba(38,39,111,.06);'
+        +'color:var(--tos);font-family:\'Sarabun\',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">'
+        +'ดูรายละเอียด</button>'
+      :'';
+
     return '<tr>'
       +'<td style="font-weight:600;color:var(--tos);font-size:12px;">'+s.code+'</td>'
       +'<td style="font-size:13px;">'+s.name+'</td>'
@@ -4003,8 +4051,76 @@ function bkRenderSubjectTable(subjects,planFY,trBkRows,today){
       +'<td style="text-align:center;font-size:13px;color:var(--text2);">'+(s.status==='เปิดสอน'?(sess||'—'):'—')+'</td>'
       +'<td style="text-align:center;font-size:13px;'+(attend>0?'font-weight:600;':'color:var(--text3);')+'">'+(s.status==='เปิดสอน'?(attend||'—'):'—')+'</td>'
       +'<td>'+coverageHtml+'</td>'
+      +'<td style="text-align:center;">'+detailBtn+'</td>'
     +'</tr>';
   }).join('');
+}
+
+// ══ Modal: เปิด/ปิด ══
+function bkOpenModal(code, name){
+  // หา subject เพื่อได้ target
+  var subj=bkSubjects.find(function(s){return s.code===code;});
+  var target=subj?bkCalcTarget(subj):0;
+
+  // กรอง TR rows ของวิชานี้
+  var rows=bkTrBkRowsCache.filter(function(r){return r.Course===name;});
+
+  // group by StartDate → นับคน
+  var dateMap={};   // dateStr → {dateObj, count}
+  rows.forEach(function(r){
+    if(!r.StartDate) return;
+    var ds=bkFmtDate(r.StartDate);
+    if(!dateMap[ds]) dateMap[ds]={dateObj:r.StartDate,dateStr:ds,count:0};
+    dateMap[ds].count++;
+  });
+
+  // sort by date
+  var sessions=Object.values(dateMap).sort(function(a,b){return a.dateObj-b.dateObj;});
+  var totalAttend=rows.length;
+  var pct=target>0?Math.round(totalAttend/target*100):0;
+  var MONTH_TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+  // set title
+  document.getElementById('bk-modal-title').textContent=code+' — '+name;
+  document.getElementById('bk-modal-sub').textContent='รายละเอียดการจัดอบรมแต่ละรุ่น · FY'+bkFyValCache+' (ต.ค.'+(bkFyValCache-1)+'–ก.ย.'+bkFyValCache+')';
+
+  // render rows
+  var tbody=document.getElementById('bk-modal-tbody');
+  if(!sessions.length){
+    tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:30px;">ไม่พบข้อมูลการอบรมในปีงบประมาณนี้</td></tr>';
+  } else {
+    tbody.innerHTML=sessions.map(function(sess,i){
+      var mth=sess.dateObj instanceof Date?MONTH_TH[sess.dateObj.getMonth()]:'';
+      return '<tr style="border-bottom:1px solid var(--border);">'
+        +'<td style="padding:10px 20px;color:var(--text2);font-size:12px;">'+(i+1)+'</td>'
+        +'<td style="padding:10px 20px;font-size:13px;">'+sess.dateStr+'</td>'
+        +'<td style="padding:10px 20px;text-align:center;font-size:13px;font-weight:600;">'+sess.count+'</td>'
+        +'<td style="padding:10px 20px;text-align:center;font-size:12px;color:var(--text2);">'+mth+'</td>'
+      +'</tr>';
+    }).join('');
+  }
+
+  // footer
+  var barColor=pct>=70?'#16a34a':pct>=40?'#BA7517':'#dc2626';
+  document.getElementById('bk-modal-footer').innerHTML=
+    '<span style="color:var(--text2);">รวม <strong>'+sessions.length+' รุ่น</strong></span>'
+    +'<span>'
+    +'<strong style="color:var(--tos);">'+totalAttend+' คน</strong>'
+    +'<span style="color:var(--text2);margin:0 6px;">=</span>'
+    +'Coverage <strong style="color:'+barColor+';">'+pct+'%</strong>'
+    +(target>0?'<span style="color:var(--text3);font-size:12px;margin-left:4px;">('+totalAttend+'/'+target+' คน)</span>':'')
+    +'</span>';
+
+  // แสดง modal
+  var overlay=document.getElementById('bk-modal-overlay');
+  overlay.style.display='flex';
+  // ปิดเมื่อ click นอก modal
+  overlay.onclick=function(e){ if(e.target===overlay) bkCloseModal(); };
+}
+
+function bkCloseModal(){
+  var overlay=document.getElementById('bk-modal-overlay');
+  if(overlay) overlay.style.display='none';
 }
 
 // ══ แผนถัดไป แบ่งตามเดือน ══
