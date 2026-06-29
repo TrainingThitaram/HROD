@@ -3827,17 +3827,17 @@ function bkParsePlanSheet(rows){
 function bkBuildDeptMap(rows){
   if(!rows||rows.length<2) return {deptMap:{},total:0};
   var h=rows[0].map(function(c){return String(c||'').trim();});
-  var iStat=h.indexOf('Status');
-  var iDept=h.indexOf('Dept');
-  if(iStat<0||iDept<0) return {deptMap:{},total:0};
+  var iStat  = h.indexOf('Status');
+  var iDeptID= h.indexOf('DeptID');   // ← ใช้ DeptID เพื่อ match กับ header ใน Subject sheet
+  if(iStat<0||iDeptID<0) return {deptMap:{},total:0};
   var map={}, total=0;
   rows.slice(1).forEach(function(r){
     if(!r) return;
     var st=String(r[iStat]||'').trim();
     if(st!=='คงสภาพ') return;
     total++;
-    var dept=String(r[iDept]||'').trim();
-    if(dept) map[dept]=(map[dept]||0)+1;
+    var deptId=String(r[iDeptID]||'').trim();
+    if(deptId) map[deptId]=(map[deptId]||0)+1;
   });
   return {deptMap:map,total:total};
 }
