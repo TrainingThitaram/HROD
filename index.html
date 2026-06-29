@@ -3840,13 +3840,26 @@ async function initBasicKnowledge(){
     var planRows=await fetchSheet('Plan');
     bkPlanRows=bkParsePlanSheet(planRows);
 
-    // 3) Employee Data → นับพนักงานคงสภาพต่อฝ่าย
+    // 3) Special group sheet — EmpID ที่ไม่นับในทุกการคำนวณ BK/Score
+    var bkSpecialIds=new Set();
+    var spSheet=shData.find(function(x){return x.name==='Special group';});
+    if(spSheet){
+      var spRows=(await (await fetch(bkBase+'/'+encodeURIComponent(spSheet.id)+'/usedRange',{headers:h})).json()).values||[];
+      var spHdr=(spRows[0]||[]).map(function(c){return String(c||'').trim();});
+      var spEmpIdx=spHdr.indexOf('EmpID'); if(spEmpIdx<0) spEmpIdx=0;
+      spRows.slice(1).forEach(function(r){
+        var id=String(r[spEmpIdx]||'').trim();
+        if(id) bkSpecialIds.add(id);
+      });
+    }
+
+    // 4) Employee Data → นับพนักงานคงสภาพต่อฝ่าย (exclude special group)
     var ocBase2='https://graph.microsoft.com/v1.0/drives/'+OC_DRIVE_ID+'/items/'+OC_FILE_ID+'/workbook/worksheets';
     var s2=(await (await fetch(ocBase2,{headers:h})).json()).value||[];
     var empSh=s2.find(function(s){return s.name==='Employees';});
     if(empSh){
       var eRows=(await (await fetch(ocBase2+'/'+encodeURIComponent(empSh.id)+'/usedRange',{headers:h})).json()).values||[];
-      var res=bkBuildDeptMap(eRows);
+      var res=bkBuildDeptMap(eRows, bkSpecialIds);
       bkDeptEmpMap=res.deptMap;
       bkTotalEmp=res.total;
     }
@@ -3933,8 +3946,9 @@ function bkParsePlanSheet(rows){
 }
 
 // ══ BUILD dept → emp count map ══
-function bkBuildDeptMap(rows){
+function bkBuildDeptMap(rows, specialIds){
   if(!rows||rows.length<2) return {deptMap:{},total:0};
+  specialIds = specialIds || new Set();
   var h=rows[0].map(function(c){return String(c||'').trim();});
   var iStat  = h.indexOf('Status');
   var iDeptID= h.indexOf('DeptID');
@@ -3942,18 +3956,20 @@ function bkBuildDeptMap(rows){
   var iName  = h.indexOf('FullName');
   if(iStat<0||iDeptID<0) return {deptMap:{},total:0};
   var map={}, total=0;
-  bkEmpRows=[];   // reset & populate รายชื่อสำหรับ Score module
+  bkEmpRows=[];
   rows.slice(1).forEach(function(r){
     if(!r) return;
     var st=String(r[iStat]||'').trim();
     if(st!=='คงสภาพ') return;
+    var empId=iEmpID>=0 ? String(r[iEmpID]||'').trim() : '';
+    // ── exclude special group ──
+    if(empId && specialIds.has(empId)) return;
     total++;
     var deptId=String(r[iDeptID]||'').trim();
     if(deptId) map[deptId]=(map[deptId]||0)+1;
-    // เก็บรายชื่อ
     bkEmpRows.push({
-      empId : iEmpID>=0 ? String(r[iEmpID]||'').trim() : '',
-      name  : iName>=0  ? String(r[iName] ||'').trim() : '',
+      empId : empId,
+      name  : iName>=0 ? String(r[iName]||'').trim() : '',
       deptId: deptId
     });
   });
