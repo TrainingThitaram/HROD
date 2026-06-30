@@ -468,7 +468,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
 
         <!-- SUMMARY TABLE -->
         <div class="section-title">ตารางสรุป</div>
-        <div class="table-card" style="margin-bottom:28px;">
+        <div class="table-card">
           <div class="table-wrap">
             <table>
               <thead>
@@ -482,32 +482,11 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
                   <th style="text-align:right;">คงเหลือ</th>
                   <th style="text-align:right;">% ใช้ไป</th>
                   <th>หมายเหตุ</th>
+                  <th>หลักสูตร</th>
                 </tr>
               </thead>
               <tbody id="bg-table-body">
-                <tr><td colspan="9" style="text-align:center;color:var(--text3);padding:40px">กำลังโหลดข้อมูล...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- COURSE DETAIL TABLE -->
-        <div class="section-title">รายละเอียดค่าใช้จ่ายตามหลักสูตร</div>
-        <div class="table-card">
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>หลักสูตร</th>
-                  <th>บริษัท</th>
-                  <th>ปีงบประมาณ</th>
-                  <th style="text-align:right;">ค่าวิทยากร</th>
-                  <th style="text-align:right;">ค่าอาหารและค่าเบรค</th>
-                  <th style="text-align:right;">ค่าใช้จ่ายจริง</th>
-                </tr>
-              </thead>
-              <tbody id="bg-course-table-body">
-                <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px">กำลังโหลดข้อมูล...</td></tr>
+                <tr><td colspan="10" style="text-align:center;color:var(--text3);padding:40px">กำลังโหลดข้อมูล...</td></tr>
               </tbody>
             </table>
           </div>
@@ -4025,36 +4004,50 @@ function bgApplyFilter(){
 
   // ── สรุปรวมต่อบริษัท (ตาม fyTargets และ type ที่เลือก) ──
   var agg = {};
-  BG_COMPANIES.forEach(function(co){ agg[co]={budget:0,actual:0,note:[]}; });
+  BG_COMPANIES.forEach(function(co){ agg[co]={budget:0,actual:0,note:[],byType:{}}; });
 
   bgBudgetRows.forEach(function(r){
     if(fyTargets.indexOf(r.fiscalYear)===-1) return;
-    if(!agg[r.company]) agg[r.company]={budget:0,actual:0,note:[]};
+    if(!agg[r.company]) agg[r.company]={budget:0,actual:0,note:[],byType:{}};
     agg[r.company].budget += r.budget;
     if(r.note) agg[r.company].note.push(r.note);
   });
   bgExpenseRows.forEach(function(r){
     if(fyTargets.indexOf(r.fiscalYear)===-1) return;
+    if(!agg[r.company]) agg[r.company]={budget:0,actual:0,note:[],byType:{}};
+    if(!agg[r.company].byType) agg[r.company].byType={};
+    var t = r.type || 'อื่นๆ';
+    agg[r.company].byType[t] = (agg[r.company].byType[t]||0) + r.actualCost;
     if(r.type && !bgSelTypes.has(r.type)) return;
-    if(!agg[r.company]) agg[r.company]={budget:0,actual:0,note:[]};
     agg[r.company].actual += r.actualCost;
   });
 
   bgRenderKpi(agg);
   bgRenderChart(agg);
   bgRenderTable(fyVal, fyTargets);
-  bgRenderCourseTable(fyTargets);
 }
+
+const BG_TYPE_COLOR = {Internal:'#1D9E75','In-House':'#BA7517',Public:'#378ADD','อื่นๆ':'#888780'};
 
 function bgRenderKpi(agg){
   var box = document.getElementById('bg-kpi-cards'); if(!box) return;
   box.innerHTML = BG_COMPANIES.map(function(co){
     var meta = BG_CO_META[co];
-    var d = agg[co]||{budget:0,actual:0};
+    var d = agg[co]||{budget:0,actual:0,byType:{}};
     var hasBudget = d.budget>0;
     var pct = hasBudget ? (d.actual/d.budget*100) : null;
     var barColor = !hasBudget ? '#888780' : pct>100 ? '#E24B4A' : pct>=80 ? '#BA7517' : '#1D9E75';
     var barWidth = !hasBudget ? 0 : Math.min(100,pct);
+    var byType = d.byType||{};
+    var typeKeys = BG_TYPES.concat(Object.keys(byType).filter(function(t){return BG_TYPES.indexOf(t)===-1;}));
+    var typeRows = typeKeys.filter(function(t){return (byType[t]||0)>0;}).map(function(t){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;">'+
+        '<span style="display:flex;align-items:center;gap:6px;color:var(--text2);">'+
+          '<span style="width:8px;height:8px;border-radius:2px;background:'+(BG_TYPE_COLOR[t]||'#888780')+';display:inline-block;"></span>'+t+
+        '</span>'+
+        '<span style="font-weight:500;">'+bgFmt(byType[t])+'</span>'+
+      '</div>';
+    }).join('');
     return '<div class="kpi-card '+meta.cls+'">'+
       '<div class="kpi-label">'+meta.label+'</div>'+
       '<div class="kpi-value" style="font-size:20px;color:var('+meta.css+');">'+(hasBudget?bgFmt(d.budget):'ไม่มีงบประมาณ')+'</div>'+
@@ -4062,6 +4055,7 @@ function bgRenderKpi(agg){
       '<div style="height:6px;background:var(--border);border-radius:4px;margin-top:8px;overflow:hidden;">'+
         '<div style="height:100%;width:'+barWidth+'%;background:'+barColor+';"></div>'+
       '</div>'+
+      (typeRows?'<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:8px;">'+typeRows+'</div>':'')+
     '</div>';
   }).join('');
 }
@@ -4116,7 +4110,7 @@ function bgRenderTable(fyVal, fyTargets){
   });
 
   if(!rowsOut.length){
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:40px">ไม่พบข้อมูล</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:40px">ไม่พบข้อมูล</td></tr>';
     return;
   }
   tbody.innerHTML = rowsOut.map(function(r){
@@ -4124,6 +4118,7 @@ function bgRenderTable(fyVal, fyTargets){
     var pctText = r.pct==null ? '—' : r.pct.toFixed(0)+'%';
     var pctColor = r.pct==null ? 'var(--text2)' : r.pct>100 ? '#E24B4A' : r.pct>=80 ? '#BA7517' : '#1D9E75';
     var remColor = r.remaining<0 ? '#E24B4A' : 'var(--text)';
+    var detailId = 'bg-detail-'+r.fy+'-'+r.co;
     return '<tr>'+
       '<td>'+r.fy+'</td>'+
       '<td><span class="badge badge-'+(meta.cls==='wellios'?'wellios':meta.cls)+'">'+meta.label+'</span></td>'+
@@ -4134,40 +4129,58 @@ function bgRenderTable(fyVal, fyTargets){
       '<td style="text-align:right;color:'+remColor+';">'+(r.budget>0?bgFmt(r.remaining):'—')+'</td>'+
       '<td style="text-align:right;color:'+pctColor+';font-weight:600;">'+pctText+'</td>'+
       '<td style="color:var(--text2);">'+(r.note||'—')+'</td>'+
-    '</tr>';
+      '<td><button onclick="bgToggleCourseRow(\''+detailId+'\','+r.fy+',\''+r.co+'\')" style="padding:4px 10px;background:none;border:1px solid var(--border);color:var(--tos);border-radius:6px;font-family:\'Sarabun\',sans-serif;font-size:12px;cursor:pointer;white-space:nowrap;" id="'+detailId+'-btn">ดูหลักสูตร ▾</button></td>'+
+    '</tr>'+
+    '<tr id="'+detailId+'" style="display:none;"><td colspan="10" style="padding:0;background:var(--surface2);"><div id="'+detailId+'-content" style="padding:14px 20px;"></div></td></tr>';
   }).join('');
 }
 
-function bgRenderCourseTable(fyTargets){
-  var tbody = document.getElementById('bg-course-table-body'); if(!tbody) return;
+// ── สรุปค่าใช้จ่ายตามหลักสูตร สำหรับ ปีงบประมาณ+บริษัท ที่ระบุ (ใช้ filter รูปแบบปัจจุบัน) ──
+function bgCourseBreakdownHtml(fy, co){
   var byCourse = {};
   bgExpenseRows.forEach(function(r){
-    if(fyTargets.indexOf(r.fiscalYear)===-1) return;
+    if(r.fiscalYear!==fy || r.company!==co) return;
     if(r.type && !bgSelTypes.has(r.type)) return;
     if(r.actualCost<=0) return; // เฉพาะหลักสูตรที่มีค่าใช้จ่าย
-    var key = r.course+'|'+r.company+'|'+r.fiscalYear;
-    if(!byCourse[key]) byCourse[key]={course:r.course||'(ไม่ระบุชื่อหลักสูตร)', co:r.company, fy:r.fiscalYear, actual:0, speaker:0, food:0};
+    var key = r.course||'(ไม่ระบุชื่อหลักสูตร)';
+    if(!byCourse[key]) byCourse[key]={course:key, actual:0, speaker:0, food:0};
     byCourse[key].actual  += r.actualCost;
     byCourse[key].speaker += r.speakerCost;
     byCourse[key].food    += r.foodCost;
   });
   var list = Object.values(byCourse).sort(function(a,b){ return b.actual-a.actual; });
-
   if(!list.length){
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px">ไม่พบหลักสูตรที่มีค่าใช้จ่ายในช่วงที่เลือก</td></tr>';
-    return;
+    return '<p style="font-size:13px;color:var(--text3);margin:0;">ไม่พบหลักสูตรที่มีค่าใช้จ่ายในช่วงที่เลือก</p>';
   }
-  tbody.innerHTML = list.map(function(r){
-    var meta = BG_CO_META[r.co]||{cls:'',label:r.co};
+  var rows = list.map(function(r){
     return '<tr>'+
       '<td>'+r.course+'</td>'+
-      '<td><span class="badge badge-'+(meta.cls==='wellios'?'wellios':meta.cls)+'">'+meta.label+'</span></td>'+
-      '<td>'+r.fy+'</td>'+
       '<td style="text-align:right;">'+bgFmt(r.speaker)+'</td>'+
       '<td style="text-align:right;">'+bgFmt(r.food)+'</td>'+
       '<td style="text-align:right;font-weight:600;">'+bgFmt(r.actual)+'</td>'+
     '</tr>';
   }).join('');
+  return '<table style="width:100%;font-size:13px;">'+
+    '<thead><tr><th style="text-align:left;color:var(--text2);font-weight:500;padding:4px 8px;">หลักสูตร</th>'+
+    '<th style="text-align:right;color:var(--text2);font-weight:500;padding:4px 8px;">ค่าวิทยากร</th>'+
+    '<th style="text-align:right;color:var(--text2);font-weight:500;padding:4px 8px;">ค่าอาหารและค่าเบรค</th>'+
+    '<th style="text-align:right;color:var(--text2);font-weight:500;padding:4px 8px;">ค่าใช้จ่ายจริง</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table>';
+}
+
+function bgToggleCourseRow(detailId, fy, co){
+  var row = document.getElementById(detailId); if(!row) return;
+  var btn = document.getElementById(detailId+'-btn');
+  var content = document.getElementById(detailId+'-content');
+  var isHidden = row.style.display==='none';
+  if(isHidden){
+    content.innerHTML = bgCourseBreakdownHtml(fy, co);
+    row.style.display = '';
+    if(btn) btn.textContent = 'ซ่อนหลักสูตร ▴';
+  } else {
+    row.style.display = 'none';
+    if(btn) btn.textContent = 'ดูหลักสูตร ▾';
+  }
 }
 
 // ══════════════════════════════════════════════════════
