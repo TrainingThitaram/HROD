@@ -452,7 +452,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
 
         <!-- KPI CARDS: BUDGET vs ACTUAL PER COMPANY -->
         <div class="section-title">งบประมาณเทียบค่าใช้จ่ายจริง — ปีงบประมาณ <span id="bg-fy-label">—</span></div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;" id="bg-kpi-cards"></div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:28px;" id="bg-kpi-cards"></div>
 
         <!-- CHART -->
         <div class="section-title">กราฟเปรียบเทียบงบประมาณกับค่าใช้จ่ายจริง</div>
@@ -4028,36 +4028,105 @@ function bgApplyFilter(){
 }
 
 const BG_TYPE_COLOR = {Internal:'#1D9E75','In-House':'#BA7517',Public:'#378ADD','อื่นๆ':'#888780'};
+let bgGaugeCharts = {};
 
 function bgRenderKpi(agg){
   var box = document.getElementById('bg-kpi-cards'); if(!box) return;
+
+  Object.keys(bgGaugeCharts).forEach(function(k){ bgGaugeCharts[k].destroy(); });
+  bgGaugeCharts = {};
+
   box.innerHTML = BG_COMPANIES.map(function(co){
     var meta = BG_CO_META[co];
     var d = agg[co]||{budget:0,actual:0,byType:{}};
     var hasBudget = d.budget>0;
     var pct = hasBudget ? (d.actual/d.budget*100) : null;
-    var barColor = !hasBudget ? '#888780' : pct>100 ? '#E24B4A' : pct>=80 ? '#BA7517' : '#1D9E75';
-    var barWidth = !hasBudget ? 0 : Math.min(100,pct);
+    var gaugeColor = !hasBudget ? '#888780' : pct>100 ? '#E24B4A' : pct>=80 ? '#BA7517' : '#1D9E75';
+    var pctTextColor = !hasBudget ? 'var(--text2)' : pct>100 ? '#E24B4A' : pct>=80 ? '#BA7517' : '#0F6E56';
+
     var byType = d.byType||{};
     var typeKeys = BG_TYPES.concat(Object.keys(byType).filter(function(t){return BG_TYPES.indexOf(t)===-1;}));
-    var typeRows = typeKeys.filter(function(t){return (byType[t]||0)>0;}).map(function(t){
-      return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;">'+
-        '<span style="display:flex;align-items:center;gap:6px;color:var(--text2);">'+
-          '<span style="width:8px;height:8px;border-radius:2px;background:'+(BG_TYPE_COLOR[t]||'#888780')+';display:inline-block;"></span>'+t+
-        '</span>'+
-        '<span style="font-weight:500;">'+bgFmt(byType[t])+'</span>'+
-      '</div>';
+    var typeTotal = typeKeys.reduce(function(s,t){return s+(byType[t]||0);},0);
+    var typeRowsHtml = typeKeys.filter(function(t){return (byType[t]||0)>0;}).map(function(t){
+      var share = typeTotal>0 ? (byType[t]/typeTotal*100) : 0;
+      return '<tr>'+
+        '<td style="padding:5px 4px;"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:'+(BG_TYPE_COLOR[t]||'#888780')+';margin-right:6px;"></span>'+t+'</td>'+
+        '<td style="text-align:right;padding:5px 4px;">'+bgFmt(byType[t])+'</td>'+
+        '<td style="text-align:right;padding:5px 4px;color:var(--text2);">'+share.toFixed(1)+'%</td>'+
+      '</tr>';
     }).join('');
+    var typeTable = typeRowsHtml ? (
+      '<p style="font-size:12px;color:var(--text2);margin:0 0 6px;">ค่าใช้จ่ายแยกตามประเภท</p>'+
+      '<table style="width:100%;font-size:13px;border-collapse:collapse;">'+
+        '<thead><tr style="border-bottom:1px solid var(--border);">'+
+          '<th style="text-align:left;padding:4px;color:var(--text2);font-weight:500;font-size:12px;">ประเภท</th>'+
+          '<th style="text-align:right;padding:4px;color:var(--text2);font-weight:500;font-size:12px;">จำนวน</th>'+
+          '<th style="text-align:right;padding:4px;color:var(--text2);font-weight:500;font-size:12px;">สัดส่วน</th>'+
+        '</tr></thead>'+
+        '<tbody>'+typeRowsHtml+'</tbody>'+
+      '</table>'
+    ) : '<p style="font-size:13px;color:var(--text3);margin:0;">ไม่มีค่าใช้จ่ายในช่วงที่เลือก</p>';
+
+    var topSection;
+    if(hasBudget){
+      var gaugeId = 'bg-gauge-'+co;
+      topSection =
+        '<div style="display:grid;grid-template-columns:120px 1fr;gap:16px;align-items:center;margin-bottom:14px;">'+
+          '<div style="position:relative;width:120px;height:120px;">'+
+            '<canvas id="'+gaugeId+'" role="img" aria-label="เกจวงกลมแสดงสัดส่วนการใช้งบประมาณของ '+meta.label+'"></canvas>'+
+            '<div style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">'+
+              '<span style="font-size:22px;font-weight:500;color:'+pctTextColor+';">'+pct.toFixed(0)+'%</span>'+
+              '<span style="font-size:10px;color:var(--text2);margin-top:1px;">ของงบทั้งหมด</span>'+
+            '</div>'+
+          '</div>'+
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'+
+            '<div style="background:var(--surface2);border-radius:8px;padding:8px 10px;">'+
+              '<p style="font-size:11px;color:var(--text2);margin:0 0 3px;">งบทั้งหมด</p>'+
+              '<p style="font-size:15px;font-weight:600;margin:0;">'+bgFmt(d.budget)+'</p>'+
+            '</div>'+
+            '<div style="background:var(--surface2);border-radius:8px;padding:8px 10px;">'+
+              '<p style="font-size:11px;color:var(--text2);margin:0 0 3px;">ใช้จริง</p>'+
+              '<p style="font-size:15px;font-weight:600;margin:0;color:#0F6E56;">'+bgFmt(d.actual)+'</p>'+
+            '</div>'+
+            '<div style="background:var(--surface2);border-radius:8px;padding:8px 10px;grid-column:span 2;">'+
+              '<p style="font-size:11px;color:var(--text2);margin:0 0 3px;">คงเหลือ</p>'+
+              '<p style="font-size:15px;font-weight:600;margin:0;color:'+(d.budget-d.actual<0?'#E24B4A':'#854F0B')+';">'+bgFmt(d.budget-d.actual)+'</p>'+
+            '</div>'+
+          '</div>'+
+        '</div>';
+    } else {
+      topSection =
+        '<div style="margin-bottom:14px;">'+
+          '<p style="font-size:18px;font-weight:600;color:var(--text2);margin:0 0 6px;">ไม่มีงบประมาณ</p>'+
+          '<p style="font-size:13px;color:var(--text2);margin:0;">ใช้จริง <span style="font-weight:600;color:#0F6E56;">'+bgFmt(d.actual)+'</span></p>'+
+        '</div>';
+    }
+
     return '<div class="kpi-card '+meta.cls+'">'+
-      '<div class="kpi-label">'+meta.label+'</div>'+
-      '<div class="kpi-value" style="font-size:20px;color:var('+meta.css+');">'+(hasBudget?bgFmt(d.budget):'ไม่มีงบประมาณ')+'</div>'+
-      '<div class="kpi-sub">ใช้จริง '+bgFmt(d.actual)+(hasBudget?' · '+pct.toFixed(0)+'%':'')+'</div>'+
-      '<div style="height:6px;background:var(--border);border-radius:4px;margin-top:8px;overflow:hidden;">'+
-        '<div style="height:100%;width:'+barWidth+'%;background:'+barColor+';"></div>'+
-      '</div>'+
-      (typeRows?'<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:8px;">'+typeRows+'</div>':'')+
+      '<div class="kpi-label" style="margin-bottom:10px;">'+meta.label+'</div>'+
+      topSection+
+      typeTable+
     '</div>';
   }).join('');
+
+  // วาดกราฟเกจหลังจาก DOM พร้อม
+  BG_COMPANIES.forEach(function(co){
+    var d = agg[co]||{budget:0,actual:0};
+    if(!(d.budget>0)) return;
+    var canvas = document.getElementById('bg-gauge-'+co); if(!canvas) return;
+    var pct = Math.min(999, d.actual/d.budget*100);
+    var pctClamped = Math.min(100, pct);
+    var gaugeColor = pct>100 ? '#E24B4A' : pct>=80 ? '#BA7517' : '#1D9E75';
+    bgGaugeCharts[co] = new Chart(canvas, {
+      type:'doughnut',
+      data:{ datasets:[{ data:[pctClamped, 100-pctClamped], backgroundColor:[gaugeColor,'#e2e4ec'], borderWidth:0 }] },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        cutout:'72%', rotation:-90, circumference:360,
+        plugins:{ legend:{display:false}, tooltip:{enabled:false} }
+      }
+    });
+  });
 }
 
 function bgFmt(n){ return '\u0e3f'+Math.round(n).toLocaleString('th-TH'); }
