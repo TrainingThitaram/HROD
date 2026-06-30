@@ -222,7 +222,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
     <div class="content">
       <div class="error-box" id="error-box"></div>
 
-      <!-- KPI ROW -->
+      <!-- KPI ROW 1: ภาพรวม -->
       <div class="section-title">ภาพรวมพนักงาน (เฉพาะคงสภาพ)</div>
       <div class="kpi-row">
         <div class="kpi-card total">
@@ -246,10 +246,22 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
           <div class="kpi-sub">พนักงาน</div>
         </div>
         <div class="kpi-card wellios">
-          <div class="kpi-label">Wellios</div>
-          <div class="kpi-value" id="cnt-wellios">—</div>
+          <div class="kpi-label">WXP</div>
+          <div class="kpi-value" id="cnt-wxp">—</div>
           <div class="kpi-sub">พนักงาน</div>
         </div>
+      </div>
+
+      <!-- KPI ROW 2: เริ่มงานตามปี -->
+      <div class="section-title">จำนวนพนักงานที่เริ่มงานในปี (ตามปีปฏิทิน, StartDate)</div>
+      <div class="kpi-row" id="kpi-startyear-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:14px;">
+        <div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:12px;">กำลังโหลดข้อมูล...</div>
+      </div>
+
+      <!-- KPI ROW 3: ตาม Level -->
+      <div class="section-title">จำนวนพนักงานตาม Level (Rainbow 3 สูงสุด → Lv.1 ต่ำสุด)</div>
+      <div class="kpi-row" id="kpi-level-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:14px;">
+        <div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:12px;">กำลังโหลดข้อมูล...</div>
       </div>
 
       <!-- FILTER PANELS -->
@@ -257,23 +269,17 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
       <div class="filter-panels">
         <!-- Company Filter -->
         <div class="filter-panel">
-          <div class="filter-panel-title">🏢 เลือก Company</div>
-          <div class="filter-actions">
-            <button class="btn-link" onclick="selectAllCompanies()">เลือกทั้งหมด</button>
-            <span style="color:var(--text3)">|</span>
-            <button class="btn-link" onclick="clearAllCompanies()">ล้างทั้งหมด</button>
-          </div>
-          <div class="chips" id="company-chips"></div>
+          <div class="filter-panel-title">🏢 Company</div>
+          <select id="emp-company-select" onchange="empApplyFilter()" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);cursor:pointer;">
+            <option value="ALL">ทั้งหมด</option>
+          </select>
         </div>
         <!-- Dept Filter -->
         <div class="filter-panel">
-          <div class="filter-panel-title">📂 เลือก Department</div>
-          <div class="filter-actions">
-            <button class="btn-link" onclick="selectAllDepts()">เลือกทั้งหมด</button>
-            <span style="color:var(--text3)">|</span>
-            <button class="btn-link" onclick="clearAllDepts()">ล้างทั้งหมด</button>
-          </div>
-          <div class="chips" id="dept-chips"></div>
+          <div class="filter-panel-title">📂 Department</div>
+          <select id="emp-dept-select" onchange="empApplyFilter()" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);cursor:pointer;">
+            <option value="ALL">ทั้งหมด</option>
+          </select>
         </div>
       </div>
 
@@ -284,13 +290,13 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
           <div style="font-size:14px;font-weight:600;color:var(--text)">ค้นหาพนักงาน</div>
           <div class="search-box">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ea3bc" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input type="text" id="search-input" placeholder="ค้นหาชื่อ, ชื่อเล่น, รหัส..." oninput="filterTable()">
+            <input type="text" id="search-input" placeholder="ค้นหาชื่อ, ชื่อเล่น, รหัส..." oninput="empApplyFilter()">
           </div>
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>#</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>ชื่อเล่น</th><th>Company</th><th>ตำแหน่ง</th><th>Department</th><th>สถานะ</th></tr></thead>
-            <tbody id="table-body"><tr><td colspan="8" style="text-align:center;color:var(--text3);padding:40px">กำลังโหลดข้อมูล...</td></tr></tbody>
+            <thead><tr><th>#</th><th>EmpID</th><th>FullName</th><th>NickName</th><th>Dept</th><th>Position</th><th>Company</th></tr></thead>
+            <tbody id="table-body"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:40px">กำลังโหลดข้อมูล...</td></tr></tbody>
           </table>
         </div>
         <div class="table-footer">
@@ -1306,119 +1312,133 @@ function switchTab(e,name){
   document.getElementById('tab-'+name).classList.add('active');
 }
 
-let allData=[],filteredData=[],currentPage=1;
-let selectedCompanies=new Set(),selectedDepts=new Set();
+let allEmp=[], allDept=[], filteredData=[], currentPage=1;
+let empSelCompany='ALL', empSelDept='ALL';
 const PER_PAGE=15;
 
 async function loadData(){
   setLoading(true);
   try{
     var token=await getToken();if(!token)return;
-    var url='https://graph.microsoft.com/v1.0/drives/'+DRIVE_ID+'/items/'+FILE_ID+'/workbook/worksheets(\''+SHEET_NAME+'\')/usedRange';
-    var res=await fetch(url,{headers:{Authorization:'Bearer '+token}});
-    if(!res.ok)throw new Error('Graph API '+res.status+': '+await res.text());
-    var data=await res.json();
-    parseData(data.values);
+    var h={'Authorization':'Bearer '+token};
+    var base='https://graph.microsoft.com/v1.0/drives/'+OC_DRIVE_ID+'/items/'+OC_FILE_ID+'/workbook/worksheets';
+    var sRes=await fetch(base,{headers:h});
+    var sData=await sRes.json();
+    var sheets=sData.value||[];
+    var empSheet=sheets.find(function(s){return s.name==='Employees';});
+    var deptSheet=sheets.find(function(s){return s.name==='Departments';});
+    if(!empSheet||!deptSheet)throw new Error('ไม่พบ Sheet Employees หรือ Departments');
+    var eId=encodeURIComponent(empSheet.id);
+    var dId=encodeURIComponent(deptSheet.id);
+    var [eRes,dRes]=await Promise.all([
+      fetch(base+'/'+eId+'/usedRange',{headers:h}),
+      fetch(base+'/'+dId+'/usedRange',{headers:h})
+    ]);
+    var [eData,dData]=await Promise.all([eRes.json(),dRes.json()]);
+    allEmp=ocParseSheet(eData.values,['EmpID','FullName','NickName','Position','Level','ManagerID','Dept','DeptID','Company','Status','StartDate']);
+    allDept=ocParseSheet(dData.values,['DeptID','DeptNameTH','DeptNameEN','Discipline','ColorCode','HeadEmpID','HeadEmpName','SortOrder']);
+    allEmp=allEmp.filter(function(e){return e.EmpID&&e.EmpID.trim()!=='';});
+    parseData();
     document.getElementById('last-updated').textContent='อัปเดต: '+new Date().toLocaleTimeString('th-TH');
   }catch(e){showError('โหลดข้อมูลไม่สำเร็จ: '+e.message);console.error(e);}
   setLoading(false);
 }
 
-function parseData(rows){
-  if(!rows||rows.length<2){showError('ไม่พบข้อมูล');return;}
-  var h=rows[0];
-  var idx={
-    id:h.findIndex(function(c){return String(c).includes('รหัสพนักงาน');}),
-    company:h.findIndex(function(c){return String(c).toLowerCase()==='company';}),
-    fullname:h.findIndex(function(c){return String(c).includes('Full Name');}),
-    nick:h.findIndex(function(c){return String(c).includes('Nick');}),
-    position:h.findIndex(function(c){return String(c).includes('Position');}),
-    dept:h.findIndex(function(c){return String(c).includes('Department');}),
-    status:h.findIndex(function(c){return String(c).includes('Employee Status');}),
-  };
-  allData=rows.slice(1).filter(function(r){
-    return r&&r[idx.id]&&String(r[idx.id]).trim()&&String(r[idx.id]).trim()!=='รหัสพนักงาน';
-  }).map(function(r,i){
-    return {no:i+1,empId:String(r[idx.id]||'').trim(),company:String(r[idx.company]||'').trim(),
-      fullname:String(r[idx.fullname]||'').trim(),nick:String(r[idx.nick]||'').trim(),
-      position:String(r[idx.position]||'').trim(),dept:String(r[idx.dept]||'').trim(),
-      status:String(r[idx.status]||'').trim()};
-  });
+function parseData(){
+  if(!allEmp.length){showError('ไม่พบข้อมูล');return;}
   updateKPIs();
+  buildStartYearKPIs();
+  buildLevelKPIs();
   buildCompanyFilter();
   buildDeptFilter();
-  filterTable();
+  empApplyFilter();
+}
+
+function empActive(){
+  return allEmp.filter(function(e){return e.Status==='คงสภาพ';});
 }
 
 function updateKPIs(){
-  var active=allData.filter(function(e){return e.status==='คงสภาพ';});
+  var active=empActive();
   document.getElementById('kpi-active').textContent=active.length.toLocaleString();
-  ['TRC','TOS','VJP','Wellios'].forEach(function(c){
+  ['TRC','TOS','VJP','WXP'].forEach(function(c){
     document.getElementById('cnt-'+c.toLowerCase()).textContent=
-      active.filter(function(e){return e.company===c;}).length.toLocaleString();
+      active.filter(function(e){return e.Company===c;}).length.toLocaleString();
   });
 }
 
-function buildCompanyFilter(){
-  var active=allData.filter(function(e){return e.status==='คงสภาพ';});
-  var companies=['TRC','TOS','VJP','Wellios'];
-  selectedCompanies=new Set(companies);
-  var container=document.getElementById('company-chips');
-  container.innerHTML=companies.map(function(c){
-    var cnt=active.filter(function(e){return e.company===c;}).length;
-    return '<label class="chip c-'+c.toLowerCase()+' selected" data-company="'+c+'" onclick="toggleCompany(this,\''+c+'\')">'
-      +'<span>'+c+'</span><span class="chip-count">'+cnt+'</span></label>';
+function buildStartYearKPIs(){
+  var active=empActive();
+  var yearCount={};
+  active.forEach(function(e){
+    if(!e.StartDate)return;
+    var d=parseExcelDate(e.StartDate);
+    if(!d||isNaN(d.getTime()))return;
+    var y=d.getFullYear();
+    yearCount[y]=(yearCount[y]||0)+1;
+  });
+  var years=Object.keys(yearCount).map(Number).sort(function(a,b){return a-b;});
+  var box=document.getElementById('kpi-startyear-row');
+  if(!years.length){box.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:12px;">ไม่พบข้อมูล StartDate</div>';return;}
+  box.innerHTML=years.map(function(y){
+    return '<div class="kpi-card" style="border-left:4px solid var(--tos);padding:14px 16px;">'
+      +'<div class="kpi-label" style="font-size:12px;">ปี '+y+'</div>'
+      +'<div class="kpi-value" style="font-size:22px;color:var(--tos);">'+yearCount[y].toLocaleString()+'</div>'
+      +'<div class="kpi-sub" style="font-size:11px;">คน</div>'
+      +'</div>';
   }).join('');
 }
 
-function toggleCompany(el,company){
-  if(selectedCompanies.has(company)){selectedCompanies.delete(company);el.classList.remove('selected');}
-  else{selectedCompanies.add(company);el.classList.add('selected');}
-  currentPage=1;filterTable();
+function buildLevelKPIs(){
+  var active=empActive();
+  var levelCount={};
+  active.forEach(function(e){
+    var lv=(e.Level||'').trim();
+    if(!lv)lv='(ไม่ระบุ)';
+    levelCount[lv]=(levelCount[lv]||0)+1;
+  });
+  var levels=Object.keys(levelCount).sort(function(a,b){
+    return ocLevelToGrade(b==='(ไม่ระบุ)'?'':b) - ocLevelToGrade(a==='(ไม่ระบุ)'?'':a);
+  });
+  var box=document.getElementById('kpi-level-row');
+  if(!levels.length){box.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:12px;">ไม่พบข้อมูล Level</div>';return;}
+  box.innerHTML=levels.map(function(lv){
+    return '<div class="kpi-card" style="border-left:4px solid var(--vjp);padding:14px 16px;">'
+      +'<div class="kpi-label" style="font-size:12px;">'+lv+'</div>'
+      +'<div class="kpi-value" style="font-size:22px;color:var(--vjp);">'+levelCount[lv].toLocaleString()+'</div>'
+      +'<div class="kpi-sub" style="font-size:11px;">คน</div>'
+      +'</div>';
+  }).join('');
 }
-function selectAllCompanies(){
-  document.querySelectorAll('#company-chips .chip').forEach(function(el){el.classList.add('selected');selectedCompanies.add(el.dataset.company);});
-  currentPage=1;filterTable();
-}
-function clearAllCompanies(){
-  document.querySelectorAll('#company-chips .chip').forEach(function(el){el.classList.remove('selected');selectedCompanies.delete(el.dataset.company);});
-  currentPage=1;filterTable();
+
+function buildCompanyFilter(){
+  var active=empActive();
+  var companies=Array.from(new Set(active.map(function(e){return e.Company;}).filter(Boolean))).sort();
+  var sel=document.getElementById('emp-company-select');
+  sel.innerHTML='<option value="ALL">ทั้งหมด</option>'+companies.map(function(c){
+    return '<option value="'+c+'">'+c+'</option>';
+  }).join('');
+  sel.value='ALL';empSelCompany='ALL';
 }
 
 function buildDeptFilter(){
-  var active=allData.filter(function(e){return e.status==='คงสภาพ';});
-  var dc={};
-  active.forEach(function(e){if(e.dept){dc[e.dept]=(dc[e.dept]||0)+1;}});
-  var depts=Object.keys(dc).sort();
-  selectedDepts=new Set(depts);
-  var container=document.getElementById('dept-chips');
-  container.innerHTML=depts.map(function(d){
-    return '<label class="chip selected" data-dept="'+d+'" onclick="toggleDept(this,\''+d.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'
-      +'<span>'+d+'</span><span class="chip-count">'+dc[d]+'</span></label>';
+  var active=empActive();
+  var depts=Array.from(new Set(active.map(function(e){return e.Dept;}).filter(Boolean))).sort();
+  var sel=document.getElementById('emp-dept-select');
+  sel.innerHTML='<option value="ALL">ทั้งหมด</option>'+depts.map(function(d){
+    return '<option value="'+d.replace(/"/g,'&quot;')+'">'+d+'</option>';
   }).join('');
+  sel.value='ALL';empSelDept='ALL';
 }
 
-function toggleDept(el,dept){
-  if(selectedDepts.has(dept)){selectedDepts.delete(dept);el.classList.remove('selected');}
-  else{selectedDepts.add(dept);el.classList.add('selected');}
-  currentPage=1;filterTable();
-}
-function selectAllDepts(){
-  document.querySelectorAll('#dept-chips .chip').forEach(function(el){el.classList.add('selected');selectedDepts.add(el.dataset.dept);});
-  currentPage=1;filterTable();
-}
-function clearAllDepts(){
-  document.querySelectorAll('#dept-chips .chip').forEach(function(el){el.classList.remove('selected');selectedDepts.delete(el.dataset.dept);});
-  currentPage=1;filterTable();
-}
-
-function filterTable(){
+function empApplyFilter(){
+  empSelCompany=document.getElementById('emp-company-select').value;
+  empSelDept=document.getElementById('emp-dept-select').value;
   var q=document.getElementById('search-input').value.toLowerCase();
-  filteredData=allData.filter(function(e){
-    return e.status==='คงสภาพ'
-      &&(selectedCompanies.size===0||selectedCompanies.has(e.company))
-      &&(selectedDepts.size===0||selectedDepts.has(e.dept))
-      &&(!q||e.fullname.toLowerCase().includes(q)||e.nick.toLowerCase().includes(q)||e.empId.toLowerCase().includes(q)||e.position.toLowerCase().includes(q));
+  filteredData=empActive().filter(function(e){
+    return (empSelCompany==='ALL'||e.Company===empSelCompany)
+      &&(empSelDept==='ALL'||e.Dept===empSelDept)
+      &&(!q||(e.FullName||'').toLowerCase().includes(q)||(e.NickName||'').toLowerCase().includes(q)||(e.EmpID||'').toLowerCase().includes(q)||(e.Position||'').toLowerCase().includes(q));
   });
   currentPage=1;renderTable();
 }
@@ -1428,20 +1448,19 @@ function renderTable(){
   var rows=filteredData.slice(start,start+PER_PAGE);
   var tbody=document.getElementById('table-body');
   if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:40px">ไม่พบข้อมูล</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:40px">ไม่พบข้อมูล</td></tr>';
     document.getElementById('table-count').textContent='ไม่พบรายการ';
     document.getElementById('pagination').innerHTML='';return;
   }
   tbody.innerHTML=rows.map(function(e,i){
     return '<tr>'
       +'<td style="color:var(--text3)">'+(start+i+1)+'</td>'
-      +'<td style="font-family:monospace;font-size:12px;color:var(--text2)">'+e.empId+'</td>'
-      +'<td style="font-weight:500">'+e.fullname+'</td>'
-      +'<td style="color:var(--text2)">'+e.nick+'</td>'
-      +'<td>'+companyBadge(e.company)+'</td>'
-      +'<td style="color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis">'+e.position+'</td>'
-      +'<td style="color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis">'+e.dept+'</td>'
-      +'<td><span class="status-active"><span class="dot"></span>คงสภาพ</span></td>'
+      +'<td style="font-family:monospace;font-size:12px;color:var(--text2)">'+(e.EmpID||'')+'</td>'
+      +'<td style="font-weight:500">'+(e.FullName||'')+'</td>'
+      +'<td style="color:var(--text2)">'+(e.NickName||'')+'</td>'
+      +'<td style="color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis">'+(e.Dept||'')+'</td>'
+      +'<td style="color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis">'+(e.Position||'')+'</td>'
+      +'<td>'+companyBadge(e.Company)+'</td>'
       +'</tr>';
   }).join('');
   document.getElementById('table-count').textContent=
@@ -1450,7 +1469,7 @@ function renderTable(){
 }
 
 function companyBadge(c){
-  var m={TRC:'badge-trc',TOS:'badge-tos',VJP:'badge-vjp',Wellios:'badge-wellios'};
+  var m={TRC:'badge-trc',TOS:'badge-tos',VJP:'badge-vjp',WXP:'badge-wellios'};
   return '<span class="badge '+(m[c]||'badge-other')+'">'+(c||'—')+'</span>';
 }
 
