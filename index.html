@@ -1413,26 +1413,48 @@ function buildStartYearChart(){
   });
 }
 
+// จัดกลุ่ม Level ตามชีท "Level" ใน Employee Data (Claude):
+// Executive Level: Rainbow 1-3 | Senior Management Level: Lv.14 | Management Level: Lv.8-13
+// Senior Officer Level: Lv.6-7 | Officer Level: Lv.4-5 | Entry Level: Lv.1-3
+var EMP_LEVEL_GROUPS=['Executive Level','Senior Management Level','Management Level','Senior Officer Level','Officer Level','Entry Level'];
+function empLevelGroup(lv){
+  var g=ocLevelToGrade(lv);
+  if(!lv||!String(lv).trim())return null;
+  if(g>=96)return 'Executive Level';
+  if(g===14)return 'Senior Management Level';
+  if(g>=8&&g<14)return 'Management Level';
+  if(g>=6&&g<8)return 'Senior Officer Level';
+  if(g>=4&&g<6)return 'Officer Level';
+  if(g>=1&&g<4)return 'Entry Level';
+  return null;
+}
+
 function buildLevelKPIs(){
   var active=empActive();
-  var levelCount={};
+  var groupCount={};
+  var unmatched=0;
   active.forEach(function(e){
-    var lv=(e.Level||'').trim();
-    if(!lv)lv='(ไม่ระบุ)';
-    levelCount[lv]=(levelCount[lv]||0)+1;
-  });
-  var levels=Object.keys(levelCount).sort(function(a,b){
-    return ocLevelToGrade(b==='(ไม่ระบุ)'?'':b) - ocLevelToGrade(a==='(ไม่ระบุ)'?'':a);
+    var grp=empLevelGroup(e.Level);
+    if(!grp){unmatched++;return;}
+    groupCount[grp]=(groupCount[grp]||0)+1;
   });
   var box=document.getElementById('kpi-level-row');
-  if(!levels.length){box.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:12px;">ไม่พบข้อมูล Level</div>';return;}
-  box.innerHTML=levels.map(function(lv){
+  var cards=EMP_LEVEL_GROUPS.filter(function(g){return groupCount[g];}).map(function(g){
     return '<div class="kpi-card" style="border-left:4px solid var(--vjp);padding:14px 16px;">'
-      +'<div class="kpi-label" style="font-size:12px;">'+lv+'</div>'
-      +'<div class="kpi-value" style="font-size:22px;color:var(--vjp);">'+levelCount[lv].toLocaleString()+'</div>'
+      +'<div class="kpi-label" style="font-size:12px;">'+g+'</div>'
+      +'<div class="kpi-value" style="font-size:22px;color:var(--vjp);">'+groupCount[g].toLocaleString()+'</div>'
       +'<div class="kpi-sub" style="font-size:11px;">คน</div>'
       +'</div>';
-  }).join('');
+  });
+  if(unmatched){
+    cards.push('<div class="kpi-card" style="border-left:4px solid var(--text3);padding:14px 16px;">'
+      +'<div class="kpi-label" style="font-size:12px;">(ไม่ระบุ)</div>'
+      +'<div class="kpi-value" style="font-size:22px;color:var(--text3);">'+unmatched.toLocaleString()+'</div>'
+      +'<div class="kpi-sub" style="font-size:11px;">คน</div>'
+      +'</div>');
+  }
+  if(!cards.length){box.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:12px;">ไม่พบข้อมูล Level</div>';return;}
+  box.innerHTML=cards.join('');
 }
 
 function buildCompanyFilter(){
