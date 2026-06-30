@@ -468,7 +468,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
 
         <!-- SUMMARY TABLE -->
         <div class="section-title">ตารางสรุป</div>
-        <div class="table-card">
+        <div class="table-card" style="margin-bottom:28px;">
           <div class="table-wrap">
             <table>
               <thead>
@@ -477,13 +477,37 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
                   <th>บริษัท</th>
                   <th style="text-align:right;">งบประมาณ</th>
                   <th style="text-align:right;">ใช้จริง</th>
+                  <th style="text-align:right;">ค่าวิทยากร</th>
+                  <th style="text-align:right;">ค่าอาหารและค่าเบรค</th>
                   <th style="text-align:right;">คงเหลือ</th>
                   <th style="text-align:right;">% ใช้ไป</th>
                   <th>หมายเหตุ</th>
                 </tr>
               </thead>
               <tbody id="bg-table-body">
-                <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:40px">กำลังโหลดข้อมูล...</td></tr>
+                <tr><td colspan="9" style="text-align:center;color:var(--text3);padding:40px">กำลังโหลดข้อมูล...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- COURSE DETAIL TABLE -->
+        <div class="section-title">รายละเอียดค่าใช้จ่ายตามหลักสูตร</div>
+        <div class="table-card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>หลักสูตร</th>
+                  <th>บริษัท</th>
+                  <th>ปีงบประมาณ</th>
+                  <th style="text-align:right;">ค่าวิทยากร</th>
+                  <th style="text-align:right;">ค่าอาหารและค่าเบรค</th>
+                  <th style="text-align:right;">ค่าใช้จ่ายจริง</th>
+                </tr>
+              </thead>
+              <tbody id="bg-course-table-body">
+                <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px">กำลังโหลดข้อมูล...</td></tr>
               </tbody>
             </table>
           </div>
@@ -3907,11 +3931,15 @@ function bgParseExpense(rows){
   var headers = rows[0].map(function(c){return String(c||'').trim();});
   var idx = {
     company : bgFindCol(headers,['บริษัท']),
+    course  : bgFindCol(headers,['ชื่อหลักสูตร']),
     date    : bgFindCol(headers,['วันที่จัด']),
     type    : bgFindCol(headers,['รูปแบบ']),
     actual  : bgFindCol(headers,['ค่าใช้จ่ายจริง']),
+    speaker : bgFindCol(headers,['ค่าวิทยากร']),
+    food    : bgFindCol(headers,['ค่าอาหาร และค่าเบรค','ค่าอาหารและค่าเบรค']),
     fyCol   : bgFindCol(headers,['ปีงบประมาณ'])
   };
+  function num(v){ return parseFloat(String(v==null?'':v).replace(/,/g,'')) || 0; }
   return rows.slice(1).map(function(r){
     if(!r) return null;
     var company = idx.company>=0 ? String(r[idx.company]||'').trim() : '';
@@ -3920,9 +3948,12 @@ function bgParseExpense(rows){
     var fy = bgFiscalYear(d);
     if(fy==null && idx.fyCol>=0){ var fv=parseInt(r[idx.fyCol]); if(!isNaN(fv)) fy=fv; }
     var type = idx.type>=0 ? String(r[idx.type]||'').trim() : '';
-    var costRaw = idx.actual>=0 ? r[idx.actual] : 0;
-    var cost = parseFloat(String(costRaw).replace(/,/g,'')) || 0;
-    return {company:company, date:d, fiscalYear:fy, type:type, actualCost:cost};
+    var course = idx.course>=0 ? String(r[idx.course]||'').trim() : '';
+    var speakerCost = idx.speaker>=0 ? num(r[idx.speaker]) : 0;
+    var foodCost = idx.food>=0 ? num(r[idx.food]) : 0;
+    var cost = idx.actual>=0 ? num(r[idx.actual]) : (speakerCost+foodCost);
+    return {company:company, course:course, date:d, fiscalYear:fy, type:type,
+            actualCost:cost, speakerCost:speakerCost, foodCost:foodCost};
   }).filter(function(r){ return r && r.fiscalYear; });
 }
 
@@ -4012,6 +4043,7 @@ function bgApplyFilter(){
   bgRenderKpi(agg);
   bgRenderChart(agg);
   bgRenderTable(fyVal, fyTargets);
+  bgRenderCourseTable(fyTargets);
 }
 
 function bgRenderKpi(agg){
@@ -4069,19 +4101,22 @@ function bgRenderTable(fyVal, fyTargets){
       var budgetRow = bgBudgetRows.filter(function(r){return r.fiscalYear===fy && r.company===co;});
       var budget = budgetRow.reduce(function(s,r){return s+r.budget;},0);
       var note = budgetRow.map(function(r){return r.note;}).filter(Boolean).join(' / ');
-      var actual = bgExpenseRows.filter(function(r){
+      var expMatch = bgExpenseRows.filter(function(r){
         return r.fiscalYear===fy && r.company===co && (!r.type || bgSelTypes.has(r.type));
-      }).reduce(function(s,r){return s+r.actualCost;},0);
+      });
+      var actual  = expMatch.reduce(function(s,r){return s+r.actualCost;},0);
+      var speaker = expMatch.reduce(function(s,r){return s+r.speakerCost;},0);
+      var food    = expMatch.reduce(function(s,r){return s+r.foodCost;},0);
       if(budget<=0 && actual<=0) return; // ไม่มีข้อมูลทั้งคู่ ไม่ต้องแสดง
       var remaining = budget - actual;
       var pct = budget>0 ? (actual/budget*100) : null;
       if(!note && budget<=0) note = 'ไม่มีการตั้งงบประมาณ';
-      rowsOut.push({fy:fy, co:co, budget:budget, actual:actual, remaining:remaining, pct:pct, note:note});
+      rowsOut.push({fy:fy, co:co, budget:budget, actual:actual, speaker:speaker, food:food, remaining:remaining, pct:pct, note:note});
     });
   });
 
   if(!rowsOut.length){
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:40px">ไม่พบข้อมูล</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:40px">ไม่พบข้อมูล</td></tr>';
     return;
   }
   tbody.innerHTML = rowsOut.map(function(r){
@@ -4094,9 +4129,43 @@ function bgRenderTable(fyVal, fyTargets){
       '<td><span class="badge badge-'+(meta.cls==='wellios'?'wellios':meta.cls)+'">'+meta.label+'</span></td>'+
       '<td style="text-align:right;">'+(r.budget>0?bgFmt(r.budget):'—')+'</td>'+
       '<td style="text-align:right;">'+bgFmt(r.actual)+'</td>'+
+      '<td style="text-align:right;color:var(--text2);">'+bgFmt(r.speaker)+'</td>'+
+      '<td style="text-align:right;color:var(--text2);">'+bgFmt(r.food)+'</td>'+
       '<td style="text-align:right;color:'+remColor+';">'+(r.budget>0?bgFmt(r.remaining):'—')+'</td>'+
       '<td style="text-align:right;color:'+pctColor+';font-weight:600;">'+pctText+'</td>'+
       '<td style="color:var(--text2);">'+(r.note||'—')+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function bgRenderCourseTable(fyTargets){
+  var tbody = document.getElementById('bg-course-table-body'); if(!tbody) return;
+  var byCourse = {};
+  bgExpenseRows.forEach(function(r){
+    if(fyTargets.indexOf(r.fiscalYear)===-1) return;
+    if(r.type && !bgSelTypes.has(r.type)) return;
+    if(r.actualCost<=0) return; // เฉพาะหลักสูตรที่มีค่าใช้จ่าย
+    var key = r.course+'|'+r.company+'|'+r.fiscalYear;
+    if(!byCourse[key]) byCourse[key]={course:r.course||'(ไม่ระบุชื่อหลักสูตร)', co:r.company, fy:r.fiscalYear, actual:0, speaker:0, food:0};
+    byCourse[key].actual  += r.actualCost;
+    byCourse[key].speaker += r.speakerCost;
+    byCourse[key].food    += r.foodCost;
+  });
+  var list = Object.values(byCourse).sort(function(a,b){ return b.actual-a.actual; });
+
+  if(!list.length){
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px">ไม่พบหลักสูตรที่มีค่าใช้จ่ายในช่วงที่เลือก</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(function(r){
+    var meta = BG_CO_META[r.co]||{cls:'',label:r.co};
+    return '<tr>'+
+      '<td>'+r.course+'</td>'+
+      '<td><span class="badge badge-'+(meta.cls==='wellios'?'wellios':meta.cls)+'">'+meta.label+'</span></td>'+
+      '<td>'+r.fy+'</td>'+
+      '<td style="text-align:right;">'+bgFmt(r.speaker)+'</td>'+
+      '<td style="text-align:right;">'+bgFmt(r.food)+'</td>'+
+      '<td style="text-align:right;font-weight:600;">'+bgFmt(r.actual)+'</td>'+
     '</tr>';
   }).join('');
 }
