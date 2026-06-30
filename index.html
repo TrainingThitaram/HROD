@@ -3666,17 +3666,40 @@ function trBuildDeptSelect(){
     depts.map(function(d){return '<option value="'+d+'">'+d+'</option>';}).join('');
 }
 
-// ── Build Course Select (dynamic จาก data) ──
+// ── Build Course Select (dynamic ตาม filter อื่นๆ ที่เลือกไว้ ไม่รวม course เอง) ──
 function trBuildCourseSelect(){
   var sel = document.getElementById('tr-course-select'); if(!sel) return;
-  var courses = Array.from(new Set(trRawData.map(function(r){return r.Course;}).filter(Boolean))).sort();
+  var prevVal = sel.value || 'ALL';
+
+  var fyVal   = (document.getElementById('tr-fy-select')||{}).value||'ALL';
+  var deptVal = (document.getElementById('tr-dept-select')||{}).value||'ALL';
+
+  var pool = trRawData.filter(function(r){
+    if(fyVal!=='ALL' && r.FiscalYear!==parseInt(fyVal)) return false;
+    if(!trSelCo.has(r.Company) && r.Company!=='') return false;
+    if(deptVal!=='ALL' && r.Dept!==deptVal) return false;
+    return true;
+  });
+
+  var courses = Array.from(new Set(pool.map(function(r){return r.Course;}).filter(Boolean))).sort();
   sel.innerHTML = '<option value="ALL">ทั้งหมด</option>'+
     courses.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
+
+  // คงค่าเดิมไว้ถ้ายังอยู่ใน list ใหม่ ไม่งั้นรีเซตเป็น "ทั้งหมด"
+  if(prevVal!=='ALL' && courses.indexOf(prevVal)!==-1){
+    sel.value = prevVal;
+  } else {
+    sel.value = 'ALL';
+  }
 }
 
 // ── Apply Filter ──
 function trApplyFilter(){
   if(!trLoaded) return;
+
+  // อัปเดต list หลักสูตรให้ตรงกับ filter อื่นๆ ก่อน (อาจรีเซต course เป็น ALL ถ้าหายไปจาก list)
+  trBuildCourseSelect();
+
   var fyVal    = (document.getElementById('tr-fy-select')||{}).value||'ALL';
   var deptVal  = (document.getElementById('tr-dept-select')||{}).value||'ALL';
   var courseVal= (document.getElementById('tr-course-select')||{}).value||'ALL';
