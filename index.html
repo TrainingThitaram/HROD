@@ -307,7 +307,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
     <div style="background:#fff;border-bottom:1px solid var(--border);padding:0 32px;display:flex;gap:0;overflow-x:auto;">
       <button class="tab-btn active" id="tr-btn-record"  onclick="switchTrainingTab(event,'record')"  style="font-size:13px;padding:10px 18px;">&#128221; Training Record</button>
       <button class="tab-btn"        id="tr-btn-report"  onclick="switchTrainingTab(event,'report')"  style="font-size:13px;padding:10px 18px;">&#128202; Training Report</button>
-      <button class="tab-btn"        id="tr-btn-budget"  onclick="switchTrainingTab(event,'budget')"  style="font-size:13px;padding:10px 18px;">&#128176; Budget</button>
+      <button class="tab-btn"        id="tr-btn-budget"  onclick="switchTrainingTab(event,'budget');initTrainingBudget();"  style="font-size:13px;padding:10px 18px;">&#128176; Budget</button>
       <button class="tab-btn"        id="tr-btn-basic"   onclick="switchTrainingTab(event,'basic');initBasicKnowledge();"   style="font-size:13px;padding:10px 18px;">&#128218; Basic Knowledge</button>
       <button class="tab-btn"        id="tr-btn-score"   onclick="switchTrainingTab(event,'score');initBkScore();"          style="font-size:13px;padding:10px 18px;">&#127942; Score</button>
     </div>
@@ -427,7 +427,67 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
     <!-- Training Budget -->
     <div id="tr-subtab-budget" style="display:none;">
       <div class="content">
-        <div class="coming-soon"><div class="coming-soon-icon">&#128176;</div><h3>Budget</h3><p>อยู่ระหว่างการพัฒนา</p></div>
+        <div class="error-box" id="bg-error-box"></div>
+
+        <!-- FILTER PANEL -->
+        <div class="section-title">Filter</div>
+        <div class="filter-panel" style="margin-bottom:28px;">
+          <div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px;">
+            <!-- ปีงบประมาณ -->
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">ปีงบประมาณ</div>
+              <select id="bg-fy-select" onchange="bgApplyFilter()" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);cursor:pointer;"></select>
+            </div>
+            <!-- รูปแบบ -->
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">รูปแบบ</div>
+              <div class="chips" id="bg-type-chips"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button onclick="bgApplyFilter()" style="padding:8px 20px;background:var(--tos);color:white;border:none;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:600;cursor:pointer;">ค้นหา</button>
+            <button onclick="bgResetFilter()" style="padding:8px 16px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;cursor:pointer;">รีเซต</button>
+          </div>
+        </div>
+
+        <!-- KPI CARDS: BUDGET vs ACTUAL PER COMPANY -->
+        <div class="section-title">งบประมาณเทียบค่าใช้จ่ายจริง — ปีงบประมาณ <span id="bg-fy-label">—</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;" id="bg-kpi-cards"></div>
+
+        <!-- CHART -->
+        <div class="section-title">กราฟเปรียบเทียบงบประมาณกับค่าใช้จ่ายจริง</div>
+        <div class="table-card" style="margin-bottom:28px;padding:20px 22px;">
+          <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:8px;font-size:12px;color:var(--text2);">
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#378ADD;display:inline-block;"></span>งบประมาณ</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#D85A30;display:inline-block;"></span>ใช้จริง</span>
+          </div>
+          <div style="position:relative;width:100%;height:280px;">
+            <canvas id="bg-bar-chart" role="img" aria-label="กราฟแท่งเปรียบเทียบงบประมาณกับค่าใช้จ่ายจริงรายบริษัท"></canvas>
+          </div>
+        </div>
+
+        <!-- SUMMARY TABLE -->
+        <div class="section-title">ตารางสรุป</div>
+        <div class="table-card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ปีงบประมาณ</th>
+                  <th>บริษัท</th>
+                  <th style="text-align:right;">งบประมาณ</th>
+                  <th style="text-align:right;">ใช้จริง</th>
+                  <th style="text-align:right;">คงเหลือ</th>
+                  <th style="text-align:right;">% ใช้ไป</th>
+                  <th>หมายเหตุ</th>
+                </tr>
+              </thead>
+              <tbody id="bg-table-body">
+                <tr><td colspan="7" style="text-align:center;color:var(--text3);padding:40px">กำลังโหลดข้อมูล...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
     <!-- Basic Knowledge -->
@@ -3759,6 +3819,286 @@ function trRenderPagination(pages){
   if(hi<pages) btns+=(hi<pages-1?'<span style="padding:0 4px;color:var(--text3);">…</span>':'')+'<button class="page-btn" onclick="trChangePage('+pages+')">'+pages+'</button>';
   btns+='<button class="page-btn" onclick="trChangePage('+(p<pages?p+1:pages)+')" '+(p===pages?'disabled':'')+'>›</button>';
   el.innerHTML=btns;
+}
+
+// ══════════════════════════════════════════════════════
+// TRAINING BUDGET MODULE
+// ══════════════════════════════════════════════════════
+const BG_FILE_ID  = '01M5SVO63GF5VLDQX4OJAZA34TGDBGFGBY'; // Training Report (Claude).xlsx
+const BG_DRIVE_ID = 'b!Q6WBRjNmxUaGpa_PVc_OmM7yWwkYrfVDpmT337_bHJWkYp3bLNpnSrWRpDky5-Tt';
+const BG_SHEET_EXPENSE = 'Expense';
+const BG_SHEET_BUDGET  = 'Budgets';
+const BG_COMPANIES = ['TRC','TOS','VJP','WXP'];
+const BG_CO_META = {
+  TRC:{cls:'trc',  css:'--trc',     label:'TRC'},
+  TOS:{cls:'tos',  css:'--tos',     label:'TOS'},
+  VJP:{cls:'vjp',  css:'--vjp',     label:'VJP'},
+  WXP:{cls:'wellios',css:'--wellios',label:'WXP'}
+};
+const BG_TYPES = ['Internal','In-House','Public'];
+
+let bgLoaded      = false;
+let bgExpenseRows = [];   // {company, date, fiscalYear, type, actualCost}
+let bgBudgetRows  = [];   // {fiscalYear, company, budget, note}
+let bgSelTypes    = new Set(BG_TYPES);
+let bgFyList      = [];
+
+// ── ปีงบประมาณ (ปฏิทินสากล, อิงวันที่จัดอบรม): ต.ค.(N) - ก.ย.(N+1) → FY = N+1 ──
+function bgFiscalYear(d){
+  if(!d) return null;
+  var m = d.getMonth()+1; // 1-12
+  var y = d.getFullYear();
+  return m >= 10 ? y+1 : y;
+}
+
+// ── หา index คอลัมน์จากชื่อ header (รองรับช่องว่าง/ตัวพิมพ์ต่างกันเล็กน้อย) ──
+function bgFindCol(headers, candidates){
+  var norm = headers.map(function(h){ return String(h||'').replace(/\s+/g,'').trim(); });
+  for(var i=0;i<candidates.length;i++){
+    var c = String(candidates[i]).replace(/\s+/g,'').trim();
+    var idx = norm.indexOf(c);
+    if(idx>=0) return idx;
+  }
+  return -1;
+}
+
+async function initTrainingBudget(){
+  if(bgLoaded) return;
+  setLoading(true);
+  var errBox = document.getElementById('bg-error-box');
+  if(errBox) errBox.style.display='none';
+  try{
+    var tok = await getToken();
+    if(!tok) throw new Error('ไม่มี Token');
+    var h = {Authorization:'Bearer '+tok};
+    var base = 'https://graph.microsoft.com/v1.0/drives/'+BG_DRIVE_ID+'/items/'+BG_FILE_ID+'/workbook/worksheets';
+
+    var sRes  = await fetch(base, {headers:h});
+    var sData = await sRes.json();
+    var sheets = sData.value||[];
+    var expSheet = sheets.find(function(s){return s.name===BG_SHEET_EXPENSE;});
+    var bgtSheet = sheets.find(function(s){return s.name===BG_SHEET_BUDGET;});
+    if(!expSheet) throw new Error('ไม่พบ Sheet: '+BG_SHEET_EXPENSE);
+    if(!bgtSheet) throw new Error('ไม่พบ Sheet: '+BG_SHEET_BUDGET);
+
+    var eId = encodeURIComponent(expSheet.id);
+    var bId = encodeURIComponent(bgtSheet.id);
+    var eRes = await fetch(base+'/'+eId+'/usedRange',{headers:h});
+    var bRes = await fetch(base+'/'+bId+'/usedRange',{headers:h});
+    var eRows = ((await eRes.json()).values)||[];
+    var bRows = ((await bRes.json()).values)||[];
+
+    bgExpenseRows = bgParseExpense(eRows);
+    bgBudgetRows  = bgParseBudget(bRows);
+    bgLoaded = true;
+
+    bgBuildFySelect();
+    bgBuildTypeChips();
+    bgApplyFilter();
+  } catch(e){
+    if(errBox){ errBox.textContent='โหลดข้อมูล Budget ไม่สำเร็จ: '+e.message; errBox.style.display='block'; }
+    console.error(e);
+  }
+  setLoading(false);
+}
+
+function bgParseExpense(rows){
+  if(!rows||rows.length<2) return [];
+  var headers = rows[0].map(function(c){return String(c||'').trim();});
+  var idx = {
+    company : bgFindCol(headers,['บริษัท']),
+    date    : bgFindCol(headers,['วันที่จัด']),
+    type    : bgFindCol(headers,['รูปแบบ']),
+    actual  : bgFindCol(headers,['ค่าใช้จ่ายจริง']),
+    fyCol   : bgFindCol(headers,['ปีงบประมาณ'])
+  };
+  return rows.slice(1).map(function(r){
+    if(!r) return null;
+    var company = idx.company>=0 ? String(r[idx.company]||'').trim() : '';
+    if(!company) return null;
+    var d = idx.date>=0 ? parseExcelDate(r[idx.date]) : null;
+    var fy = bgFiscalYear(d);
+    if(fy==null && idx.fyCol>=0){ var fv=parseInt(r[idx.fyCol]); if(!isNaN(fv)) fy=fv; }
+    var type = idx.type>=0 ? String(r[idx.type]||'').trim() : '';
+    var costRaw = idx.actual>=0 ? r[idx.actual] : 0;
+    var cost = parseFloat(String(costRaw).replace(/,/g,'')) || 0;
+    return {company:company, date:d, fiscalYear:fy, type:type, actualCost:cost};
+  }).filter(function(r){ return r && r.fiscalYear; });
+}
+
+function bgParseBudget(rows){
+  if(!rows||rows.length<2) return [];
+  var headers = rows[0].map(function(c){return String(c||'').trim();});
+  var idx = {
+    fy      : bgFindCol(headers,['ปีงบประมาณ']),
+    company : bgFindCol(headers,['บริษัท']),
+    budget  : bgFindCol(headers,['งบประมาณ']),
+    note    : bgFindCol(headers,['หมายเหตุ'])
+  };
+  return rows.slice(1).map(function(r){
+    if(!r) return null;
+    var fy = idx.fy>=0 ? parseInt(r[idx.fy]) : null;
+    var company = idx.company>=0 ? String(r[idx.company]||'').trim() : '';
+    if(!fy || !company) return null;
+    var budgetRaw = idx.budget>=0 ? r[idx.budget] : 0;
+    var budget = parseFloat(String(budgetRaw).replace(/,/g,'')) || 0;
+    var note = idx.note>=0 ? String(r[idx.note]||'').trim() : '';
+    return {fiscalYear:fy, company:company, budget:budget, note:note};
+  }).filter(Boolean);
+}
+
+function bgBuildFySelect(){
+  var sel = document.getElementById('bg-fy-select'); if(!sel) return;
+  var years = new Set();
+  bgExpenseRows.forEach(function(r){ if(r.fiscalYear) years.add(r.fiscalYear); });
+  bgBudgetRows.forEach(function(r){ if(r.fiscalYear) years.add(r.fiscalYear); });
+  bgFyList = Array.from(years).sort(function(a,b){return b-a;});
+  var curFy = bgFiscalYear(new Date());
+  var opts = ['<option value="ALL">ทั้งหมด</option>'];
+  bgFyList.forEach(function(y){
+    opts.push('<option value="'+y+'">ปีงบประมาณ '+y+' (ต.ค.'+(y-1)+' \u2013 ก.ย.'+y+')</option>');
+  });
+  sel.innerHTML = opts.join('');
+  var opt = sel.querySelector('option[value="'+curFy+'"]');
+  if(opt) opt.selected = true;
+}
+
+function bgBuildTypeChips(){
+  var c = document.getElementById('bg-type-chips'); if(!c) return;
+  c.innerHTML = BG_TYPES.map(function(t){
+    return '<span class="chip selected" data-type="'+t+'" onclick="bgToggleType(this,\''+t+'\')">'+t+'</span>';
+  }).join('');
+}
+function bgToggleType(el,t){
+  if(bgSelTypes.has(t)){ bgSelTypes.delete(t); el.classList.remove('selected'); }
+  else { bgSelTypes.add(t); el.classList.add('selected'); }
+  bgApplyFilter();
+}
+
+function bgResetFilter(){
+  var sel = document.getElementById('bg-fy-select');
+  if(sel){ var curFy=bgFiscalYear(new Date()); var opt=sel.querySelector('option[value="'+curFy+'"]'); if(opt) opt.selected=true; else sel.value='ALL'; }
+  bgSelTypes = new Set(BG_TYPES);
+  document.querySelectorAll('#bg-type-chips .chip').forEach(function(el){el.classList.add('selected');});
+  bgApplyFilter();
+}
+
+let bgChart = null;
+
+function bgApplyFilter(){
+  if(!bgLoaded) return;
+  var fyVal = (document.getElementById('bg-fy-select')||{}).value || 'ALL';
+  var fyTargets = fyVal==='ALL' ? bgFyList.slice() : [parseInt(fyVal)];
+
+  document.getElementById('bg-fy-label').textContent = fyVal==='ALL' ? 'ทั้งหมด' : fyVal;
+
+  // ── สรุปรวมต่อบริษัท (ตาม fyTargets และ type ที่เลือก) ──
+  var agg = {};
+  BG_COMPANIES.forEach(function(co){ agg[co]={budget:0,actual:0,note:[]}; });
+
+  bgBudgetRows.forEach(function(r){
+    if(fyTargets.indexOf(r.fiscalYear)===-1) return;
+    if(!agg[r.company]) agg[r.company]={budget:0,actual:0,note:[]};
+    agg[r.company].budget += r.budget;
+    if(r.note) agg[r.company].note.push(r.note);
+  });
+  bgExpenseRows.forEach(function(r){
+    if(fyTargets.indexOf(r.fiscalYear)===-1) return;
+    if(r.type && !bgSelTypes.has(r.type)) return;
+    if(!agg[r.company]) agg[r.company]={budget:0,actual:0,note:[]};
+    agg[r.company].actual += r.actualCost;
+  });
+
+  bgRenderKpi(agg);
+  bgRenderChart(agg);
+  bgRenderTable(fyVal, fyTargets);
+}
+
+function bgRenderKpi(agg){
+  var box = document.getElementById('bg-kpi-cards'); if(!box) return;
+  box.innerHTML = BG_COMPANIES.map(function(co){
+    var meta = BG_CO_META[co];
+    var d = agg[co]||{budget:0,actual:0};
+    var hasBudget = d.budget>0;
+    var pct = hasBudget ? (d.actual/d.budget*100) : null;
+    var barColor = !hasBudget ? '#888780' : pct>100 ? '#E24B4A' : pct>=80 ? '#BA7517' : '#1D9E75';
+    var barWidth = !hasBudget ? 0 : Math.min(100,pct);
+    return '<div class="kpi-card '+meta.cls+'">'+
+      '<div class="kpi-label">'+meta.label+'</div>'+
+      '<div class="kpi-value" style="font-size:20px;color:var('+meta.css+');">'+(hasBudget?bgFmt(d.budget):'ไม่มีงบประมาณ')+'</div>'+
+      '<div class="kpi-sub">ใช้จริง '+bgFmt(d.actual)+(hasBudget?' · '+pct.toFixed(0)+'%':'')+'</div>'+
+      '<div style="height:6px;background:var(--border);border-radius:4px;margin-top:8px;overflow:hidden;">'+
+        '<div style="height:100%;width:'+barWidth+'%;background:'+barColor+';"></div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function bgFmt(n){ return '\u0e3f'+Math.round(n).toLocaleString('th-TH'); }
+
+function bgRenderChart(agg){
+  var canvas = document.getElementById('bg-bar-chart'); if(!canvas) return;
+  var budgets = BG_COMPANIES.map(function(co){ return (agg[co]||{}).budget||0; });
+  var actuals = BG_COMPANIES.map(function(co){ return (agg[co]||{}).actual||0; });
+  if(bgChart){ bgChart.destroy(); }
+  bgChart = new Chart(canvas, {
+    type:'bar',
+    data:{
+      labels: BG_COMPANIES,
+      datasets:[
+        {label:'งบประมาณ', data:budgets, backgroundColor:'#378ADD', borderRadius:4},
+        {label:'ใช้จริง',   data:actuals, backgroundColor:'#D85A30', borderRadius:4}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:function(c){return ' '+c.dataset.label+': '+bgFmt(c.parsed.y);}}} },
+      scales:{ y:{ ticks:{ color:'#5c6080', font:{family:'Sarabun',size:11}, callback:function(v){return bgFmt(v);} }, grid:{color:'#e2e4ec'} },
+                x:{ ticks:{ color:'#5c6080', font:{family:'Sarabun',size:12} }, grid:{display:false} } }
+    }
+  });
+}
+
+function bgRenderTable(fyVal, fyTargets){
+  var tbody = document.getElementById('bg-table-body'); if(!tbody) return;
+  var rowsOut = [];
+  var fyListForTable = fyVal==='ALL' ? fyTargets.slice().sort(function(a,b){return b-a;}) : fyTargets;
+
+  fyListForTable.forEach(function(fy){
+    BG_COMPANIES.forEach(function(co){
+      var budgetRow = bgBudgetRows.filter(function(r){return r.fiscalYear===fy && r.company===co;});
+      var budget = budgetRow.reduce(function(s,r){return s+r.budget;},0);
+      var note = budgetRow.map(function(r){return r.note;}).filter(Boolean).join(' / ');
+      var actual = bgExpenseRows.filter(function(r){
+        return r.fiscalYear===fy && r.company===co && (!r.type || bgSelTypes.has(r.type));
+      }).reduce(function(s,r){return s+r.actualCost;},0);
+      if(budget<=0 && actual<=0) return; // ไม่มีข้อมูลทั้งคู่ ไม่ต้องแสดง
+      var remaining = budget - actual;
+      var pct = budget>0 ? (actual/budget*100) : null;
+      if(!note && budget<=0) note = 'ไม่มีการตั้งงบประมาณ';
+      rowsOut.push({fy:fy, co:co, budget:budget, actual:actual, remaining:remaining, pct:pct, note:note});
+    });
+  });
+
+  if(!rowsOut.length){
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:40px">ไม่พบข้อมูล</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rowsOut.map(function(r){
+    var meta = BG_CO_META[r.co];
+    var pctText = r.pct==null ? '—' : r.pct.toFixed(0)+'%';
+    var pctColor = r.pct==null ? 'var(--text2)' : r.pct>100 ? '#E24B4A' : r.pct>=80 ? '#BA7517' : '#1D9E75';
+    var remColor = r.remaining<0 ? '#E24B4A' : 'var(--text)';
+    return '<tr>'+
+      '<td>'+r.fy+'</td>'+
+      '<td><span class="badge badge-'+(meta.cls==='wellios'?'wellios':meta.cls)+'">'+meta.label+'</span></td>'+
+      '<td style="text-align:right;">'+(r.budget>0?bgFmt(r.budget):'—')+'</td>'+
+      '<td style="text-align:right;">'+bgFmt(r.actual)+'</td>'+
+      '<td style="text-align:right;color:'+remColor+';">'+(r.budget>0?bgFmt(r.remaining):'—')+'</td>'+
+      '<td style="text-align:right;color:'+pctColor+';font-weight:600;">'+pctText+'</td>'+
+      '<td style="color:var(--text2);">'+(r.note||'—')+'</td>'+
+    '</tr>';
+  }).join('');
 }
 
 // ══════════════════════════════════════════════════════
