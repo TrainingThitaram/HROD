@@ -1295,12 +1295,19 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
         <!-- Bar Chart -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px;">
           <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">&#128229; WellPoint ที่บริษัทจ่ายให้พนักงานรายเดือน แยกตาม Category</div>
-          <div style="font-size:12px;color:var(--text3);margin-bottom:20px;">อิงปีงบประมาณ ต.ค.–ก.ย.</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:14px;">อิงปีงบประมาณ ต.ค.–ก.ย.</div>
+          <!-- Category filter chips -->
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:16px;">
+            <div style="font-size:11px;color:var(--text3);font-weight:500;margin-bottom:8px;">กรอง Category <span style="color:var(--text3);font-weight:400">(ไม่เลือก = แสดงทั้งหมด)</span></div>
+            <div id="wtrcg-in-cat-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          </div>
           <div style="position:relative;height:320px;"><canvas id="wtrcg-in-bar"></canvas></div>
+          <div id="wtrcg-in-legend" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;"></div>
         </div>
         <!-- Summary Table -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);">
-          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:16px;">&#128203; สรุป WellPoint แยกบริษัท × Category</div>
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">&#128203; ตารางสรุป WellPoint แยกบริษัท × Category</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:16px;">แต่ละแถว = บริษัท | แต่ละคอลัมน์ = Category</div>
           <div id="wtrcg-in-table"></div>
         </div>
       </div>
@@ -5281,51 +5288,55 @@ function scExportExcel(){
 const WTRCG_DRIVE_ID = 'b!Q6WBRjNmxUaGpa_PVc_OmM7yWwkYrfVDpmT337_bHJWkYp3bLNpnSrWRpDky5-Tt';
 const WTRCG_FILE_ID  = '01M5SVO65HXYQPPQ7J7NC3M6DXAH2DS7JV';
 
-let wtrcgTxRows    = [];  // Transactions raw (header stripped)
-let wtrcgCatMap    = {};  // { TITLE -> { owner, category } }
-let wtrcgInited    = false;
-let wtrcgInBarChart  = null;
-let wtrcgOutBarChart = null;
+let wtrcgTxRows     = [];
+let wtrcgCatMap     = {};
+let wtrcgInited     = false;
+let wtrcgInBarChart = null;
+let wtrcgOutBarChart= null;
+let wtrcgCatSelected= null; // null = all
 
-// Fiscal year helper: Oct(y-1) - Sep(y)  =>  label "ปีงบ 2569"
+// Category palette (Tidepool order)
+const WTRCG_PALETTE = ['#2a78d6','#1baf7a','#eda100','#008300','#4a3aa7','#e34948','#e87ba4','#eb6834','#888780'];
+
 function wtrcgFiscalYear(dateStr) {
   if (!dateStr) return null;
-  var s = String(dateStr).trim().split('/')[0].trim(); // "2025-10-01"
+  var s = String(dateStr).trim().split('/')[0].trim();
   var d = new Date(s);
-  if (isNaN(d)) return null;
-  var m = d.getMonth() + 1; // 1-12
+  if (isNaN(d.getTime())) return null;
+  var m = d.getMonth() + 1;
   var y = d.getFullYear();
-  var fy = m >= 10 ? y + 1 : y;
-  return fy + 543; // พ.ศ.
+  return (m >= 10 ? y + 1 : y) + 543;
 }
 function wtrcgMonthKey(dateStr) {
   if (!dateStr) return null;
   var s = String(dateStr).trim().split('/')[0].trim();
   var d = new Date(s);
-  if (isNaN(d)) return null;
+  if (isNaN(d.getTime())) return null;
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
 }
 function wtrcgMonthLabel(key) {
-  var parts = key.split('-');
-  var y = parseInt(parts[0]);
-  var m = parseInt(parts[1]);
-  var thMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-  return thMonths[m-1] + ' ' + (y+543);
+  var p = key.split('-');
+  var y = parseInt(p[0]), m = parseInt(p[1]);
+  var th = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  return th[m-1]+' '+(y+543);
+}
+function wtrcgFyLabel(fy) {
+  var prev = fy - 1;
+  return 'ปีงบประมาณ '+fy+' (ต.ค.'+(prev-2500)+' \u2013 ก.ย.'+(fy-2500)+')';
 }
 
-// Fetch one sheet by name
 async function wtrcgFetch(sheetName) {
   var token = await getToken();
   if (!token) throw new Error('ไม่มี Token');
-  var base = 'https://graph.microsoft.com/v1.0/drives/' + WTRCG_DRIVE_ID + '/items/' + WTRCG_FILE_ID + '/workbook/worksheets';
+  var base = 'https://graph.microsoft.com/v1.0/drives/'+WTRCG_DRIVE_ID+'/items/'+WTRCG_FILE_ID+'/workbook/worksheets';
   var r = await fetch(base, {headers:{Authorization:'Bearer '+token}});
   var data = await r.json();
   var sheets = data.value || [];
   var sheet = sheets.find(function(s){ return s.name === sheetName; });
-  if (!sheet) throw new Error('ไม่พบ Sheet: ' + sheetName);
+  if (!sheet) throw new Error('ไม่พบ Sheet: '+sheetName);
   var sid = encodeURIComponent(sheet.id);
-  var r2 = await fetch(base + '/' + sid + '/usedRange', {headers:{Authorization:'Bearer '+token}});
-  if (!r2.ok) { var t = await r2.text(); throw new Error(sheetName + ': ' + r2.status + ' ' + t.substring(0,80)); }
+  var r2 = await fetch(base+'/'+sid+'/usedRange', {headers:{Authorization:'Bearer '+token}});
+  if (!r2.ok) { var t=await r2.text(); throw new Error(sheetName+': '+r2.status+' '+t.substring(0,80)); }
   return (await r2.json()).values || [];
 }
 
@@ -5333,102 +5344,87 @@ async function initWellTrcg() {
   if (wtrcgInited) return;
   wtrcgInited = true;
   try {
-    // Load both sheets in parallel
-    var [txVals, catVals] = await Promise.all([
-      wtrcgFetch('Transactions'),
-      wtrcgFetch('Category Map')
-    ]);
+    var results = await Promise.all([wtrcgFetch('Transactions'), wtrcgFetch('Category Map')]);
+    var txVals = results[0], catVals = results[1];
 
-    // Build category map: TITLE -> { owner, category }
+    // Build Category Map
     wtrcgCatMap = {};
     for (var i = 1; i < catVals.length; i++) {
       var row = catVals[i];
-      var title = String(row[0]||'').trim();
-      if (!title) continue;
-      wtrcgCatMap[title] = {
-        owner:    String(row[1]||'').trim(),
-        category: String(row[2]||'').trim()
-      };
+      var t = String(row[0]||'').trim();
+      if (!t) continue;
+      wtrcgCatMap[t] = { owner: String(row[1]||'').trim(), category: String(row[2]||'').trim() };
     }
 
-    // Parse Transactions (header row 0)
-    // A=TITLE, B=EMPLOYEE, C=VALUE, D=VALUE TYPE, E=TYPE, F=CURRENCY, G=DATE, H=สังกัด
+    // Parse Transactions: A=TITLE B=EMPLOYEE C=VALUE D=VALUE_TYPE E=TYPE F=CURRENCY G=DATE H=สังกัด
     wtrcgTxRows = [];
     for (var j = 1; j < txVals.length; j++) {
       var r = txVals[j];
-      var title    = String(r[0]||'').trim();
-      var employee = String(r[1]||'').trim();
-      var value    = parseFloat(r[2])||0;
-      var vtype    = String(r[3]||'').trim(); // In / Out
-      var type     = String(r[4]||'').trim();
-      var dateStr  = String(r[6]||'').trim();
-      var company  = String(r[7]||'').trim(); // TRC/TOS/VJP
-      if (!employee && !title) continue;
-      var fy  = wtrcgFiscalYear(dateStr);
-      var mok = wtrcgMonthKey(dateStr);
-      var cat = (wtrcgCatMap[title] || {});
+      var title   = String(r[0]||'').trim();
+      var emp     = String(r[1]||'').trim();
+      var val     = parseFloat(r[2])||0;
+      var vtype   = String(r[3]||'').trim();
+      var type    = String(r[4]||'').trim();
+      var dateStr = String(r[6]||'').trim();
+      var co      = String(r[7]||'').trim();
+      if (!emp && !title) continue;
+      var cm = wtrcgCatMap[title] || {};
       wtrcgTxRows.push({
-        title:    title,
-        employee: employee,
-        value:    value,
-        vtype:    vtype,
-        type:     type,
-        dateStr:  dateStr,
-        company:  company,
-        fy:       fy,
-        monthKey: mok,
-        owner:    cat.owner    || 'Uncategorized',
-        category: cat.category || 'Uncategorized'
+        title:title, employee:emp, value:val, vtype:vtype, type:type,
+        dateStr:dateStr, company:co,
+        fy:wtrcgFiscalYear(dateStr), monthKey:wtrcgMonthKey(dateStr),
+        owner:cm.owner||'Uncategorized', category:cm.category||'Uncategorized'
       });
     }
 
-    // Build fiscal year options
+    // Fiscal year options
     var fySet = new Set();
     wtrcgTxRows.forEach(function(r){ if(r.fy) fySet.add(r.fy); });
     var fyList = Array.from(fySet).sort(function(a,b){return b-a;});
     var fyOpts = '<option value="ALL">ทั้งหมด</option>' +
-      fyList.map(function(y){ return '<option value="'+y+'">ปีงบ '+y+'</option>'; }).join('');
+      fyList.map(function(y){ return '<option value="'+y+'">'+wtrcgFyLabel(y)+'</option>'; }).join('');
     document.getElementById('wtrcg-in-fy').innerHTML  = fyOpts;
     document.getElementById('wtrcg-out-fy').innerHTML = fyOpts;
 
     // Company chips
     var cos = ['TRC','TOS','VJP'];
-    var coColors = {TRC:'var(--trc)',TOS:'var(--tos)',VJP:'var(--vjp)'};
+    var coColors = {TRC:'#ed1c24', TOS:'#26276f', VJP:'#e97b2e'};
     ['wtrcg-in-co-chips','wtrcg-out-co-chips'].forEach(function(id){
       document.getElementById(id).innerHTML = cos.map(function(c){
-        return '<button class="wtrcg-chip" data-val="'+c+'" data-group="co" data-target="'+id+'" onclick="toggleWtrcgChip(this)" '+
-          'style="padding:5px 14px;border-radius:20px;border:2px solid '+coColors[c]+';background:#fff;color:'+coColors[c]+';font-family:Sarabun,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">'+c+'</button>';
+        return '<button class="wtrcg-chip" data-val="'+c+'" onclick="toggleWtrcgChip(this,\''+id+'\')" '+
+          'style="padding:5px 14px;border-radius:20px;border:2px solid '+coColors[c]+';background:#fff;'+
+          'color:'+coColors[c]+';font-family:Sarabun,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">'+c+'</button>';
       }).join('');
     });
 
-    // Owner chips (In only)
+    // Owner chips
     var ownerSet = new Set();
     wtrcgTxRows.filter(function(r){return r.vtype==='In';}).forEach(function(r){ownerSet.add(r.owner);});
     var owners = Array.from(ownerSet).sort();
-    var ownerColors = {HR:'#0ea5e9',HRBP:'#8b5cf6',HROD:'#f59e0b'};
+    var ownerColors = {HR:'#0ea5e9', HRBP:'#8b5cf6', HROD:'#f59e0b'};
     document.getElementById('wtrcg-in-owner-chips').innerHTML = owners.map(function(o){
-      var c = ownerColors[o] || '#64748b';
-      return '<button class="wtrcg-chip" data-val="'+o+'" data-group="owner" onclick="toggleWtrcgChip(this)" '+
-        'style="padding:5px 14px;border-radius:20px;border:2px solid '+c+';background:#fff;color:'+c+';font-family:Sarabun,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">'+o+'</button>';
+      var c = ownerColors[o]||'#64748b';
+      return '<button class="wtrcg-chip" data-val="'+o+'" onclick="toggleWtrcgChip(this,\'wtrcg-in-owner-chips\')" '+
+        'style="padding:5px 14px;border-radius:20px;border:2px solid '+c+';background:#fff;'+
+        'color:'+c+';font-family:Sarabun,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">'+o+'</button>';
     }).join('');
 
-    // Initial render
     renderWtrcgIn();
     renderWtrcgOut();
 
   } catch(e) {
-    document.getElementById('wtrcg-error-in').textContent = 'เกิดข้อผิดพลาด: ' + e.message;
-    document.getElementById('wtrcg-error-in').style.display = 'block';
+    ['wtrcg-error-in','wtrcg-error-out'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el){el.textContent='เกิดข้อผิดพลาด: '+e.message;el.style.display='block';}
+    });
   }
 }
 
-function toggleWtrcgChip(btn) {
-  var active = btn.style.background !== 'rgb(255, 255, 255)' && btn.style.background !== '#fff' && btn.style.background !== '';
-  // Toggle: if active -> deactivate, else activate
+function toggleWtrcgChip(btn, containerId) {
   if (btn.classList.contains('wtrcg-active')) {
     btn.classList.remove('wtrcg-active');
     btn.style.background = '#fff';
-    btn.style.color = btn.getAttribute('data-color') || btn.style.borderColor;
+    btn.style.color = btn.style.borderColor;
   } else {
     btn.classList.add('wtrcg-active');
     btn.style.background = btn.style.borderColor;
@@ -5438,16 +5434,25 @@ function toggleWtrcgChip(btn) {
 
 function getWtrcgChipSelected(containerId) {
   var chips = document.querySelectorAll('#'+containerId+' .wtrcg-chip.wtrcg-active');
-  if (!chips.length) return null; // null = all
-  return Array.from(chips).map(function(c){return c.getAttribute('data-val');});
+  return chips.length ? Array.from(chips).map(function(c){return c.getAttribute('data-val');}) : null;
+}
+
+function toggleWtrcgCat(cat) {
+  if (!wtrcgCatSelected) {
+    wtrcgCatSelected = [cat];
+  } else {
+    var idx = wtrcgCatSelected.indexOf(cat);
+    if (idx >= 0) { wtrcgCatSelected.splice(idx,1); if(!wtrcgCatSelected.length) wtrcgCatSelected=null; }
+    else { wtrcgCatSelected.push(cat); }
+  }
+  renderWtrcgIn();
 }
 
 function wtrcgFilterRows(vtype) {
-  var fyEl = document.getElementById(vtype==='In' ? 'wtrcg-in-fy' : 'wtrcg-out-fy');
-  var fy   = fyEl ? fyEl.value : 'ALL';
-  var coSel   = getWtrcgChipSelected(vtype==='In' ? 'wtrcg-in-co-chips' : 'wtrcg-out-co-chips');
+  var fyEl = document.getElementById(vtype==='In'?'wtrcg-in-fy':'wtrcg-out-fy');
+  var fy = fyEl ? fyEl.value : 'ALL';
+  var coSel    = getWtrcgChipSelected(vtype==='In'?'wtrcg-in-co-chips':'wtrcg-out-co-chips');
   var ownerSel = vtype==='In' ? getWtrcgChipSelected('wtrcg-in-owner-chips') : null;
-
   return wtrcgTxRows.filter(function(r){
     if (r.vtype !== vtype) return false;
     if (fy !== 'ALL' && r.fy !== parseInt(fy)) return false;
@@ -5457,219 +5462,330 @@ function wtrcgFilterRows(vtype) {
   });
 }
 
-// ── IN RENDER ──
+// ── IN RENDER ──────────────────────────────────────────
 function renderWtrcgIn() {
   var rows = wtrcgFilterRows('In');
 
-  // KPI: total + per company
-  var total = 0, byco = {TRC:0,TOS:0,VJP:0};
-  rows.forEach(function(r){ total += r.value; byco[r.company] = (byco[r.company]||0)+r.value; });
-
-  var coColors = {TRC:'--trc',TOS:'--tos',VJP:'--vjp'};
-  var coBg     = {TRC:'#fef2f2',TOS:'#eef2ff',VJP:'#fff7ed'};
-  var kpiHtml  = [
-    {label:'WellPoint รวม',val:total,color:'var(--wellios)',bg:'#fdf2f8'},
-    {label:'TRC',val:byco.TRC,color:'var(--trc)',bg:'#fef2f2'},
-    {label:'TOS',val:byco.TOS,color:'var(--tos)',bg:'#eef2ff'},
-    {label:'VJP',val:byco.VJP,color:'var(--vjp)',bg:'#fff7ed'}
+  // KPI
+  var total=0, byco={TRC:0,TOS:0,VJP:0};
+  rows.forEach(function(r){ total+=r.value; if(byco[r.company]!==undefined) byco[r.company]+=r.value; });
+  document.getElementById('wtrcg-in-kpi').innerHTML = [
+    {label:'WellPoint รวม', val:total,       color:'#DF1882', bg:'#fdf2f8'},
+    {label:'TRC',            val:byco.TRC,   color:'#ed1c24', bg:'#fef2f2'},
+    {label:'TOS',            val:byco.TOS,   color:'#26276f', bg:'#eef2ff'},
+    {label:'VJP',            val:byco.VJP,   color:'#e97b2e', bg:'#fff7ed'}
   ].map(function(k){
-    return '<div style="background:'+k.bg+';border-radius:var(--radius);padding:20px 24px;">'+
-      '<div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:8px;">'+k.label+'</div>'+
+    return '<div style="background:'+k.bg+';border-radius:var(--radius);padding:20px 24px;border-left:3px solid '+k.color+';">'+
+      '<div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">'+k.label+'</div>'+
       '<div style="font-size:28px;font-weight:700;color:'+k.color+';">'+k.val.toLocaleString()+'</div>'+
-      '<div style="font-size:11px;color:var(--text3);margin-top:3px;">WellPoint</div></div>';
+      '<div style="font-size:11px;color:var(--text3);margin-top:2px;">WellPoint</div></div>';
   }).join('');
-  document.getElementById('wtrcg-in-kpi').innerHTML = kpiHtml;
 
-  // Stacked bar chart by month × category
-  var monthSet = new Set(), catSet = new Set();
-  rows.forEach(function(r){ if(r.monthKey) monthSet.add(r.monthKey); catSet.add(r.category); });
+  // All categories from data
+  var allCatSet = new Set();
+  rows.forEach(function(r){ allCatSet.add(r.category); });
+  var allCats = Array.from(allCatSet).sort();
+
+  // Build category color map
+  var catColorMap = {};
+  allCats.forEach(function(c,i){ catColorMap[c] = WTRCG_PALETTE[i % WTRCG_PALETTE.length]; });
+
+  // Category filter chips
+  var chipHtml = allCats.map(function(c){
+    var col = catColorMap[c];
+    var isActive = !wtrcgCatSelected || wtrcgCatSelected.includes(c);
+    var bg  = isActive ? col : '#fff';
+    var clr = isActive ? '#fff' : col;
+    return '<button onclick="toggleWtrcgCat(\''+c.replace(/'/g,"\\'")+'\')" '+
+      'style="padding:4px 12px;border-radius:20px;border:1.5px solid '+col+';background:'+bg+';color:'+clr+';'+
+      'font-family:Sarabun,sans-serif;font-size:12px;font-weight:500;cursor:pointer;">'+c+'</button>';
+  }).join('');
+  var catEl = document.getElementById('wtrcg-in-cat-chips');
+  if (catEl) catEl.innerHTML = chipHtml;
+
+  // Active cats for chart/table
+  var activeCats = wtrcgCatSelected ? allCats.filter(function(c){return wtrcgCatSelected.includes(c);}) : allCats;
+
+  // Month set
+  var monthSet = new Set();
+  rows.forEach(function(r){ if(r.monthKey) monthSet.add(r.monthKey); });
   var months = Array.from(monthSet).sort();
-  var cats   = Array.from(catSet).sort();
 
-  // Aggregate
-  var agg = {}; // { monthKey: { category: total } }
+  // Aggregate by month × category
+  var agg = {};
   rows.forEach(function(r){
-    if (!r.monthKey) return;
-    if (!agg[r.monthKey]) agg[r.monthKey] = {};
-    agg[r.monthKey][r.category] = (agg[r.monthKey][r.category]||0) + r.value;
+    if(!r.monthKey) return;
+    if(!agg[r.monthKey]) agg[r.monthKey]={};
+    agg[r.monthKey][r.category]=(agg[r.monthKey][r.category]||0)+r.value;
   });
 
-  var palette = ['#4f7cff','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16','#ec4899','#64748b'];
-  var datasets = cats.map(function(cat,i){
+  // Chart datasets
+  var datasets = activeCats.map(function(cat){
     return {
       label: cat,
-      data:  months.map(function(m){ return (agg[m]&&agg[m][cat])||0; }),
-      backgroundColor: palette[i % palette.length],
-      borderRadius: 4
+      data:  months.map(function(m){return (agg[m]&&agg[m][cat])||0;}),
+      backgroundColor: catColorMap[cat],
+      borderRadius: 3,
+      borderSkipped: false
     };
   });
+  // Total line
+  var totalLine = {
+    label:'รวมทั้งหมด',
+    data: months.map(function(m){
+      return activeCats.reduce(function(s,c){return s+((agg[m]&&agg[m][c])||0);},0);
+    }),
+    type:'line', borderColor:'#1a1d2e', backgroundColor:'transparent',
+    borderWidth:2, pointRadius:4, pointBackgroundColor:'#1a1d2e',
+    tension:0.3, yAxisID:'y', order:0
+  };
 
-  if (wtrcgInBarChart) { wtrcgInBarChart.destroy(); wtrcgInBarChart = null; }
+  if (wtrcgInBarChart) { wtrcgInBarChart.destroy(); wtrcgInBarChart=null; }
   var ctx = document.getElementById('wtrcg-in-bar').getContext('2d');
   wtrcgInBarChart = new Chart(ctx, {
-    type: 'bar',
-    data: { labels: months.map(wtrcgMonthLabel), datasets: datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom', labels: { font: { family: 'Sarabun', size: 12 } } } },
-      scales: {
-        x: { stacked: true, ticks: { font: { family: 'Sarabun', size: 11 } } },
-        y: { stacked: true, ticks: { font: { family: 'Sarabun', size: 11 } } }
+    type:'bar',
+    data:{ labels: months.map(wtrcgMonthLabel), datasets: datasets.concat([totalLine]) },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ display:false },
+        tooltip:{
+          callbacks:{
+            title:function(items){ return items[0].label; },
+            beforeBody:function(items){
+              var total=0;
+              items.forEach(function(i){ if(i.dataset.type!=='line') total+=i.parsed.y; });
+              return ['รวม: '+total.toLocaleString()+' WP',''];
+            },
+            label:function(ctx){
+              if(ctx.dataset.type==='line') return null;
+              return ' '+ctx.dataset.label+': '+ctx.parsed.y.toLocaleString();
+            }
+          },
+          titleFont:{family:'Sarabun',size:13,weight:'bold'},
+          bodyFont:{family:'Sarabun',size:12}
+        }
+      },
+      scales:{
+        x:{ stacked:true, ticks:{font:{family:'Sarabun',size:11}},
+            grid:{display:false} },
+        y:{ stacked:true, ticks:{font:{family:'Sarabun',size:11}},
+            grid:{color:'rgba(0,0,0,0.05)'} }
       }
     }
   });
 
-  // Summary table: company × category
+  // Custom legend
+  var legEl = document.getElementById('wtrcg-in-legend');
+  if (legEl) {
+    legEl.innerHTML = activeCats.map(function(c){
+      return '<span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);">'+
+        '<span style="width:10px;height:10px;border-radius:2px;background:'+catColorMap[c]+';display:inline-block;"></span>'+c+'</span>';
+    }).concat(['<span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);">'+
+      '<span style="width:16px;height:2px;background:#1a1d2e;display:inline-block;border-radius:1px;"></span>รวมทั้งหมด</span>']).join('');
+  }
+
+  // ── Summary table: rows=company, cols=category ────────
   var cos = ['TRC','TOS','VJP'];
-  var aggCo = {}; // { co: { cat: total } }
+  var coColors = {TRC:'#ed1c24', TOS:'#26276f', VJP:'#e97b2e'};
+  var coBg     = {TRC:'#fef2f2', TOS:'#eef2ff', VJP:'#fff7ed'};
+
+  // Aggregate by company × category
+  var aggCo = {};
   rows.forEach(function(r){
-    if (!aggCo[r.company]) aggCo[r.company] = {};
-    aggCo[r.company][r.category] = (aggCo[r.company][r.category]||0) + r.value;
+    if(!aggCo[r.company]) aggCo[r.company]={};
+    aggCo[r.company][r.category]=(aggCo[r.company][r.category]||0)+r.value;
   });
-  var coColorHex = {TRC:'#ed1c24',TOS:'#26276f',VJP:'#e97b2e'};
-  var thead = '<tr><th style="text-align:left;padding:10px 12px;background:var(--surface2);font-size:13px;">Category</th>' +
-    cos.map(function(c){ return '<th style="text-align:right;padding:10px 12px;background:var(--surface2);font-size:13px;color:'+coColorHex[c]+';">'+c+'</th>'; }).join('') +
-    '<th style="text-align:right;padding:10px 12px;background:var(--surface2);font-size:13px;">รวม</th></tr>';
-  var rowTotals = {TRC:0,TOS:0,VJP:0,ALL:0};
-  var tbody = cats.map(function(cat){
-    var vals = cos.map(function(c){ return (aggCo[c]&&aggCo[c][cat])||0; });
-    var rowSum = vals.reduce(function(a,b){return a+b;},0);
-    cos.forEach(function(c,i){ rowTotals[c]+=vals[i]; });
-    rowTotals.ALL += rowSum;
+
+  var thead = '<thead><tr>'+
+    '<th style="text-align:left;padding:10px 14px;background:var(--surface2);font-size:12px;color:var(--text2);min-width:60px;">บริษัท</th>'+
+    activeCats.map(function(c){
+      return '<th style="text-align:right;padding:10px 10px;background:var(--surface2);font-size:12px;color:var(--text2);white-space:nowrap;">'+
+        '<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:'+catColorMap[c]+';margin-right:4px;"></span>'+c+'</th>';
+    }).join('')+
+    '<th style="text-align:right;padding:10px 14px;background:var(--surface2);font-size:12px;color:var(--text2);font-weight:600;">รวม</th></tr></thead>';
+
+  var grandTotal = 0;
+  var catTotals  = {};
+  activeCats.forEach(function(c){ catTotals[c]=0; });
+
+  var tbody = '<tbody>'+cos.map(function(co){
+    var coData = aggCo[co]||{};
+    var rowSum = activeCats.reduce(function(s,c){return s+(coData[c]||0);},0);
+    grandTotal += rowSum;
     return '<tr>'+
-      '<td style="padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border);">'+cat+'</td>'+
-      vals.map(function(v){ return '<td style="text-align:right;padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border);">'+v.toLocaleString()+'</td>'; }).join('')+
-      '<td style="text-align:right;padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border);font-weight:600;">'+rowSum.toLocaleString()+'</td></tr>';
-  }).join('');
-  var tfoot = '<tr style="background:var(--surface2);font-weight:700;">'+
-    '<td style="padding:10px 12px;font-size:13px;">รวมทั้งหมด</td>'+
-    cos.map(function(c){ return '<td style="text-align:right;padding:10px 12px;font-size:13px;color:'+coColorHex[c]+';">'+rowTotals[c].toLocaleString()+'</td>'; }).join('')+
-    '<td style="text-align:right;padding:10px 12px;font-size:13px;">'+rowTotals.ALL.toLocaleString()+'</td></tr>';
+      '<td style="padding:10px 14px;border-bottom:1px solid var(--border);">'+
+        '<span style="display:inline-flex;align-items:center;justify-content:center;padding:3px 10px;border-radius:20px;background:'+coBg[co]+';color:'+coColors[co]+';font-size:12px;font-weight:600;">'+co+'</span>'+
+      '</td>'+
+      activeCats.map(function(c){
+        var v=coData[c]||0; catTotals[c]+=v;
+        return '<td style="text-align:right;padding:10px 10px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);">'+(v?v.toLocaleString():'—')+'</td>';
+      }).join('')+
+      '<td style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:'+coColors[co]+';">'+rowSum.toLocaleString()+'</td>'+
+    '</tr>';
+  }).join('')+'</tbody>';
+
+  var tfoot = '<tfoot><tr style="background:var(--surface2);">'+
+    '<td style="padding:10px 14px;font-size:13px;font-weight:600;color:var(--text);">รวมทั้งหมด</td>'+
+    activeCats.map(function(c){
+      return '<td style="text-align:right;padding:10px 10px;font-size:13px;font-weight:600;color:var(--text);">'+catTotals[c].toLocaleString()+'</td>';
+    }).join('')+
+    '<td style="text-align:right;padding:10px 14px;font-size:14px;font-weight:700;color:#DF1882;">'+grandTotal.toLocaleString()+'</td>'+
+  '</tr></tfoot>';
 
   document.getElementById('wtrcg-in-table').innerHTML =
     '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-family:Sarabun,sans-serif;">'+
-    '<thead>'+thead+'</thead><tbody>'+tbody+'</tbody><tfoot>'+tfoot+'</tfoot></table></div>';
+    thead+tbody+tfoot+'</table></div>';
 }
 
-// ── OUT RENDER ──
+// ── OUT RENDER ─────────────────────────────────────────
 function renderWtrcgOut() {
   var rows = wtrcgFilterRows('Out');
 
   // KPI
-  var total = 0, byco = {TRC:0,TOS:0,VJP:0};
-  rows.forEach(function(r){ total += r.value; byco[r.company] = (byco[r.company]||0)+r.value; });
-
-  var kpiHtml = [
-    {label:'WellPoint ที่ใช้รวม',val:total,color:'var(--wellios)',bg:'#fdf2f8'},
-    {label:'TRC',val:byco.TRC,color:'var(--trc)',bg:'#fef2f2'},
-    {label:'TOS',val:byco.TOS,color:'var(--tos)',bg:'#eef2ff'},
-    {label:'VJP',val:byco.VJP,color:'var(--vjp)',bg:'#fff7ed'}
+  var total=0, byco={TRC:0,TOS:0,VJP:0};
+  rows.forEach(function(r){ total+=r.value; if(byco[r.company]!==undefined) byco[r.company]+=r.value; });
+  document.getElementById('wtrcg-out-kpi').innerHTML = [
+    {label:'WellPoint ที่ใช้รวม', val:total,     color:'#DF1882', bg:'#fdf2f8'},
+    {label:'TRC',                  val:byco.TRC, color:'#ed1c24', bg:'#fef2f2'},
+    {label:'TOS',                  val:byco.TOS, color:'#26276f', bg:'#eef2ff'},
+    {label:'VJP',                  val:byco.VJP, color:'#e97b2e', bg:'#fff7ed'}
   ].map(function(k){
-    return '<div style="background:'+k.bg+';border-radius:var(--radius);padding:20px 24px;">'+
-      '<div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:8px;">'+k.label+'</div>'+
+    return '<div style="background:'+k.bg+';border-radius:var(--radius);padding:20px 24px;border-left:3px solid '+k.color+';">'+
+      '<div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">'+k.label+'</div>'+
       '<div style="font-size:28px;font-weight:700;color:'+k.color+';">'+k.val.toLocaleString()+'</div>'+
-      '<div style="font-size:11px;color:var(--text3);margin-top:3px;">WellPoint</div></div>';
+      '<div style="font-size:11px;color:var(--text3);margin-top:2px;">WellPoint</div></div>';
   }).join('');
-  document.getElementById('wtrcg-out-kpi').innerHTML = kpiHtml;
 
-  // Stacked bar by month × type
-  var monthSet = new Set(), typeSet = new Set();
-  rows.forEach(function(r){ if(r.monthKey) monthSet.add(r.monthKey); typeSet.add(r.type); });
+  // Types
+  var typeSet = new Set();
+  rows.forEach(function(r){ typeSet.add(r.type); });
+  var types = Array.from(typeSet).sort();
+  var typePalette = ['#ef4444','#f97316','#f59e0b','#8b5cf6','#ec4899','#64748b','#06b6d4','#84cc16'];
+  var typeColorMap = {};
+  types.forEach(function(t,i){ typeColorMap[t]=typePalette[i%typePalette.length]; });
+
+  // Months
+  var monthSet = new Set();
+  rows.forEach(function(r){ if(r.monthKey) monthSet.add(r.monthKey); });
   var months = Array.from(monthSet).sort();
-  var types  = Array.from(typeSet).sort();
 
-  var agg = {};
+  // Aggregate
+  var agg={};
   rows.forEach(function(r){
-    if (!r.monthKey) return;
-    if (!agg[r.monthKey]) agg[r.monthKey] = {};
-    agg[r.monthKey][r.type] = (agg[r.monthKey][r.type]||0) + r.value;
+    if(!r.monthKey) return;
+    if(!agg[r.monthKey]) agg[r.monthKey]={};
+    agg[r.monthKey][r.type]=(agg[r.monthKey][r.type]||0)+r.value;
   });
 
-  var palette = ['#ef4444','#f97316','#f59e0b','#8b5cf6','#ec4899','#64748b'];
-  var datasets = types.map(function(tp,i){
+  var datasets = types.map(function(tp){
     return {
-      label: tp,
-      data:  months.map(function(m){ return (agg[m]&&agg[m][tp])||0; }),
-      backgroundColor: palette[i % palette.length],
-      borderRadius: 4
+      label:tp,
+      data: months.map(function(m){return (agg[m]&&agg[m][tp])||0;}),
+      backgroundColor: typeColorMap[tp],
+      borderRadius:3
     };
   });
+  var totalLine2={
+    label:'รวมทั้งหมด',
+    data: months.map(function(m){ return types.reduce(function(s,t){return s+((agg[m]&&agg[m][t])||0);},0); }),
+    type:'line', borderColor:'#1a1d2e', backgroundColor:'transparent',
+    borderWidth:2, pointRadius:4, pointBackgroundColor:'#1a1d2e',
+    tension:0.3, order:0
+  };
 
-  if (wtrcgOutBarChart) { wtrcgOutBarChart.destroy(); wtrcgOutBarChart = null; }
+  if (wtrcgOutBarChart) { wtrcgOutBarChart.destroy(); wtrcgOutBarChart=null; }
   var ctx2 = document.getElementById('wtrcg-out-bar').getContext('2d');
   wtrcgOutBarChart = new Chart(ctx2, {
-    type: 'bar',
-    data: { labels: months.map(wtrcgMonthLabel), datasets: datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom', labels: { font: { family: 'Sarabun', size: 12 } } } },
-      scales: {
-        x: { stacked: true, ticks: { font: { family: 'Sarabun', size: 11 } } },
-        y: { stacked: true, ticks: { font: { family: 'Sarabun', size: 11 } } }
+    type:'bar',
+    data:{ labels: months.map(wtrcgMonthLabel), datasets: datasets.concat([totalLine2]) },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ position:'bottom', labels:{ font:{family:'Sarabun',size:11}, boxWidth:10, boxHeight:10 } },
+        tooltip:{
+          callbacks:{
+            beforeBody:function(items){
+              var t=0; items.forEach(function(i){if(i.dataset.type!=='line')t+=i.parsed.y;});
+              return ['รวม: '+t.toLocaleString()+' WP',''];
+            },
+            label:function(ctx){
+              if(ctx.dataset.type==='line') return null;
+              return ' '+ctx.dataset.label+': '+ctx.parsed.y.toLocaleString();
+            }
+          },
+          titleFont:{family:'Sarabun',size:13,weight:'bold'},
+          bodyFont:{family:'Sarabun',size:12}
+        }
+      },
+      scales:{
+        x:{ stacked:true, ticks:{font:{family:'Sarabun',size:11}}, grid:{display:false} },
+        y:{ stacked:true, ticks:{font:{family:'Sarabun',size:11}}, grid:{color:'rgba(0,0,0,0.05)'} }
       }
     }
   });
 
   // Monthly table by company
-  var cos = ['TRC','TOS','VJP'];
-  var aggMoCo = {};
+  var cos=['TRC','TOS','VJP'];
+  var coColors={TRC:'#ed1c24',TOS:'#26276f',VJP:'#e97b2e'};
+  var coBg={TRC:'#fef2f2',TOS:'#eef2ff',VJP:'#fff7ed'};
+  var aggMoCo={};
   rows.forEach(function(r){
-    if (!r.monthKey) return;
-    if (!aggMoCo[r.monthKey]) aggMoCo[r.monthKey] = {TRC:0,TOS:0,VJP:0};
-    aggMoCo[r.monthKey][r.company] = (aggMoCo[r.monthKey][r.company]||0) + r.value;
+    if(!r.monthKey) return;
+    if(!aggMoCo[r.monthKey]) aggMoCo[r.monthKey]={TRC:0,TOS:0,VJP:0};
+    if(aggMoCo[r.monthKey][r.company]!==undefined) aggMoCo[r.monthKey][r.company]+=r.value;
   });
-  var coColorHex = {TRC:'#ed1c24',TOS:'#26276f',VJP:'#e97b2e'};
-  var thead2 = '<tr><th style="text-align:left;padding:10px 12px;background:var(--surface2);font-size:13px;">เดือน</th>'+
-    cos.map(function(c){return '<th style="text-align:right;padding:10px 12px;background:var(--surface2);font-size:13px;color:'+coColorHex[c]+';">'+c+'</th>';}).join('')+
-    '<th style="text-align:right;padding:10px 12px;background:var(--surface2);font-size:13px;">รวม</th></tr>';
-  var totals2={TRC:0,TOS:0,VJP:0,ALL:0};
-  var tbody2 = months.map(function(m){
-    var d = aggMoCo[m]||{};
-    var vals = cos.map(function(c){return d[c]||0;});
-    var rowSum = vals.reduce(function(a,b){return a+b;},0);
-    cos.forEach(function(c,i){totals2[c]+=vals[i];});
-    totals2.ALL+=rowSum;
-    return '<tr><td style="padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border);">'+wtrcgMonthLabel(m)+'</td>'+
-      vals.map(function(v){return '<td style="text-align:right;padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border);">'+v.toLocaleString()+'</td>';}).join('')+
-      '<td style="text-align:right;padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border);font-weight:600;">'+rowSum.toLocaleString()+'</td></tr>';
-  }).join('');
-  var tfoot2='<tr style="background:var(--surface2);font-weight:700;"><td style="padding:10px 12px;font-size:13px;">รวม</td>'+
-    cos.map(function(c){return '<td style="text-align:right;padding:10px 12px;font-size:13px;color:'+coColorHex[c]+';">'+totals2[c].toLocaleString()+'</td>';}).join('')+
-    '<td style="text-align:right;padding:10px 12px;font-size:13px;">'+totals2.ALL.toLocaleString()+'</td></tr>';
-
-  document.getElementById('wtrcg-out-table').innerHTML =
+  var totals={TRC:0,TOS:0,VJP:0,ALL:0};
+  var thead2='<thead><tr>'+
+    '<th style="text-align:left;padding:10px 14px;background:var(--surface2);font-size:12px;color:var(--text2);">เดือน</th>'+
+    cos.map(function(c){return '<th style="text-align:right;padding:10px 12px;background:var(--surface2);font-size:12px;color:'+coColors[c]+';font-weight:600;">'+c+'</th>';}).join('')+
+    '<th style="text-align:right;padding:10px 14px;background:var(--surface2);font-size:12px;color:var(--text2);font-weight:600;">รวม</th></tr></thead>';
+  var tbody2='<tbody>'+months.map(function(m){
+    var d=aggMoCo[m]||{};
+    var vals=cos.map(function(c){return d[c]||0;});
+    var rowSum=vals.reduce(function(a,b){return a+b;},0);
+    cos.forEach(function(c,i){totals[c]+=vals[i];});
+    totals.ALL+=rowSum;
+    return '<tr><td style="padding:9px 14px;border-bottom:1px solid var(--border);font-size:13px;">'+wtrcgMonthLabel(m)+'</td>'+
+      vals.map(function(v,i){
+        return '<td style="text-align:right;padding:9px 12px;border-bottom:1px solid var(--border);font-size:13px;color:'+coColors[cos[i]]+';">'+(v?v.toLocaleString():'—')+'</td>';
+      }).join('')+
+      '<td style="text-align:right;padding:9px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;">'+rowSum.toLocaleString()+'</td></tr>';
+  }).join('')+'</tbody>';
+  var tfoot2='<tfoot><tr style="background:var(--surface2);">'+
+    '<td style="padding:10px 14px;font-size:13px;font-weight:600;">รวม</td>'+
+    cos.map(function(c){return '<td style="text-align:right;padding:10px 12px;font-size:13px;font-weight:600;color:'+coColors[c]+';">'+totals[c].toLocaleString()+'</td>';}).join('')+
+    '<td style="text-align:right;padding:10px 14px;font-size:14px;font-weight:700;color:#DF1882;">'+totals.ALL.toLocaleString()+'</td></tr></tfoot>';
+  document.getElementById('wtrcg-out-table').innerHTML=
     '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-family:Sarabun,sans-serif;">'+
-    '<thead>'+thead2+'</thead><tbody>'+tbody2+'</tbody><tfoot>'+tfoot2+'</tfoot></table></div>';
+    thead2+tbody2+tfoot2+'</table></div>';
 }
 
 function resetWtrcgIn() {
-  document.getElementById('wtrcg-in-fy').value = 'ALL';
-  document.querySelectorAll('#wtrcg-in-co-chips .wtrcg-chip, #wtrcg-in-owner-chips .wtrcg-chip').forEach(function(btn){
-    btn.classList.remove('wtrcg-active');
-    btn.style.background = '#fff';
-    btn.style.color = btn.style.borderColor;
+  document.getElementById('wtrcg-in-fy').value='ALL';
+  document.querySelectorAll('#wtrcg-in-co-chips .wtrcg-chip, #wtrcg-in-owner-chips .wtrcg-chip').forEach(function(b){
+    b.classList.remove('wtrcg-active'); b.style.background='#fff'; b.style.color=b.style.borderColor;
   });
+  wtrcgCatSelected=null;
   renderWtrcgIn();
 }
 function resetWtrcgOut() {
-  document.getElementById('wtrcg-out-fy').value = 'ALL';
-  document.querySelectorAll('#wtrcg-out-co-chips .wtrcg-chip').forEach(function(btn){
-    btn.classList.remove('wtrcg-active');
-    btn.style.background = '#fff';
-    btn.style.color = btn.style.borderColor;
+  document.getElementById('wtrcg-out-fy').value='ALL';
+  document.querySelectorAll('#wtrcg-out-co-chips .wtrcg-chip').forEach(function(b){
+    b.classList.remove('wtrcg-active'); b.style.background='#fff'; b.style.color=b.style.borderColor;
   });
   renderWtrcgOut();
 }
-
 function switchWtrcgTab(e, name) {
   document.querySelectorAll('[id^="wtrcg-btn-"]').forEach(function(b){b.classList.remove('active');});
   e.currentTarget.classList.add('active');
   ['in','out'].forEach(function(n){
-    var el = document.getElementById('wtrcg-subtab-'+n);
-    if (el) el.style.display = n===name ? '' : 'none';
+    var el=document.getElementById('wtrcg-subtab-'+n);
+    if(el) el.style.display=n===name?'':'none';
   });
 }
-
 </script>
 </body>
 </html>
