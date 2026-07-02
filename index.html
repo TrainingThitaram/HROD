@@ -215,6 +215,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
     <button class="tab-btn" onclick="switchTab(event,'dsd')">🏛️ กรมพัฒนาฝีมือแรงงาน</button>
     <button class="tab-btn" onclick="switchTab(event,'social')">📱 Social Media</button>
     <button class="tab-btn" onclick="switchTab(event,'orgchart');initOrgChart();">🏢 Org Chart</button>
+    <button class="tab-btn" onclick="switchTab(event,'welltrcg');initWellTrcg();">💛 WellEXP TRCG</button>
   </div>
 
   <!-- TAB: EMPLOYEE -->
@@ -1253,6 +1254,96 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
       </div>
     </div>
   </div><!-- /tab-orgchart -->
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- TAB: WELLEXP TRCG                                      -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="tab-content" id="tab-welltrcg">
+    <!-- Sub-tabs -->
+    <div style="background:#fff;border-bottom:1px solid var(--border);padding:0 32px;display:flex;gap:0;overflow-x:auto;">
+      <button class="tab-btn active" id="wtrcg-btn-in" onclick="switchWtrcgTab(event,'in')" style="font-size:13px;padding:10px 18px;">&#128229; WellPoint ที่ได้รับ</button>
+      <button class="tab-btn" id="wtrcg-btn-out" onclick="switchWtrcgTab(event,'out')" style="font-size:13px;padding:10px 18px;">&#128228; WellPoint ที่ใช้ไป</button>
+    </div>
+
+    <!-- ═══ SUB TAB: IN ═══ -->
+    <div id="wtrcg-subtab-in">
+      <div class="content">
+        <div class="error-box" id="wtrcg-error-in"></div>
+        <!-- Filter -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">ปีงบประมาณ</div>
+              <select id="wtrcg-in-fy" class="filter-select" style="min-width:200px;"></select>
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">บริษัท</div>
+              <div style="display:flex;gap:6px;" id="wtrcg-in-co-chips"></div>
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">Owner</div>
+              <div style="display:flex;gap:6px;" id="wtrcg-in-owner-chips"></div>
+            </div>
+            <div style="display:flex;gap:8px;align-self:flex-end;">
+              <button onclick="renderWtrcgIn()" style="padding:8px 20px;background:var(--tos);color:white;border:none;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:600;cursor:pointer;">ค้นหา</button>
+              <button onclick="resetWtrcgIn()" style="padding:8px 14px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;cursor:pointer;">รีเซต</button>
+            </div>
+          </div>
+        </div>
+        <!-- KPI -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;" id="wtrcg-in-kpi"></div>
+        <!-- Bar Chart -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">&#128229; WellPoint ที่บริษัทจ่ายให้พนักงานรายเดือน แยกตาม Category</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:20px;">อิงปีงบประมาณ ต.ค.–ก.ย.</div>
+          <div style="position:relative;height:320px;"><canvas id="wtrcg-in-bar"></canvas></div>
+        </div>
+        <!-- Summary Table -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:16px;">&#128203; สรุป WellPoint แยกบริษัท × Category</div>
+          <div id="wtrcg-in-table"></div>
+        </div>
+      </div>
+    </div><!-- /subtab-in -->
+
+    <!-- ═══ SUB TAB: OUT ═══ -->
+    <div id="wtrcg-subtab-out" style="display:none;">
+      <div class="content">
+        <div class="error-box" id="wtrcg-error-out"></div>
+        <!-- Filter -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">ปีงบประมาณ</div>
+              <select id="wtrcg-out-fy" class="filter-select" style="min-width:200px;"></select>
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">บริษัท</div>
+              <div style="display:flex;gap:6px;" id="wtrcg-out-co-chips"></div>
+            </div>
+            <div style="display:flex;gap:8px;align-self:flex-end;">
+              <button onclick="renderWtrcgOut()" style="padding:8px 20px;background:var(--tos);color:white;border:none;border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:600;cursor:pointer;">ค้นหา</button>
+              <button onclick="resetWtrcgOut()" style="padding:8px 14px;background:none;border:1px solid var(--border);color:var(--text2);border-radius:8px;font-family:'Sarabun',sans-serif;font-size:14px;cursor:pointer;">รีเซต</button>
+            </div>
+          </div>
+        </div>
+        <!-- KPI -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;" id="wtrcg-out-kpi"></div>
+        <!-- Bar Chart -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">&#128228; WellPoint ที่พนักงานใช้ไปรายเดือน แยกตามประเภท</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:20px;">อิงปีงบประมาณ ต.ค.–ก.ย.</div>
+          <div style="position:relative;height:320px;"><canvas id="wtrcg-out-bar"></canvas></div>
+        </div>
+        <!-- Monthly Table -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:16px;">&#128203; รายละเอียดรายเดือน แยกบริษัท</div>
+          <div id="wtrcg-out-table"></div>
+        </div>
+      </div>
+    </div><!-- /subtab-out -->
+
+  </div><!-- /tab-welltrcg -->
 
 </div><!-- /app -->
 <script>
@@ -5182,6 +5273,401 @@ function scExportExcel(){
   var a=document.createElement('a');
   a.href=url; a.download=fname; a.click();
   URL.revokeObjectURL(url);
+}
+
+// ══════════════════════════════════════════════════════
+// WELLEXP TRCG MODULE
+// ══════════════════════════════════════════════════════
+const WTRCG_DRIVE_ID = 'b!Q6WBRjNmxUaGpa_PVc_OmM7yWwkYrfVDpmT337_bHJWkYp3bLNpnSrWRpDky5-Tt';
+const WTRCG_FILE_ID  = '01M5SVO65HXYQPPQ7J7NC3M6DXAH2DS7JV';
+
+let wtrcgTxRows    = [];  // Transactions raw (header stripped)
+let wtrcgCatMap    = {};  // { TITLE -> { owner, category } }
+let wtrcgInited    = false;
+let wtrcgInBarChart  = null;
+let wtrcgOutBarChart = null;
+
+// Fiscal year helper: Oct(y-1) - Sep(y)  =>  label "ปีงบ 2569"
+function wtrcgFiscalYear(dateStr) {
+  if (!dateStr) return null;
+  var s = String(dateStr).trim().split('/')[0].trim(); // "2025-10-01"
+  var d = new Date(s);
+  if (isNaN(d)) return null;
+  var m = d.getMonth() + 1; // 1-12
+  var y = d.getFullYear();
+  var fy = m >= 10 ? y + 1 : y;
+  return fy + 543; // พ.ศ.
+}
+function wtrcgMonthKey(dateStr) {
+  if (!dateStr) return null;
+  var s = String(dateStr).trim().split('/')[0].trim();
+  var d = new Date(s);
+  if (isNaN(d)) return null;
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+function wtrcgMonthLabel(key) {
+  var parts = key.split('-');
+  var y = parseInt(parts[0]);
+  var m = parseInt(parts[1]);
+  var thMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  return thMonths[m-1] + ' ' + (y+543);
+}
+
+// Fetch one sheet by name
+async function wtrcgFetch(sheetName) {
+  var token = await getToken();
+  if (!token) throw new Error('ไม่มี Token');
+  var base = 'https://graph.microsoft.com/v1.0/drives/' + WTRCG_DRIVE_ID + '/items/' + WTRCG_FILE_ID + '/workbook/worksheets';
+  var r = await fetch(base, {headers:{Authorization:'Bearer '+token}});
+  var data = await r.json();
+  var sheets = data.value || [];
+  var sheet = sheets.find(function(s){ return s.name === sheetName; });
+  if (!sheet) throw new Error('ไม่พบ Sheet: ' + sheetName);
+  var sid = encodeURIComponent(sheet.id);
+  var r2 = await fetch(base + '/' + sid + '/usedRange', {headers:{Authorization:'Bearer '+token}});
+  if (!r2.ok) { var t = await r2.text(); throw new Error(sheetName + ': ' + r2.status + ' ' + t.substring(0,80)); }
+  return (await r2.json()).values || [];
+}
+
+async function initWellTrcg() {
+  if (wtrcgInited) return;
+  wtrcgInited = true;
+  try {
+    // Load both sheets in parallel
+    var [txVals, catVals] = await Promise.all([
+      wtrcgFetch('Transactions'),
+      wtrcgFetch('Category Map')
+    ]);
+
+    // Build category map: TITLE -> { owner, category }
+    wtrcgCatMap = {};
+    for (var i = 1; i < catVals.length; i++) {
+      var row = catVals[i];
+      var title = String(row[0]||'').trim();
+      if (!title) continue;
+      wtrcgCatMap[title] = {
+        owner:    String(row[1]||'').trim(),
+        category: String(row[2]||'').trim()
+      };
+    }
+
+    // Parse Transactions (header row 0)
+    // A=TITLE, B=EMPLOYEE, C=VALUE, D=VALUE TYPE, E=TYPE, F=CURRENCY, G=DATE, H=สังกัด
+    wtrcgTxRows = [];
+    for (var j = 1; j < txVals.length; j++) {
+      var r = txVals[j];
+      var title    = String(r[0]||'').trim();
+      var employee = String(r[1]||'').trim();
+      var value    = parseFloat(r[2])||0;
+      var vtype    = String(r[3]||'').trim(); // In / Out
+      var type     = String(r[4]||'').trim();
+      var dateStr  = String(r[6]||'').trim();
+      var company  = String(r[7]||'').trim(); // TRC/TOS/VJP
+      if (!employee && !title) continue;
+      var fy  = wtrcgFiscalYear(dateStr);
+      var mok = wtrcgMonthKey(dateStr);
+      var cat = (wtrcgCatMap[title] || {});
+      wtrcgTxRows.push({
+        title:    title,
+        employee: employee,
+        value:    value,
+        vtype:    vtype,
+        type:     type,
+        dateStr:  dateStr,
+        company:  company,
+        fy:       fy,
+        monthKey: mok,
+        owner:    cat.owner    || 'Uncategorized',
+        category: cat.category || 'Uncategorized'
+      });
+    }
+
+    // Build fiscal year options
+    var fySet = new Set();
+    wtrcgTxRows.forEach(function(r){ if(r.fy) fySet.add(r.fy); });
+    var fyList = Array.from(fySet).sort(function(a,b){return b-a;});
+    var fyOpts = '<option value="ALL">ทั้งหมด</option>' +
+      fyList.map(function(y){ return '<option value="'+y+'">ปีงบ '+y+'</option>'; }).join('');
+    document.getElementById('wtrcg-in-fy').innerHTML  = fyOpts;
+    document.getElementById('wtrcg-out-fy').innerHTML = fyOpts;
+
+    // Company chips
+    var cos = ['TRC','TOS','VJP'];
+    var coColors = {TRC:'var(--trc)',TOS:'var(--tos)',VJP:'var(--vjp)'};
+    ['wtrcg-in-co-chips','wtrcg-out-co-chips'].forEach(function(id){
+      document.getElementById(id).innerHTML = cos.map(function(c){
+        return '<button class="wtrcg-chip" data-val="'+c+'" data-group="co" data-target="'+id+'" onclick="toggleWtrcgChip(this)" '+
+          'style="padding:5px 14px;border-radius:20px;border:2px solid '+coColors[c]+';background:#fff;color:'+coColors[c]+';font-family:Sarabun,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">'+c+'</button>';
+      }).join('');
+    });
+
+    // Owner chips (In only)
+    var ownerSet = new Set();
+    wtrcgTxRows.filter(function(r){return r.vtype==='In';}).forEach(function(r){ownerSet.add(r.owner);});
+    var owners = Array.from(ownerSet).sort();
+    var ownerColors = {HR:'#0ea5e9',HRBP:'#8b5cf6',HROD:'#f59e0b'};
+    document.getElementById('wtrcg-in-owner-chips').innerHTML = owners.map(function(o){
+      var c = ownerColors[o] || '#64748b';
+      return '<button class="wtrcg-chip" data-val="'+o+'" data-group="owner" onclick="toggleWtrcgChip(this)" '+
+        'style="padding:5px 14px;border-radius:20px;border:2px solid '+c+';background:#fff;color:'+c+';font-family:Sarabun,sans-serif;font-size:13px;font-weight:600;cursor:pointer;">'+o+'</button>';
+    }).join('');
+
+    // Initial render
+    renderWtrcgIn();
+    renderWtrcgOut();
+
+  } catch(e) {
+    document.getElementById('wtrcg-error-in').textContent = 'เกิดข้อผิดพลาด: ' + e.message;
+    document.getElementById('wtrcg-error-in').style.display = 'block';
+  }
+}
+
+function toggleWtrcgChip(btn) {
+  var active = btn.style.background !== 'rgb(255, 255, 255)' && btn.style.background !== '#fff' && btn.style.background !== '';
+  // Toggle: if active -> deactivate, else activate
+  if (btn.classList.contains('wtrcg-active')) {
+    btn.classList.remove('wtrcg-active');
+    btn.style.background = '#fff';
+    btn.style.color = btn.getAttribute('data-color') || btn.style.borderColor;
+  } else {
+    btn.classList.add('wtrcg-active');
+    btn.style.background = btn.style.borderColor;
+    btn.style.color = '#fff';
+  }
+}
+
+function getWtrcgChipSelected(containerId) {
+  var chips = document.querySelectorAll('#'+containerId+' .wtrcg-chip.wtrcg-active');
+  if (!chips.length) return null; // null = all
+  return Array.from(chips).map(function(c){return c.getAttribute('data-val');});
+}
+
+function wtrcgFilterRows(vtype) {
+  var fyEl = document.getElementById(vtype==='In' ? 'wtrcg-in-fy' : 'wtrcg-out-fy');
+  var fy   = fyEl ? fyEl.value : 'ALL';
+  var coSel   = getWtrcgChipSelected(vtype==='In' ? 'wtrcg-in-co-chips' : 'wtrcg-out-co-chips');
+  var ownerSel = vtype==='In' ? getWtrcgChipSelected('wtrcg-in-owner-chips') : null;
+
+  return wtrcgTxRows.filter(function(r){
+    if (r.vtype !== vtype) return false;
+    if (fy !== 'ALL' && r.fy !== parseInt(fy)) return false;
+    if (coSel && !coSel.includes(r.company)) return false;
+    if (ownerSel && !ownerSel.includes(r.owner)) return false;
+    return true;
+  });
+}
+
+// ── IN RENDER ──
+function renderWtrcgIn() {
+  var rows = wtrcgFilterRows('In');
+
+  // KPI: total + per company
+  var total = 0, byco = {TRC:0,TOS:0,VJP:0};
+  rows.forEach(function(r){ total += r.value; byco[r.company] = (byco[r.company]||0)+r.value; });
+
+  var coColors = {TRC:'--trc',TOS:'--tos',VJP:'--vjp'};
+  var coBg     = {TRC:'#fef2f2',TOS:'#eef2ff',VJP:'#fff7ed'};
+  var kpiHtml  = [
+    {label:'WellPoint รวม',val:total,color:'var(--wellios)',bg:'#fdf2f8'},
+    {label:'TRC',val:byco.TRC,color:'var(--trc)',bg:'#fef2f2'},
+    {label:'TOS',val:byco.TOS,color:'var(--tos)',bg:'#eef2ff'},
+    {label:'VJP',val:byco.VJP,color:'var(--vjp)',bg:'#fff7ed'}
+  ].map(function(k){
+    return '<div style="background:'+k.bg+';border-radius:var(--radius);padding:20px 24px;">'+
+      '<div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:8px;">'+k.label+'</div>'+
+      '<div style="font-size:28px;font-weight:700;color:'+k.color+';">'+k.val.toLocaleString()+'</div>'+
+      '<div style="font-size:11px;color:var(--text3);margin-top:3px;">WellPoint</div></div>';
+  }).join('');
+  document.getElementById('wtrcg-in-kpi').innerHTML = kpiHtml;
+
+  // Stacked bar chart by month × category
+  var monthSet = new Set(), catSet = new Set();
+  rows.forEach(function(r){ if(r.monthKey) monthSet.add(r.monthKey); catSet.add(r.category); });
+  var months = Array.from(monthSet).sort();
+  var cats   = Array.from(catSet).sort();
+
+  // Aggregate
+  var agg = {}; // { monthKey: { category: total } }
+  rows.forEach(function(r){
+    if (!r.monthKey) return;
+    if (!agg[r.monthKey]) agg[r.monthKey] = {};
+    agg[r.monthKey][r.category] = (agg[r.monthKey][r.category]||0) + r.value;
+  });
+
+  var palette = ['#4f7cff','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16','#ec4899','#64748b'];
+  var datasets = cats.map(function(cat,i){
+    return {
+      label: cat,
+      data:  months.map(function(m){ return (agg[m]&&agg[m][cat])||0; }),
+      backgroundColor: palette[i % palette.length],
+      borderRadius: 4
+    };
+  });
+
+  if (wtrcgInBarChart) { wtrcgInBarChart.destroy(); wtrcgInBarChart = null; }
+  var ctx = document.getElementById('wtrcg-in-bar').getContext('2d');
+  wtrcgInBarChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: months.map(wtrcgMonthLabel), datasets: datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { family: 'Sarabun', size: 12 } } } },
+      scales: {
+        x: { stacked: true, ticks: { font: { family: 'Sarabun', size: 11 } } },
+        y: { stacked: true, ticks: { font: { family: 'Sarabun', size: 11 } } }
+      }
+    }
+  });
+
+  // Summary table: company × category
+  var cos = ['TRC','TOS','VJP'];
+  var aggCo = {}; // { co: { cat: total } }
+  rows.forEach(function(r){
+    if (!aggCo[r.company]) aggCo[r.company] = {};
+    aggCo[r.company][r.category] = (aggCo[r.company][r.category]||0) + r.value;
+  });
+  var coColorHex = {TRC:'#ed1c24',TOS:'#26276f',VJP:'#e97b2e'};
+  var thead = '<tr><th style="text-align:left;padding:10px 12px;background:var(--surface2);font-size:13px;">Category</th>' +
+    cos.map(function(c){ return '<th style="text-align:right;padding:10px 12px;background:var(--surface2);font-size:13px;color:'+coColorHex[c]+';">'+c+'</th>'; }).join('') +
+    '<th style="text-align:right;padding:10px 12px;background:var(--surface2);font-size:13px;">รวม</th></tr>';
+  var rowTotals = {TRC:0,TOS:0,VJP:0,ALL:0};
+  var tbody = cats.map(function(cat){
+    var vals = cos.map(function(c){ return (aggCo[c]&&aggCo[c][cat])||0; });
+    var rowSum = vals.reduce(function(a,b){return a+b;},0);
+    cos.forEach(function(c,i){ rowTotals[c]+=vals[i]; });
+    rowTotals.ALL += rowSum;
+    return '<tr>'+
+      '<td style="padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border);">'+cat+'</td>'+
+      vals.map(function(v){ return '<td style="text-align:right;padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border);">'+v.toLocaleString()+'</td>'; }).join('')+
+      '<td style="text-align:right;padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border);font-weight:600;">'+rowSum.toLocaleString()+'</td></tr>';
+  }).join('');
+  var tfoot = '<tr style="background:var(--surface2);font-weight:700;">'+
+    '<td style="padding:10px 12px;font-size:13px;">รวมทั้งหมด</td>'+
+    cos.map(function(c){ return '<td style="text-align:right;padding:10px 12px;font-size:13px;color:'+coColorHex[c]+';">'+rowTotals[c].toLocaleString()+'</td>'; }).join('')+
+    '<td style="text-align:right;padding:10px 12px;font-size:13px;">'+rowTotals.ALL.toLocaleString()+'</td></tr>';
+
+  document.getElementById('wtrcg-in-table').innerHTML =
+    '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-family:Sarabun,sans-serif;">'+
+    '<thead>'+thead+'</thead><tbody>'+tbody+'</tbody><tfoot>'+tfoot+'</tfoot></table></div>';
+}
+
+// ── OUT RENDER ──
+function renderWtrcgOut() {
+  var rows = wtrcgFilterRows('Out');
+
+  // KPI
+  var total = 0, byco = {TRC:0,TOS:0,VJP:0};
+  rows.forEach(function(r){ total += r.value; byco[r.company] = (byco[r.company]||0)+r.value; });
+
+  var kpiHtml = [
+    {label:'WellPoint ที่ใช้รวม',val:total,color:'var(--wellios)',bg:'#fdf2f8'},
+    {label:'TRC',val:byco.TRC,color:'var(--trc)',bg:'#fef2f2'},
+    {label:'TOS',val:byco.TOS,color:'var(--tos)',bg:'#eef2ff'},
+    {label:'VJP',val:byco.VJP,color:'var(--vjp)',bg:'#fff7ed'}
+  ].map(function(k){
+    return '<div style="background:'+k.bg+';border-radius:var(--radius);padding:20px 24px;">'+
+      '<div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:8px;">'+k.label+'</div>'+
+      '<div style="font-size:28px;font-weight:700;color:'+k.color+';">'+k.val.toLocaleString()+'</div>'+
+      '<div style="font-size:11px;color:var(--text3);margin-top:3px;">WellPoint</div></div>';
+  }).join('');
+  document.getElementById('wtrcg-out-kpi').innerHTML = kpiHtml;
+
+  // Stacked bar by month × type
+  var monthSet = new Set(), typeSet = new Set();
+  rows.forEach(function(r){ if(r.monthKey) monthSet.add(r.monthKey); typeSet.add(r.type); });
+  var months = Array.from(monthSet).sort();
+  var types  = Array.from(typeSet).sort();
+
+  var agg = {};
+  rows.forEach(function(r){
+    if (!r.monthKey) return;
+    if (!agg[r.monthKey]) agg[r.monthKey] = {};
+    agg[r.monthKey][r.type] = (agg[r.monthKey][r.type]||0) + r.value;
+  });
+
+  var palette = ['#ef4444','#f97316','#f59e0b','#8b5cf6','#ec4899','#64748b'];
+  var datasets = types.map(function(tp,i){
+    return {
+      label: tp,
+      data:  months.map(function(m){ return (agg[m]&&agg[m][tp])||0; }),
+      backgroundColor: palette[i % palette.length],
+      borderRadius: 4
+    };
+  });
+
+  if (wtrcgOutBarChart) { wtrcgOutBarChart.destroy(); wtrcgOutBarChart = null; }
+  var ctx2 = document.getElementById('wtrcg-out-bar').getContext('2d');
+  wtrcgOutBarChart = new Chart(ctx2, {
+    type: 'bar',
+    data: { labels: months.map(wtrcgMonthLabel), datasets: datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { family: 'Sarabun', size: 12 } } } },
+      scales: {
+        x: { stacked: true, ticks: { font: { family: 'Sarabun', size: 11 } } },
+        y: { stacked: true, ticks: { font: { family: 'Sarabun', size: 11 } } }
+      }
+    }
+  });
+
+  // Monthly table by company
+  var cos = ['TRC','TOS','VJP'];
+  var aggMoCo = {};
+  rows.forEach(function(r){
+    if (!r.monthKey) return;
+    if (!aggMoCo[r.monthKey]) aggMoCo[r.monthKey] = {TRC:0,TOS:0,VJP:0};
+    aggMoCo[r.monthKey][r.company] = (aggMoCo[r.monthKey][r.company]||0) + r.value;
+  });
+  var coColorHex = {TRC:'#ed1c24',TOS:'#26276f',VJP:'#e97b2e'};
+  var thead2 = '<tr><th style="text-align:left;padding:10px 12px;background:var(--surface2);font-size:13px;">เดือน</th>'+
+    cos.map(function(c){return '<th style="text-align:right;padding:10px 12px;background:var(--surface2);font-size:13px;color:'+coColorHex[c]+';">'+c+'</th>';}).join('')+
+    '<th style="text-align:right;padding:10px 12px;background:var(--surface2);font-size:13px;">รวม</th></tr>';
+  var totals2={TRC:0,TOS:0,VJP:0,ALL:0};
+  var tbody2 = months.map(function(m){
+    var d = aggMoCo[m]||{};
+    var vals = cos.map(function(c){return d[c]||0;});
+    var rowSum = vals.reduce(function(a,b){return a+b;},0);
+    cos.forEach(function(c,i){totals2[c]+=vals[i];});
+    totals2.ALL+=rowSum;
+    return '<tr><td style="padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border);">'+wtrcgMonthLabel(m)+'</td>'+
+      vals.map(function(v){return '<td style="text-align:right;padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border);">'+v.toLocaleString()+'</td>';}).join('')+
+      '<td style="text-align:right;padding:9px 12px;font-size:13px;border-bottom:1px solid var(--border);font-weight:600;">'+rowSum.toLocaleString()+'</td></tr>';
+  }).join('');
+  var tfoot2='<tr style="background:var(--surface2);font-weight:700;"><td style="padding:10px 12px;font-size:13px;">รวม</td>'+
+    cos.map(function(c){return '<td style="text-align:right;padding:10px 12px;font-size:13px;color:'+coColorHex[c]+';">'+totals2[c].toLocaleString()+'</td>';}).join('')+
+    '<td style="text-align:right;padding:10px 12px;font-size:13px;">'+totals2.ALL.toLocaleString()+'</td></tr>';
+
+  document.getElementById('wtrcg-out-table').innerHTML =
+    '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-family:Sarabun,sans-serif;">'+
+    '<thead>'+thead2+'</thead><tbody>'+tbody2+'</tbody><tfoot>'+tfoot2+'</tfoot></table></div>';
+}
+
+function resetWtrcgIn() {
+  document.getElementById('wtrcg-in-fy').value = 'ALL';
+  document.querySelectorAll('#wtrcg-in-co-chips .wtrcg-chip, #wtrcg-in-owner-chips .wtrcg-chip').forEach(function(btn){
+    btn.classList.remove('wtrcg-active');
+    btn.style.background = '#fff';
+    btn.style.color = btn.style.borderColor;
+  });
+  renderWtrcgIn();
+}
+function resetWtrcgOut() {
+  document.getElementById('wtrcg-out-fy').value = 'ALL';
+  document.querySelectorAll('#wtrcg-out-co-chips .wtrcg-chip').forEach(function(btn){
+    btn.classList.remove('wtrcg-active');
+    btn.style.background = '#fff';
+    btn.style.color = btn.style.borderColor;
+  });
+  renderWtrcgOut();
+}
+
+function switchWtrcgTab(e, name) {
+  document.querySelectorAll('[id^="wtrcg-btn-"]').forEach(function(b){b.classList.remove('active');});
+  e.currentTarget.classList.add('active');
+  ['in','out'].forEach(function(n){
+    var el = document.getElementById('wtrcg-subtab-'+n);
+    if (el) el.style.display = n===name ? '' : 'none';
+  });
 }
 
 </script>
