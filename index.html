@@ -5980,13 +5980,12 @@ function exportWtrcgInExcel() {
   var rows = wtrcgFilterRows('In');
   if (!rows.length) { alert('ไม่มีข้อมูลในช่วงที่เลือก'); return; }
 
-  // Get active filter labels for filename
-  var fyEl = document.getElementById('wtrcg-in-fy');
+  var fyEl    = document.getElementById('wtrcg-in-fy');
   var fyLabel = fyEl ? fyEl.options[fyEl.selectedIndex].text : 'ทั้งหมด';
   var coSel   = getWtrcgChipSelected('wtrcg-in-co-chips');
   var coLabel = coSel ? coSel.join('-') : 'ทุกบริษัท';
 
-  // Get months & cats (same logic as render)
+  // activeCats (same logic as render)
   var allCatSet = new Set();
   rows.forEach(function(r){ allCatSet.add(r.category); });
   var activeCats = wtrcgCatSelected
@@ -5997,95 +5996,88 @@ function exportWtrcgInExcel() {
   rows.forEach(function(r){ if(r.monthKey) monthSet.add(r.monthKey); });
   var months = Array.from(monthSet).sort();
 
-  // Aggregate: company × category × month
-  var aggCoCatMo = {};
+  // Aggregates (mirror render logic)
+  var aggCoCatMo = {}, aggCoOwnerMo = {}, aggCoMo = {};
+  var catOwnerMap = {};
   rows.forEach(function(r){
+    catOwnerMap[r.category] = r.owner;
     if(!r.monthKey) return;
-    var key = r.company+'|'+r.category;
-    if(!aggCoCatMo[key]) aggCoCatMo[key]={};
-    aggCoCatMo[key][r.monthKey]=(aggCoCatMo[key][r.monthKey]||0)+r.value;
-  });
-  var aggCoMo = {};
-  rows.forEach(function(r){
-    if(!r.monthKey) return;
+    var k1=r.company+'|'+r.category;
+    if(!aggCoCatMo[k1]) aggCoCatMo[k1]={};
+    aggCoCatMo[k1][r.monthKey]=(aggCoCatMo[k1][r.monthKey]||0)+r.value;
+    var k2=r.company+'|'+r.owner;
+    if(!aggCoOwnerMo[k2]) aggCoOwnerMo[k2]={};
+    aggCoOwnerMo[k2][r.monthKey]=(aggCoOwnerMo[k2][r.monthKey]||0)+r.value;
     if(!aggCoMo[r.company]) aggCoMo[r.company]={};
     aggCoMo[r.company][r.monthKey]=(aggCoMo[r.company][r.monthKey]||0)+r.value;
-  });
-  var aggTotalMo = {};
-  rows.forEach(function(r){
-    if(!r.monthKey) return;
-    aggTotalMo[r.monthKey]=(aggTotalMo[r.monthKey]||0)+r.value;
   });
 
   var cos = ['TRC','TOS','VJP'];
   var wsData = [];
-
-  // Title rows
   wsData.push(['ตารางสรุป WellPoint แยกบริษัท × Category']);
   wsData.push(['ปีงบประมาณ: '+fyLabel, '', 'บริษัท: '+coLabel]);
   wsData.push([]);
-
-  // Header
-  var headerRow = ['บริษัท','Category'].concat(months.map(wtrcgMonthLabel)).concat(['รวม']);
-  wsData.push(headerRow);
+  wsData.push(['บริษัท','Owner','Category'].concat(months.map(wtrcgMonthLabel)).concat(['รวม']));
 
   var grandTotal = 0;
   var moGrandTotals = {};
   months.forEach(function(m){ moGrandTotals[m]=0; });
 
   cos.forEach(function(co){
-    var coCats = activeCats.filter(function(c){
-      return rows.some(function(r){ return r.company===co && r.category===c; });
+    // group by owner (same order as render)
+    var ownerGroups={}, ownerOrder=[];
+    activeCats.forEach(function(cat){
+      if(!rows.some(function(r){return r.company===co&&r.category===cat;})) return;
+      var ow=catOwnerMap[cat]||'Uncategorized';
+      if(!ownerGroups[ow]){ownerGroups[ow]=[];ownerOrder.push(ow);}
+      ownerGroups[ow].push(cat);
     });
-    if(!coCats.length) return;
+    if(!ownerOrder.length) return;
 
-    // Category rows
-    coCats.forEach(function(cat){
-      var key   = co+'|'+cat;
-      var moData= aggCoCatMo[key]||{};
-      var rowSum= months.reduce(function(s,m){return s+(moData[m]||0);},0);
-      var dataRow = [co, cat]
-        .concat(months.map(function(m){return moData[m]||0;}))
-        .concat([rowSum]);
-      wsData.push(dataRow);
+    ownerOrder.forEach(function(ow){
+      ownerGroups[ow].forEach(function(cat){
+        var moData=aggCoCatMo[co+'|'+cat]||{};
+        var rowSum=months.reduce(function(s,m){return s+(moData[m]||0);},0);
+        wsData.push([co, ow, cat]
+          .concat(months.map(function(m){return moData[m]||0;}))
+          .concat([rowSum]));
+      });
+      // Owner subtotal
+      var owData=aggCoOwnerMo[co+'|'+ow]||{};
+      var owTotal=months.reduce(function(s,m){return s+(owData[m]||0);},0);
+      wsData.push([co, '', 'รวม '+ow]
+        .concat(months.map(function(m){return owData[m]||0;}))
+        .concat([owTotal]));
     });
 
-    // Subtotal row
-    var coMoData = aggCoMo[co]||{};
-    var coTotal  = months.reduce(function(s,m){return s+(coMoData[m]||0);},0);
-    grandTotal  += coTotal;
-    months.forEach(function(m){ moGrandTotals[m]+=(coMoData[m]||0); });
-    var subRow = ['รวม '+co, '']
-      .concat(months.map(function(m){return coMoData[m]||0;}))
-      .concat([coTotal]);
-    wsData.push(subRow);
+    // Company subtotal
+    var coData=aggCoMo[co]||{};
+    var coTotal=months.reduce(function(s,m){return s+(coData[m]||0);},0);
+    grandTotal+=coTotal;
+    months.forEach(function(m){moGrandTotals[m]+=(coData[m]||0);});
+    wsData.push(['รวม '+co,'','']
+      .concat(months.map(function(m){return coData[m]||0;}))
+      .concat([coTotal]));
     wsData.push([]); // spacer
   });
 
-  // Grand total row
-  var totalRow = ['ผลรวมทั้งหมด','']
+  // Grand total
+  wsData.push(['ผลรวมทั้งหมด','','']
     .concat(months.map(function(m){return moGrandTotals[m]||0;}))
-    .concat([grandTotal]);
-  wsData.push(totalRow);
+    .concat([grandTotal]));
 
-  // Build workbook
   var wb = XLSX.utils.book_new();
   var ws = XLSX.utils.aoa_to_sheet(wsData);
-
-  // Column widths
-  var wscols = [{wch:12},{wch:30}]
+  ws['!cols'] = [{wch:12},{wch:10},{wch:32}]
     .concat(months.map(function(){return {wch:10};}))
     .concat([{wch:12}]);
-  ws['!cols'] = wscols;
-
   XLSX.utils.book_append_sheet(wb, ws, 'WellPoint Summary');
 
-  // Filename
-  var today = new Date();
-  var dd = String(today.getDate()).padStart(2,'0');
-  var mm = String(today.getMonth()+1).padStart(2,'0');
-  var yy = today.getFullYear()+543;
-  var fname = 'WellPoint_TRCG_'+dd+mm+yy+'.xlsx';
+  var today=new Date();
+  var fname='WellPoint_TRCG_'+
+    String(today.getDate()).padStart(2,'0')+
+    String(today.getMonth()+1).padStart(2,'0')+
+    (today.getFullYear()+543)+'.xlsx';
   XLSX.writeFile(wb, fname);
 }
 
