@@ -5678,12 +5678,14 @@ function renderWtrcgIn() {
       '<span style="width:16px;height:2px;background:#1a1d2e;display:inline-block;border-radius:1px;"></span>รวมทั้งหมด</span>']).join('');
   }
 
-  // ── Summary table: rows=company+category, cols=months ──
+  // ── Summary table: company → Owner subtotal → company subtotal ──
   var cos      = ['TRC','TOS','VJP'];
   var coColors = {TRC:'#ed1c24', TOS:'#26276f', VJP:'#e97b2e'};
   var coBg     = {TRC:'#fef2f2', TOS:'#eef2ff', VJP:'#fff7ed'};
+  var ownerColors = {HROD:'#b36200', HR:'#0a4fa3', HRBP:'#4a2fa3'};
+  var ownerBg     = {HROD:'#fff8e6', HR:'#e6f3ff',  HRBP:'#f3edff'};
 
-  // Aggregate by company × category × month
+  // Aggregate: company × category × month
   var aggCoCatMo = {};
   rows.forEach(function(r){
     if(!r.monthKey) return;
@@ -5691,102 +5693,137 @@ function renderWtrcgIn() {
     if(!aggCoCatMo[key]) aggCoCatMo[key]={};
     aggCoCatMo[key][r.monthKey]=(aggCoCatMo[key][r.monthKey]||0)+r.value;
   });
-
-  // Aggregate by company × month (for subtotal rows)
+  // company × owner × month
+  var aggCoOwnerMo = {};
+  rows.forEach(function(r){
+    if(!r.monthKey) return;
+    var key = r.company+'|'+r.owner;
+    if(!aggCoOwnerMo[key]) aggCoOwnerMo[key]={};
+    aggCoOwnerMo[key][r.monthKey]=(aggCoOwnerMo[key][r.monthKey]||0)+r.value;
+  });
+  // company × month
   var aggCoMo = {};
   rows.forEach(function(r){
     if(!r.monthKey) return;
     if(!aggCoMo[r.company]) aggCoMo[r.company]={};
     aggCoMo[r.company][r.monthKey]=(aggCoMo[r.company][r.monthKey]||0)+r.value;
   });
-
-  // Grand total per month
+  // grand total per month
   var aggTotalMo = {};
   rows.forEach(function(r){
     if(!r.monthKey) return;
     aggTotalMo[r.monthKey]=(aggTotalMo[r.monthKey]||0)+r.value;
   });
 
-  var TH = 'padding:8px 10px;background:var(--surface2);font-size:11px;font-weight:500;white-space:nowrap;color:var(--text2);text-align:right;';
+  // owner → category lookup (from catColorMap built above)
+  var catOwnerMap = {};
+  rows.forEach(function(r){ catOwnerMap[r.category]=r.owner; });
+
+  var TH  = 'padding:8px 10px;background:var(--surface2);font-size:11px;font-weight:500;white-space:nowrap;color:var(--text2);text-align:right;';
   var THL = TH+'text-align:left;';
   var TD  = 'padding:7px 10px;border-bottom:0.5px solid var(--border);font-size:12px;text-align:right;white-space:nowrap;';
   var TDL = TD+'text-align:left;';
   var SEP = 'border-left:1px solid var(--border);';
+  var SUB = 'background:#f5f5fa;';  // owner subtotal bg
+  var SUB2= 'background:var(--surface2);'; // company subtotal bg
 
-  // Header row
   var thead = '<thead><tr>'+
     '<th style="'+THL+'min-width:55px;">บริษัท</th>'+
-    '<th style="'+THL+'min-width:140px;">Category</th>'+
-    months.map(function(m){
-      return '<th style="'+TH+'">'+wtrcgMonthLabel(m)+'</th>';
-    }).join('')+
+    '<th style="'+THL+'min-width:180px;">Category</th>'+
+    months.map(function(m){ return '<th style="'+TH+'">'+wtrcgMonthLabel(m)+'</th>'; }).join('')+
     '<th style="'+TH+SEP+'font-weight:600;color:var(--text);">รวม</th>'+
   '</tr></thead>';
 
-  var grandTotal = 0;
+  var grandTotal    = 0;
   var moGrandTotals = {};
   months.forEach(function(m){ moGrandTotals[m]=0; });
-
   var tbodyRows = [];
 
   cos.forEach(function(co){
     var coColor = coColors[co];
     var coBgC   = coBg[co];
 
-    // Categories this company has (in activeCats order)
-    var coCats = activeCats.filter(function(c){
-      return aggCoCatMo[co+'|'+c] !== undefined ||
-             rows.some(function(r){ return r.company===co && r.category===c; });
+    // Group activeCats by owner, preserving activeCats order
+    var ownerGroups = {}; // owner -> [cat,...]
+    var ownerOrder  = [];
+    activeCats.forEach(function(cat){
+      var hasData = rows.some(function(r){ return r.company===co && r.category===cat; });
+      if(!hasData) return;
+      var ow = catOwnerMap[cat] || 'Uncategorized';
+      if(!ownerGroups[ow]){ ownerGroups[ow]=[]; ownerOrder.push(ow); }
+      ownerGroups[ow].push(cat);
     });
-    if(!coCats.length) return;
+    if(!ownerOrder.length) return;
 
-    var coRowCount = coCats.length + 1; // +1 for subtotal
+    // Count total rows for company rowspan:
+    // each cat = 1 row, each owner group = +1 subtotal, company subtotal = +1
+    var totalRows = ownerOrder.reduce(function(s,ow){ return s+ownerGroups[ow].length+1; },0)+1;
+    var firstRow  = true;
 
-    // Category rows
-    coCats.forEach(function(cat, catIdx){
-      var key = co+'|'+cat;
-      var moData = aggCoCatMo[key]||{};
-      var rowSum = months.reduce(function(s,m){return s+(moData[m]||0);},0);
+    ownerOrder.forEach(function(ow){
+      var cats     = ownerGroups[ow];
+      var owColor  = ownerColors[ow] || '#555';
+      var owBg     = ownerBg[ow]    || '#f5f5f5';
 
-      var tds = '';
-      // First category row: include rowspan badge for company
-      if(catIdx===0){
-        tds += '<td style="'+TDL+'vertical-align:top;padding-top:10px;border-right:0.5px solid var(--border);" rowspan="'+coRowCount+'">'+
-          '<span style="display:inline-flex;align-items:center;justify-content:center;padding:2px 10px;border-radius:20px;'+
-          'background:'+coBgC+';color:'+coColor+';font-size:11px;font-weight:500;">'+co+'</span>'+
-        '</td>';
-      }
-      tds += '<td style="'+TDL+'">'+cat+'</td>';
-      tds += months.map(function(m){
-        var v=moData[m]||0;
-        return '<td style="'+TD+'">'+(v?v.toLocaleString():'<span style="color:var(--text3);">—</span>')+'</td>';
+      cats.forEach(function(cat){
+        var key    = co+'|'+cat;
+        var moData = aggCoCatMo[key]||{};
+        var rowSum = months.reduce(function(s,m){return s+(moData[m]||0);},0);
+
+        var tds = '';
+        if(firstRow){
+          firstRow = false;
+          tds += '<td style="'+TDL+'vertical-align:top;padding-top:10px;border-right:0.5px solid var(--border);" rowspan="'+totalRows+'">'+
+            '<span style="display:inline-flex;align-items:center;justify-content:center;padding:2px 10px;border-radius:20px;'+
+            'background:'+coBgC+';color:'+coColor+';font-size:11px;font-weight:500;">'+co+'</span>'+
+          '</td>';
+        }
+        // Category cell with Owner badge
+        var owBadge = '<span style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:4px;'+
+          'background:'+owBg+';color:'+owColor+';font-size:10px;font-weight:500;margin-left:6px;white-space:nowrap;">'+ow+'</span>';
+        tds += '<td style="'+TDL+'">'+cat+owBadge+'</td>';
+        tds += months.map(function(m){
+          var v=moData[m]||0;
+          return '<td style="'+TD+'">'+(v?v.toLocaleString():'<span style="color:var(--text3);">—</span>')+'</td>';
+        }).join('');
+        tds += '<td style="'+TD+SEP+'font-weight:500;color:'+coColor+';">'+(rowSum?rowSum.toLocaleString():'—')+'</td>';
+        tbodyRows.push('<tr>'+tds+'</tr>');
+      });
+
+      // Owner subtotal row
+      var owKey    = co+'|'+ow;
+      var owMoData = aggCoOwnerMo[owKey]||{};
+      var owTotal  = months.reduce(function(s,m){return s+(owMoData[m]||0);},0);
+      var owSubTds = '<td style="'+TDL+SUB+'font-weight:500;color:'+owColor+';padding-left:14px;">รวม '+ow+'</td>';
+      owSubTds += months.map(function(m){
+        var v=owMoData[m]||0;
+        return '<td style="'+TD+SUB+'font-weight:500;color:'+owColor+';">'+(v?v.toLocaleString():'—')+'</td>';
       }).join('');
-      tds += '<td style="'+TD+SEP+'font-weight:500;color:'+coColor+';">'+(rowSum?rowSum.toLocaleString():'—')+'</td>';
-      tbodyRows.push('<tr>'+tds+'</tr>');
+      owSubTds += '<td style="'+TD+SEP+SUB+'font-weight:600;color:'+owColor+';">'+(owTotal?owTotal.toLocaleString():'—')+'</td>';
+      tbodyRows.push('<tr>'+owSubTds+'</tr>');
     });
 
-    // Subtotal row for this company
+    // Company subtotal row
     var coMoData = aggCoMo[co]||{};
     var coTotal  = months.reduce(function(s,m){return s+(coMoData[m]||0);},0);
-    grandTotal += coTotal;
+    grandTotal  += coTotal;
     months.forEach(function(m){ moGrandTotals[m]+=(coMoData[m]||0); });
 
-    var subtotalTds = '<td style="'+TDL+'background:var(--surface2);font-weight:600;color:'+coColor+';">รวม '+co+'</td>';
-    subtotalTds += months.map(function(m){
+    var coSubTds = '<td style="'+TDL+SUB2+'font-weight:600;color:'+coColor+';">รวม '+co+'</td>';
+    coSubTds += months.map(function(m){
       var v=coMoData[m]||0;
-      return '<td style="'+TD+'background:var(--surface2);font-weight:500;color:'+coColor+';">'+(v?v.toLocaleString():'—')+'</td>';
+      return '<td style="'+TD+SUB2+'font-weight:500;color:'+coColor+';">'+(v?v.toLocaleString():'—')+'</td>';
     }).join('');
-    subtotalTds += '<td style="'+TD+SEP+'background:var(--surface2);font-weight:700;color:'+coColor+';">'+coTotal.toLocaleString()+'</td>';
-    tbodyRows.push('<tr>'+subtotalTds+'</tr>');
+    coSubTds += '<td style="'+TD+SEP+SUB2+'font-weight:700;color:'+coColor+';">'+coTotal.toLocaleString()+'</td>';
+    tbodyRows.push('<tr>'+coSubTds+'</tr>');
 
-    // Spacer between companies
-    tbodyRows.push('<tr><td colspan="'+(months.length+3)+'" style="padding:0;height:6px;border:none;background:transparent;"></td></tr>');
+    // Spacer
+    tbodyRows.push('<tr><td colspan="'+(months.length+3)+'" style="padding:0;height:8px;border:none;background:transparent;"></td></tr>');
   });
 
   var tbody = '<tbody>'+tbodyRows.join('')+'</tbody>';
 
-  // Grand total footer
-  var tfoot = '<tfoot><tr style="background:var(--surface2);border-top:1px solid var(--border);">'+
+  var tfoot = '<tfoot><tr style="'+SUB2+'border-top:1px solid var(--border);">'+
     '<td colspan="2" style="'+TDL+'font-weight:600;font-size:12px;">ผลรวมทั้งหมด</td>'+
     months.map(function(m){
       return '<td style="'+TD+'font-weight:600;">'+moGrandTotals[m].toLocaleString()+'</td>';
