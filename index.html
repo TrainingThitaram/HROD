@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HROD Dashboard — ThitaramGroup</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
 (function(){
@@ -1306,8 +1307,15 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
         </div>
         <!-- Summary Table -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);">
-          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">&#128203; ตารางสรุป WellPoint แยกบริษัท × Category</div>
-          <div style="font-size:12px;color:var(--text3);margin-bottom:16px;">แต่ละแถว = บริษัท | แต่ละคอลัมน์ = Category</div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;">
+            <div style="font-size:15px;font-weight:600;color:var(--text);">&#128203; ตารางสรุป WellPoint แยกบริษัท × Category</div>
+            <button onclick="exportWtrcgInExcel()" id="wtrcg-export-btn"
+              style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:#1d6f42;color:#fff;border:none;border-radius:8px;
+              font-family:'Sarabun',sans-serif;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+              &#128190; Export Excel
+            </button>
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:16px;">แต่ละบริษัทแสดงแถวย่อยแยกตาม Category | คอลัมน์ = รายเดือนตามปีงบประมาณ</div>
           <div id="wtrcg-in-table"></div>
         </div>
       </div>
@@ -5846,6 +5854,120 @@ function resetWtrcgOut() {
   });
   renderWtrcgOut();
 }
+function exportWtrcgInExcel() {
+  if (!window.XLSX) { alert('กำลังโหลด SheetJS กรุณารอสักครู่...'); return; }
+  var rows = wtrcgFilterRows('In');
+  if (!rows.length) { alert('ไม่มีข้อมูลในช่วงที่เลือก'); return; }
+
+  // Get active filter labels for filename
+  var fyEl = document.getElementById('wtrcg-in-fy');
+  var fyLabel = fyEl ? fyEl.options[fyEl.selectedIndex].text : 'ทั้งหมด';
+  var coSel   = getWtrcgChipSelected('wtrcg-in-co-chips');
+  var coLabel = coSel ? coSel.join('-') : 'ทุกบริษัท';
+
+  // Get months & cats (same logic as render)
+  var allCatSet = new Set();
+  rows.forEach(function(r){ allCatSet.add(r.category); });
+  var activeCats = wtrcgCatSelected
+    ? Array.from(allCatSet).sort().filter(function(c){ return wtrcgCatSelected.includes(c); })
+    : Array.from(allCatSet).sort();
+
+  var monthSet = new Set();
+  rows.forEach(function(r){ if(r.monthKey) monthSet.add(r.monthKey); });
+  var months = Array.from(monthSet).sort();
+
+  // Aggregate: company × category × month
+  var aggCoCatMo = {};
+  rows.forEach(function(r){
+    if(!r.monthKey) return;
+    var key = r.company+'|'+r.category;
+    if(!aggCoCatMo[key]) aggCoCatMo[key]={};
+    aggCoCatMo[key][r.monthKey]=(aggCoCatMo[key][r.monthKey]||0)+r.value;
+  });
+  var aggCoMo = {};
+  rows.forEach(function(r){
+    if(!r.monthKey) return;
+    if(!aggCoMo[r.company]) aggCoMo[r.company]={};
+    aggCoMo[r.company][r.monthKey]=(aggCoMo[r.company][r.monthKey]||0)+r.value;
+  });
+  var aggTotalMo = {};
+  rows.forEach(function(r){
+    if(!r.monthKey) return;
+    aggTotalMo[r.monthKey]=(aggTotalMo[r.monthKey]||0)+r.value;
+  });
+
+  var cos = ['TRC','TOS','VJP'];
+  var wsData = [];
+
+  // Title rows
+  wsData.push(['ตารางสรุป WellPoint แยกบริษัท × Category']);
+  wsData.push(['ปีงบประมาณ: '+fyLabel, '', 'บริษัท: '+coLabel]);
+  wsData.push([]);
+
+  // Header
+  var headerRow = ['บริษัท','Category'].concat(months.map(wtrcgMonthLabel)).concat(['รวม']);
+  wsData.push(headerRow);
+
+  var grandTotal = 0;
+  var moGrandTotals = {};
+  months.forEach(function(m){ moGrandTotals[m]=0; });
+
+  cos.forEach(function(co){
+    var coCats = activeCats.filter(function(c){
+      return rows.some(function(r){ return r.company===co && r.category===c; });
+    });
+    if(!coCats.length) return;
+
+    // Category rows
+    coCats.forEach(function(cat){
+      var key   = co+'|'+cat;
+      var moData= aggCoCatMo[key]||{};
+      var rowSum= months.reduce(function(s,m){return s+(moData[m]||0);},0);
+      var dataRow = [co, cat]
+        .concat(months.map(function(m){return moData[m]||0;}))
+        .concat([rowSum]);
+      wsData.push(dataRow);
+    });
+
+    // Subtotal row
+    var coMoData = aggCoMo[co]||{};
+    var coTotal  = months.reduce(function(s,m){return s+(coMoData[m]||0);},0);
+    grandTotal  += coTotal;
+    months.forEach(function(m){ moGrandTotals[m]+=(coMoData[m]||0); });
+    var subRow = ['รวม '+co, '']
+      .concat(months.map(function(m){return coMoData[m]||0;}))
+      .concat([coTotal]);
+    wsData.push(subRow);
+    wsData.push([]); // spacer
+  });
+
+  // Grand total row
+  var totalRow = ['ผลรวมทั้งหมด','']
+    .concat(months.map(function(m){return moGrandTotals[m]||0;}))
+    .concat([grandTotal]);
+  wsData.push(totalRow);
+
+  // Build workbook
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Column widths
+  var wscols = [{wch:12},{wch:30}]
+    .concat(months.map(function(){return {wch:10};}))
+    .concat([{wch:12}]);
+  ws['!cols'] = wscols;
+
+  XLSX.utils.book_append_sheet(wb, ws, 'WellPoint Summary');
+
+  // Filename
+  var today = new Date();
+  var dd = String(today.getDate()).padStart(2,'0');
+  var mm = String(today.getMonth()+1).padStart(2,'0');
+  var yy = today.getFullYear()+543;
+  var fname = 'WellPoint_TRCG_'+dd+mm+yy+'.xlsx';
+  XLSX.writeFile(wb, fname);
+}
+
 function switchWtrcgTab(e, name) {
   document.querySelectorAll('[id^="wtrcg-btn-"]').forEach(function(b){b.classList.remove('active');});
   e.currentTarget.classList.add('active');
