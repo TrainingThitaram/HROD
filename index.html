@@ -1264,6 +1264,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
     <div style="background:#fff;border-bottom:1px solid var(--border);padding:0 32px;display:flex;gap:0;overflow-x:auto;">
       <button class="tab-btn active" id="wtrcg-btn-in" onclick="switchWtrcgTab(event,'in')" style="font-size:13px;padding:10px 18px;">&#128229; WellPoint ที่ได้รับ</button>
       <button class="tab-btn" id="wtrcg-btn-out" onclick="switchWtrcgTab(event,'out')" style="font-size:13px;padding:10px 18px;">&#128228; WellPoint ที่ใช้ไป</button>
+      <button class="tab-btn" id="wtrcg-btn-el" onclick="switchWtrcgTab(event,'el')" style="font-size:13px;padding:10px 18px;">&#128200; อัตราการเข้าร่วมกิจกรรม</button>
     </div>
 
     <!-- ═══ SUB TAB: IN ═══ -->
@@ -1357,6 +1358,51 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
         </div>
       </div>
     </div><!-- /subtab-out -->
+
+    <!-- ═══ SUB TAB: E-LEARNING PARTICIPATION ═══ -->
+    <div id="wtrcg-subtab-el" style="display:none;">
+      <div class="content">
+        <div class="error-box" id="wtrcg-error-el"></div>
+        <!-- Filter -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">
+            <div>
+              <div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">ปีงบประมาณ</div>
+              <select id="wtrcg-el-fy" class="filter-select" style="min-width:280px;"></select>
+            </div>
+            <div style="font-size:12px;color:var(--text3);padding-bottom:8px;">
+              กรอง: Owner = <strong style="color:var(--text);">HROD</strong> &nbsp;|&nbsp; Category = <strong style="color:var(--text);">E-Learning</strong>
+            </div>
+          </div>
+        </div>
+        <!-- KPI -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;" id="wtrcg-el-kpi"></div>
+        <!-- Line Chart -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px;">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">&#128200; % อัตราการเข้าร่วม E-Learning รายเดือน</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:4px;">เฉลี่ย %Completed ของทุก Quest E-Learning (Owner: HROD) ตาม Start Date</div>
+          <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px;" id="wtrcg-el-legend"></div>
+          <div style="position:relative;height:300px;"><canvas id="wtrcg-el-line"></canvas></div>
+        </div>
+        <!-- Detail Table -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);">
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;">&#128203; รายละเอียดรายเดือน</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:16px;">จำนวน Quest และ % เฉลี่ย E-Learning แต่ละเดือน</div>
+          <div id="wtrcg-el-table"></div>
+        </div>
+        <!-- Detail Modal -->
+        <div id="wtrcg-el-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center;">
+          <div style="background:var(--surface);border-radius:12px;padding:28px;max-width:680px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <div style="font-size:16px;font-weight:600;color:var(--text);" id="wtrcg-el-modal-title">รายละเอียด</div>
+              <button onclick="closeWtrcgElModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);line-height:1;">&times;</button>
+            </div>
+            <div id="wtrcg-el-modal-body"></div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /subtab-el -->
+
 
   </div><!-- /tab-welltrcg -->
 
@@ -5968,13 +6014,271 @@ function exportWtrcgInExcel() {
   XLSX.writeFile(wb, fname);
 }
 
+// ── E-LEARNING PARTICIPATION ───────────────────────────
+let wtrcgElRows    = [];  // filtered: Owner=HROD, Category=E-Learning, vtype=In
+let wtrcgElInited  = false;
+let wtrcgElLineChart = null;
+
+function wtrcgSbqMonthKey(dateStr) {
+  if (!dateStr) return null;
+  var s = String(dateStr).trim().split('/')[0].trim(); // "2025-10-06"
+  var d = new Date(s);
+  if (isNaN(d.getTime())) return null;
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+async function initWtrcgEl() {
+  if (wtrcgElInited) return;
+  wtrcgElInited = true;
+  try {
+    // Reuse Category Map already in wtrcgCatMap from initWellTrcg
+    // Fetch Summary by Quest sheet
+    var sqVals = await wtrcgFetch('Summary by Quest');
+    // Cols: A=Quest, B=QuestMaker, C=DateCreated, D=StartDate, E=EndDate,
+    //       F=PointsGiven, G=Points, H=%Completed, I=CompletedQuest, J=Owner, K=Category
+    wtrcgElRows = [];
+    for (var i = 1; i < sqVals.length; i++) {
+      var r = sqVals[i];
+      var owner    = String(r[9]||'').trim();
+      var category = String(r[10]||'').trim();
+      if (owner !== 'HROD' || category !== 'E-Learning') continue;
+      var quest    = String(r[0]||'').trim();
+      var startStr = String(r[3]||'').trim();
+      var pctRaw   = r[7];
+      var pct      = parseFloat(String(pctRaw||'0').replace('%',''));
+      if (isNaN(pct)) pct = 0;
+      // If stored as 0-1 decimal, convert to %
+      if (pct > 0 && pct <= 1) pct = pct * 100;
+      var mk = wtrcgSbqMonthKey(startStr);
+      var fy = wtrcgFiscalYear(startStr);
+      if (!quest || !mk) continue;
+      wtrcgElRows.push({ quest:quest, startStr:startStr, pct:pct, monthKey:mk, fy:fy });
+    }
+
+    // FY options
+    var fySet = new Set();
+    wtrcgElRows.forEach(function(r){ if(r.fy) fySet.add(r.fy); });
+    var fyList = Array.from(fySet).sort(function(a,b){return b-a;});
+    var fyOpts = '<option value="ALL">ทั้งหมด</option>' +
+      fyList.map(function(y){ return '<option value="'+y+'">'+wtrcgFyLabel(y)+'</option>'; }).join('');
+    document.getElementById('wtrcg-el-fy').innerHTML = fyOpts;
+
+    renderWtrcgEl();
+  } catch(e) {
+    var el = document.getElementById('wtrcg-error-el');
+    if (el) { el.textContent = 'เกิดข้อผิดพลาด: '+e.message; el.style.display='block'; }
+  }
+}
+
+function renderWtrcgEl() {
+  var fyEl = document.getElementById('wtrcg-el-fy');
+  var fy   = fyEl ? fyEl.value : 'ALL';
+  var filtered = wtrcgElRows.filter(function(r){
+    if (fy !== 'ALL' && r.fy !== parseInt(fy)) return false;
+    return true;
+  });
+
+  if (!filtered.length) {
+    document.getElementById('wtrcg-el-kpi').innerHTML = '<div style="color:var(--text3);font-size:13px;">ไม่มีข้อมูลในช่วงที่เลือก</div>';
+    document.getElementById('wtrcg-el-table').innerHTML = '';
+    if (wtrcgElLineChart) { wtrcgElLineChart.destroy(); wtrcgElLineChart = null; }
+    return;
+  }
+
+  // Aggregate by month
+  var monthAgg = {}; // { monthKey: { sum, count, quests: [{quest,pct,startStr}] } }
+  filtered.forEach(function(r){
+    if (!monthAgg[r.monthKey]) monthAgg[r.monthKey] = { sum:0, count:0, quests:[] };
+    monthAgg[r.monthKey].sum   += r.pct;
+    monthAgg[r.monthKey].count += 1;
+    monthAgg[r.monthKey].quests.push({ quest:r.quest, pct:r.pct, startStr:r.startStr });
+  });
+
+  var months = Object.keys(monthAgg).sort();
+  var avgPcts = months.map(function(m){
+    return Math.round((monthAgg[m].sum / monthAgg[m].count) * 10) / 10;
+  });
+
+  // KPI
+  var allAvg   = Math.round((avgPcts.reduce(function(a,b){return a+b;},0) / avgPcts.length) * 10) / 10;
+  var maxVal   = Math.max.apply(null, avgPcts);
+  var minVal   = Math.min.apply(null, avgPcts);
+  var maxMonth = wtrcgMonthLabel(months[avgPcts.indexOf(maxVal)]);
+  var minMonth = wtrcgMonthLabel(months[avgPcts.indexOf(minVal)]);
+  var questCount = filtered.length;
+
+  document.getElementById('wtrcg-el-kpi').innerHTML = [
+    {label:'% เฉลี่ยทั้งปี',  val:allAvg+'%',     color:'#2a78d6', bg:'#e6f1fb', sub:'เฉลี่ยจากทุกเดือน'},
+    {label:'เดือนสูงสุด',      val:maxVal+'%',     color:'#1baf7a', bg:'#e1f5ee', sub:maxMonth},
+    {label:'เดือนต่ำสุด',      val:minVal+'%',     color:'#e34948', bg:'#fcebeb', sub:minMonth},
+    {label:'จำนวน Quest',      val:questCount,     color:'#eda100', bg:'#faeeda', sub:'E-Learning ในช่วงนี้'}
+  ].map(function(k){
+    return '<div style="background:'+k.bg+';border-radius:var(--radius);padding:20px 24px;border-left:3px solid '+k.color+';">'+
+      '<div style="font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px;">'+k.label+'</div>'+
+      '<div style="font-size:28px;font-weight:700;color:'+k.color+';">'+k.val+'</div>'+
+      '<div style="font-size:11px;color:var(--text3);margin-top:2px;">'+k.sub+'</div></div>';
+  }).join('');
+
+  // Legend
+  var legEl = document.getElementById('wtrcg-el-legend');
+  if (legEl) {
+    legEl.innerHTML =
+      '<span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);">'+
+        '<span style="width:10px;height:10px;border-radius:2px;background:#2a78d6;display:inline-block;"></span>% เฉลี่ยรายเดือน</span>';
+  }
+
+  // Line chart
+  if (wtrcgElLineChart) { wtrcgElLineChart.destroy(); wtrcgElLineChart = null; }
+  var ctx = document.getElementById('wtrcg-el-line').getContext('2d');
+  wtrcgElLineChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months.map(wtrcgMonthLabel),
+      datasets: [{
+        label: '% เฉลี่ยรายเดือน',
+        data:  avgPcts,
+        borderColor:     '#2a78d6',
+        backgroundColor: 'rgba(42,120,214,0.08)',
+        borderWidth: 2.5,
+        pointRadius: 5,
+        pointBackgroundColor: '#2a78d6',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode:'index', intersect:false },
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) { return ' % เฉลี่ย: '+ctx.parsed.y.toFixed(1)+'%'; }
+          },
+          titleFont: { family:'Sarabun', size:13, weight:'bold' },
+          bodyFont:  { family:'Sarabun', size:12 }
+        }
+      },
+      scales: {
+        x: { ticks:{ font:{family:'Sarabun',size:11} }, grid:{display:false} },
+        y: {
+          min:0, max:100,
+          ticks:{ font:{family:'Sarabun',size:11}, callback:function(v){return v+'%';} },
+          grid:{ color:'rgba(0,0,0,0.05)' }
+        }
+      }
+    }
+  });
+
+  // Detail table
+  var TH = 'padding:9px 14px;background:var(--surface2);font-size:12px;font-weight:500;color:var(--text2);';
+  var TD = 'padding:9px 14px;border-bottom:0.5px solid var(--border);font-size:13px;';
+  var thead = '<thead><tr>'+
+    '<th style="'+TH+'text-align:left;">เดือน</th>'+
+    '<th style="'+TH+'text-align:right;">จำนวน Quest</th>'+
+    '<th style="'+TH+'text-align:right;">% เฉลี่ย</th>'+
+    '<th style="'+TH+'text-align:center;">รายละเอียด</th>'+
+  '</tr></thead>';
+
+  var tbody = '<tbody>'+months.map(function(m, idx){
+    var d   = monthAgg[m];
+    var avg = avgPcts[idx];
+    var color = avg >= 70 ? '#1baf7a' : avg >= 50 ? '#eda100' : '#e34948';
+    var mLabel = wtrcgMonthLabel(m);
+    var mSafe  = m.replace(/-/g,'_');
+    return '<tr>'+
+      '<td style="'+TD+'font-weight:500;">'+mLabel+'</td>'+
+      '<td style="'+TD+'text-align:right;">'+d.count+' Quest</td>'+
+      '<td style="'+TD+'text-align:right;font-weight:600;color:'+color+';">'+avg.toFixed(1)+'%</td>'+
+      '<td style="'+TD+'text-align:center;">'+
+        '<button onclick="openWtrcgElModal(\''+mSafe+'\')" '+
+        'style="padding:5px 14px;background:none;border:1px solid var(--border);border-radius:6px;'+
+        'font-family:Sarabun,sans-serif;font-size:12px;color:var(--text2);cursor:pointer;">'+
+        'ดูรายละเอียด</button></td>'+
+    '</tr>';
+  }).join('')+'</tbody>';
+
+  var totalAvg = allAvg;
+  var totalCount = filtered.length;
+  var tfoot = '<tfoot><tr style="background:var(--surface2);">'+
+    '<td style="'+TD+'font-weight:600;">เฉลี่ยทั้งหมด</td>'+
+    '<td style="'+TD+'text-align:right;font-weight:600;">'+totalCount+' Quest</td>'+
+    '<td style="'+TD+'text-align:right;font-weight:700;color:#2a78d6;">'+totalAvg+'%</td>'+
+    '<td style="'+TD+'"></td>'+
+  '</tr></tfoot>';
+
+  document.getElementById('wtrcg-el-table').innerHTML =
+    '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-family:Sarabun,sans-serif;">'+
+    thead+tbody+tfoot+'</table></div>';
+
+  // Store data globally for modal access
+  window._wtrcgElMonthAgg = monthAgg;
+  window._wtrcgElAvgPcts  = avgPcts;
+  window._wtrcgElMonths   = months;
+}
+
+function openWtrcgElModal(mSafe) {
+  var m = mSafe.replace(/_/g,'-');
+  var agg  = window._wtrcgElMonthAgg || {};
+  var months = window._wtrcgElMonths || [];
+  var avgPcts = window._wtrcgElAvgPcts || [];
+  var d = agg[m];
+  if (!d) return;
+  var idx = months.indexOf(m);
+  var avg = avgPcts[idx] !== undefined ? avgPcts[idx].toFixed(1) : '—';
+  var mLabel = wtrcgMonthLabel(m);
+
+  document.getElementById('wtrcg-el-modal-title').textContent = 'รายละเอียด E-Learning — '+mLabel;
+
+  var TH2 = 'padding:8px 12px;background:var(--surface2);font-size:11px;font-weight:500;color:var(--text2);white-space:nowrap;';
+  var TD2 = 'padding:8px 12px;border-bottom:0.5px solid var(--border);font-size:12px;';
+
+  // Sort by pct desc
+  var sorted = d.quests.slice().sort(function(a,b){return b.pct-a.pct;});
+
+  var rows = sorted.map(function(q){
+    var col = q.pct >= 70 ? '#1baf7a' : q.pct >= 50 ? '#eda100' : '#e34948';
+    var dateDisp = q.startStr ? String(q.startStr).trim().split('/')[0].trim() : '—';
+    return '<tr>'+
+      '<td style="'+TD2+'">'+q.quest+'</td>'+
+      '<td style="'+TD2+'text-align:center;color:var(--text3);">'+dateDisp+'</td>'+
+      '<td style="'+TD2+'text-align:right;font-weight:600;color:'+col+';">'+q.pct.toFixed(1)+'%</td>'+
+    '</tr>';
+  }).join('');
+
+  var html =
+    '<div style="font-size:12px;color:var(--text3);margin-bottom:14px;">'+
+      mLabel+' &nbsp;|&nbsp; จำนวน '+d.count+' Quest &nbsp;|&nbsp; % เฉลี่ย <strong style="color:#2a78d6;">'+avg+'%</strong>'+
+    '</div>'+
+    '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-family:Sarabun,sans-serif;">'+
+      '<thead><tr>'+
+        '<th style="'+TH2+'text-align:left;">ชื่อกิจกรรม (Quest)</th>'+
+        '<th style="'+TH2+'text-align:center;">Start Date</th>'+
+        '<th style="'+TH2+'text-align:right;">% Completed</th>'+
+      '</tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
+    '</table></div>';
+
+  document.getElementById('wtrcg-el-modal-body').innerHTML = html;
+  var modal = document.getElementById('wtrcg-el-modal');
+  modal.style.display = 'flex';
+}
+
+function closeWtrcgElModal() {
+  var modal = document.getElementById('wtrcg-el-modal');
+  if (modal) modal.style.display = 'none';
+}
+
 function switchWtrcgTab(e, name) {
   document.querySelectorAll('[id^="wtrcg-btn-"]').forEach(function(b){b.classList.remove('active');});
   e.currentTarget.classList.add('active');
-  ['in','out'].forEach(function(n){
+  ['in','out','el'].forEach(function(n){
     var el=document.getElementById('wtrcg-subtab-'+n);
     if(el) el.style.display=n===name?'':'none';
   });
+  if (name==='el') initWtrcgEl();
 }
 </script>
 </body>
