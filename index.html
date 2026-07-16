@@ -6729,108 +6729,86 @@ function mxRenderTable(){
   }
 }
 
-// ── Export .xlsx ด้วย SheetJS (พร้อม conditional fill สี) ──
+// ── Export .xls (HTML-based) พร้อมสีตามสถานะ ──
 function mxExportExcel(){
   if(!mxFilteredRows.length){ alert('ไม่มีข้อมูลที่จะ Export'); return; }
 
-  // โหลด SheetJS จาก CDN ถ้ายังไม่มี
-  if(typeof XLSX==='undefined'){
-    var scr=document.createElement('script');
-    scr.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-    scr.onload=function(){ mxDoExport(); };
-    document.head.appendChild(scr);
-  } else {
-    mxDoExport();
-  }
-}
+  var colCount=3+mxSubjects.length;
 
-function mxDoExport(){
-  // ── สี (ARGB hex, ไม่มี #) ──
-  var CLR_PASS   = {fgColor:{rgb:'F0FDF4'}, font:{color:{rgb:'15803D'}, bold:false}};
-  var CLR_FAIL   = {fgColor:{rgb:'FEF2F2'}, font:{color:{rgb:'B91C1C'}, bold:false}};
-  var CLR_NONE   = {fgColor:{rgb:'F1EFF8'}, font:{color:{rgb:'6B7280'}, bold:false}};
-  var CLR_DASH   = {fgColor:{rgb:'FFFFFF'}, font:{color:{rgb:'9CA3AF'}, bold:false}};
-  var CLR_HEADER = {fgColor:{rgb:'26274F'}, font:{color:{rgb:'FFFFFF'}, bold:true}};
-  var CLR_DEPT   = {fgColor:{rgb:'E8E8F4'}, font:{color:{rgb:'26274F'}, bold:true}};
+  // ── styles ──
+  var css=[
+    'table{border-collapse:collapse;font-family:Calibri,sans-serif;font-size:11pt;}',
+    'th,td{border:1px solid #D0D0D0;padding:4px 8px;vertical-align:middle;}',
+    '.h-hdr{background:#26274F;color:#FFFFFF;font-weight:bold;text-align:center;white-space:pre-wrap;}',
+    '.h-dept{background:#E8E8F4;color:#26274F;font-weight:bold;text-align:left;}',
+    '.h-emp{text-align:left;background:#FFFFFF;}',
+    '.h-id{text-align:center;background:#FFFFFF;color:#6B7280;}',
+    '.h-dept-cell{text-align:center;font-size:10pt;color:#6B7280;background:#FFFFFF;}',
+    '.c-pass{background:#F0FDF4;color:#15803D;text-align:center;}',
+    '.c-fail{background:#FEF2F2;color:#B91C1C;text-align:center;}',
+    '.c-none{background:#F1EFF8;color:#6B7280;text-align:center;}',
+    '.c-dash{background:#FFFFFF;color:#9CA3AF;text-align:center;}',
+  ].join('');
 
-  var wb=XLSX.utils.book_new();
-  var wsData=[];
+  // ── build table HTML ──
+  var html='<html xmlns:o="urn:schemas-microsoft-com:office:office" '
+    +'xmlns:x="urn:schemas-microsoft-com:office:excel" '
+    +'xmlns="http://www.w3.org/TR/REC-html40">'
+    +'<head><meta charset="UTF-8">'
+    +'<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets>'
+    +'<x:ExcelWorksheet><x:Name>Basic Knowledge Matrix</x:Name>'
+    +'<x:WorksheetOptions><x:FreezePanes/><x:FrozenNoSplit/>'
+    +'<x:SplitHorizontal>1</x:SplitHorizontal><x:TopRowBottomPane>1</x:TopRowBottomPane>'
+    +'<x:SplitVertical>3</x:SplitVertical><x:LeftColumnRightPane>3</x:LeftColumnRightPane>'
+    +'<x:ActivePane>0</x:ActivePane></x:WorksheetOptions>'
+    +'</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->'
+    +'<style>'+css+'</style></head><body><table>';
 
-  // ── Header row ──
-  var hdr=['รหัส','ชื่อ','ฝ่าย'].concat(mxSubjects.map(function(s){return s.code+'\n'+s.name;}));
-  wsData.push(hdr);
+  // header row
+  html+='<tr>'
+    +'<th class="h-hdr" style="width:70pt">รหัส</th>'
+    +'<th class="h-hdr" style="width:140pt">ชื่อ</th>'
+    +'<th class="h-hdr" style="width:60pt">ฝ่าย</th>';
+  mxSubjects.forEach(function(s){
+    html+='<th class="h-hdr" style="width:80pt">'+s.code+'\n'+s.name+'</th>';
+  });
+  html+='</tr>';
 
-  // ── Data rows (จัดกลุ่มฝ่าย) ──
+  // data rows
   var prevDept='';
   mxFilteredRows.forEach(function(r){
     if(r.deptId!==prevDept){
       prevDept=r.deptId;
-      // dept group row — span ทุกคอลัมน์
-      var deptRow=[r.deptId,'',''].concat(mxSubjects.map(function(){return '';}));
-      wsData.push({_deptRow:true, data:deptRow});
+      html+='<tr><td class="h-dept" colspan="'+colCount+'">'+r.deptId+'</td></tr>';
     }
-    var row=[r.empId, r.name, r.deptId].concat(mxSubjects.map(function(s){return r.cells[s.code]||'—';}));
-    wsData.push(row);
+    html+='<tr>'
+      +'<td class="h-id">'+r.empId+'</td>'
+      +'<td class="h-emp">'+r.name+'</td>'
+      +'<td class="h-dept-cell">'+r.deptId+'</td>';
+    mxSubjects.forEach(function(s){
+      var v=r.cells[s.code]||'—';
+      var cls=v==='เรียนแล้ว/สอบผ่าน'?'c-pass'
+        :v==='เรียนแล้ว/สอบไม่ผ่าน'?'c-fail'
+        :v==='ยังไม่ได้เรียน/สอบ'?'c-none':'c-dash';
+      html+='<td class="'+cls+'">'+v+'</td>';
+    });
+    html+='</tr>';
   });
 
-  // แยก data arrays กับ dept markers
-  var sheetRows=wsData.map(function(r){return r._deptRow?r.data:r;});
-  var ws=XLSX.utils.aoa_to_sheet(sheetRows);
+  html+='</table></body></html>';
 
-  // ── Apply cell styles ──
-  var colCount=3+mxSubjects.length;
-  sheetRows.forEach(function(row,ri){
-    for(var ci=0;ci<colCount;ci++){
-      var addr=XLSX.utils.encode_cell({r:ri,c:ci});
-      if(!ws[addr]) ws[addr]={t:'s',v:''};
-      ws[addr].s={alignment:{horizontal:'center',vertical:'center',wrapText:true}};
-
-      if(ri===0){
-        // header
-        ws[addr].s.fill=CLR_HEADER; ws[addr].s.font=CLR_HEADER.font;
-        ws[addr].s.alignment={horizontal:'center',vertical:'center',wrapText:true};
-      } else if(wsData[ri]&&wsData[ri]._deptRow){
-        // dept group row
-        ws[addr].s.fill=CLR_DEPT; ws[addr].s.font=CLR_DEPT.font;
-        if(ci===0) ws[addr].s.alignment={horizontal:'left',vertical:'center'};
-      } else {
-        // data rows
-        if(ci<3){
-          ws[addr].s.fill={fgColor:{rgb:'FFFFFF'}};
-          ws[addr].s.alignment={horizontal:ci===0?'center':'left',vertical:'center'};
-        } else {
-          var val=row[ci];
-          if(val==='เรียนแล้ว/สอบผ่าน')    { ws[addr].s.fill=CLR_PASS; ws[addr].s.font=CLR_PASS.font; }
-          else if(val==='เรียนแล้ว/สอบไม่ผ่าน'){ ws[addr].s.fill=CLR_FAIL; ws[addr].s.font=CLR_FAIL.font; }
-          else if(val==='ยังไม่ได้เรียน/สอบ')  { ws[addr].s.fill=CLR_NONE; ws[addr].s.font=CLR_NONE.font; }
-          else                               { ws[addr].s.fill=CLR_DASH; ws[addr].s.font=CLR_DASH.font; }
-        }
-      }
-    }
-  });
-
-  // ── Column widths ──
-  var cols=[{wch:10},{wch:22},{wch:10}];
-  mxSubjects.forEach(function(){ cols.push({wch:18}); });
-  ws['!cols']=cols;
-
-  // ── Row heights ──
-  var rows=sheetRows.map(function(_,i){return i===0?{hpt:36}:{hpt:22};});
-  ws['!rows']=rows;
-
-  // ── Freeze panes: แถวแรก + 3 คอลัมน์แรก ──
-  ws['!freeze']={xSplit:3, ySplit:1, topLeftCell:'D2', activeCell:'D2', state:'frozen'};
-
-  // ── Range ──
-  ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:sheetRows.length-1,c:colCount-1}});
-
-  XLSX.utils.book_append_sheet(wb,'Basic Knowledge Matrix');
-
-  // ── ชื่อไฟล์ ──
+  // ── download ──
   var today=new Date();
-  var fname='Matrix_BK_'+today.getDate()+''+String(today.getMonth()+1).padStart(2,'0')+(today.getFullYear()+543)+'.xlsx';
-  XLSX.writeFile(wb,fname,{bookType:'xlsx',type:'binary',cellStyles:true});
+  var fname='Matrix_BK_'+today.getDate()+''+String(today.getMonth()+1).padStart(2,'0')+(today.getFullYear()+543)+'.xls';
+  var blob=new Blob(['\uFEFF'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download=fname; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
 }
+
+// mxDoExport ไม่ใช้แล้ว (legacy stub)
+function mxDoExport(){}
 </script>
 </body>
 </html>
