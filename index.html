@@ -4745,23 +4745,29 @@ function bkBuildDeptMap(rows, specialIds){
   var iDeptID= h.indexOf('DeptID');
   var iEmpID = h.indexOf('EmpID');
   var iName  = h.indexOf('FullName');
+  var iDept  = h.indexOf('Dept');       // ← ชื่อเต็มฝ่าย
   if(iStat<0||iDeptID<0) return {deptMap:{},total:0};
   var map={}, total=0;
   bkEmpRows=[];
+  bkDeptFullMap={};   // DeptID → ชื่อเต็ม
   rows.slice(1).forEach(function(r){
     if(!r) return;
     var st=String(r[iStat]||'').trim();
     if(st!=='คงสภาพ') return;
     var empId=iEmpID>=0 ? String(r[iEmpID]||'').trim() : '';
-    // ── exclude special group ──
     if(empId && specialIds.has(empId)) return;
     total++;
     var deptId=String(r[iDeptID]||'').trim();
-    if(deptId) map[deptId]=(map[deptId]||0)+1;
+    var deptFull=iDept>=0 ? String(r[iDept]||'').trim() : deptId;
+    if(deptId){
+      map[deptId]=(map[deptId]||0)+1;
+      if(!bkDeptFullMap[deptId]) bkDeptFullMap[deptId]=deptFull||deptId;
+    }
     bkEmpRows.push({
-      empId : empId,
-      name  : iName>=0 ? String(r[iName]||'').trim() : '',
-      deptId: deptId
+      empId   : empId,
+      name    : iName>=0 ? String(r[iName]||'').trim() : '',
+      deptId  : deptId,
+      deptFull: bkDeptFullMap[deptId]||deptId
     });
   });
   return {deptMap:map,total:total};
@@ -5134,6 +5140,7 @@ let scFilteredRows = [];
 // bkEmpRows: รายชื่อพนักงานคงสภาพ [{empId, name, deptId}]
 // จะถูก populate ใน initBasicKnowledge ขณะ parse Employee Data
 var bkEmpRows = [];
+var bkDeptFullMap = {};   // DeptID → ชื่อเต็ม (Dept column)
 
 async function initBkScore(){
   if(scLoaded) return;
@@ -6707,15 +6714,16 @@ function mxRenderTable(){
   var html='';
   var prevDept='';
   mxFilteredRows.forEach(function(r){
+    var fullName = bkDeptFullMap[r.deptId]||r.deptId;
     // dept group header
     if(r.deptId!==prevDept){
       prevDept=r.deptId;
-      html+='<tr><td colspan="'+(3+mxSubjects.length)+'" style="background:var(--surface2);padding:5px 12px;font-size:11px;font-weight:600;color:var(--tos);">'+r.deptId+'</td></tr>';
+      html+='<tr><td colspan="'+(3+mxSubjects.length)+'" style="background:var(--surface2);padding:5px 12px;font-size:11px;font-weight:600;color:var(--tos);">'+fullName+'</td></tr>';
     }
     html+='<tr>'
       +'<td style="font-size:11px;color:var(--text2);padding:8px 12px;">'+r.empId+'</td>'
       +'<td style="font-size:13px;padding:8px 12px;">'+r.name+'</td>'
-      +'<td style="text-align:center;font-size:11px;color:var(--text2);padding:8px 12px;">'+r.deptId+'</td>';
+      +'<td style="text-align:center;font-size:11px;color:var(--text2);padding:8px 12px;">'+fullName+'</td>';
     mxSubjects.forEach(function(s){ html+=mxCellHtml(r.cells[s.code]||'—'); });
     html+='</tr>';
   });
@@ -6740,16 +6748,31 @@ function mxExportExcel(){
 }
 
 function mxDoExport(){
+  // font สี, พื้นหลังโปร่งใส (ไม่ใส่ fill) ยกเว้น HDR และ DEPT
+  var fPass={color:{rgb:'15803D'},bold:false,name:'Calibri',sz:11};
+  var fFail={color:{rgb:'B91C1C'},bold:false,name:'Calibri',sz:11};
+  var fNone={color:{rgb:'111827'},bold:false,name:'Calibri',sz:11};
+  var fDash={color:{rgb:'9CA3AF'},bold:false,name:'Calibri',sz:11};
+  var fHdr ={color:{rgb:'FFFFFF'},bold:true, name:'Calibri',sz:11};
+  var fDept={color:{rgb:'26274F'},bold:true, name:'Calibri',sz:11};
+  var fEmp ={color:{rgb:'111827'},bold:false,name:'Calibri',sz:11};
+  var fId  ={color:{rgb:'6B7280'},bold:false,name:'Calibri',sz:11};
+
+  var aCenter={horizontal:'center',vertical:'center'};
+  var aLeft  ={horizontal:'left',  vertical:'center'};
+  var aWrap  ={horizontal:'center',vertical:'center',wrapText:true};
+
+  // ── styles: HDR/DEPT มีพื้นหลัง, อื่น ๆ โปร่งใส ──
   var S={
-    PASS:{fill:{fgColor:{rgb:'DCFCE7'}},font:{color:{rgb:'15803D'},bold:false,name:'Calibri',sz:11},alignment:{horizontal:'center',vertical:'center'}},
-    FAIL:{fill:{fgColor:{rgb:'FEE2E2'}},font:{color:{rgb:'B91C1C'},bold:false,name:'Calibri',sz:11},alignment:{horizontal:'center',vertical:'center'}},
-    NONE:{fill:{fgColor:{rgb:'EDE9FE'}},font:{color:{rgb:'6D28D9'},bold:false,name:'Calibri',sz:11},alignment:{horizontal:'center',vertical:'center'}},
-    DASH:{fill:{fgColor:{rgb:'F9FAFB'}},font:{color:{rgb:'9CA3AF'},bold:false,name:'Calibri',sz:11},alignment:{horizontal:'center',vertical:'center'}},
-    HDR :{fill:{fgColor:{rgb:'26274F'}},font:{color:{rgb:'FFFFFF'},bold:true, name:'Calibri',sz:11},alignment:{horizontal:'center',vertical:'center',wrapText:true}},
-    DEPT:{fill:{fgColor:{rgb:'E8E8F4'}},font:{color:{rgb:'26274F'},bold:true, name:'Calibri',sz:11},alignment:{horizontal:'left',  vertical:'center'}},
-    EMP :{fill:{fgColor:{rgb:'FFFFFF'}},font:{color:{rgb:'111827'},bold:false,name:'Calibri',sz:11},alignment:{horizontal:'left',  vertical:'center'}},
-    ID  :{fill:{fgColor:{rgb:'FFFFFF'}},font:{color:{rgb:'6B7280'},bold:false,name:'Calibri',sz:11},alignment:{horizontal:'center',vertical:'center'}},
-    DC  :{fill:{fgColor:{rgb:'FFFFFF'}},font:{color:{rgb:'6B7280'},bold:false,name:'Calibri',sz:11},alignment:{horizontal:'center',vertical:'center'}}
+    HDR :{fill:{fgColor:{rgb:'26274F'}},font:fHdr, alignment:aWrap},
+    DEPT:{fill:{fgColor:{rgb:'E8E8F4'}},font:fDept,alignment:aLeft},
+    PASS:{font:fPass,alignment:aCenter},
+    FAIL:{font:fFail,alignment:aCenter},
+    NONE:{font:fNone,alignment:aCenter},
+    DASH:{font:fDash,alignment:aCenter},
+    EMP :{font:fEmp, alignment:aLeft},
+    ID  :{font:fId,  alignment:aCenter},
+    DC  :{font:fId,  alignment:aCenter}
   };
   function C(v,s){return{v:v,t:'s',s:s};}
 
@@ -6760,17 +6783,18 @@ function mxDoExport(){
   mxSubjects.forEach(function(s){hdr.push(C(s.code+'\n'+s.name,S.HDR));});
   wsData.push(hdr);
 
-  // data rows + track dept row indices for merge
+  // data rows
   var prevDept='', deptIdxs=[];
   mxFilteredRows.forEach(function(r){
+    var fullName=bkDeptFullMap[r.deptId]||r.deptId;
     if(r.deptId!==prevDept){
       prevDept=r.deptId;
-      var dRow=[C(r.deptId,S.DEPT)];
+      var dRow=[C(fullName,S.DEPT)];
       for(var i=1;i<colN;i++) dRow.push(C('',S.DEPT));
       deptIdxs.push(wsData.length);
       wsData.push(dRow);
     }
-    var row=[C(r.empId,S.ID),C(r.name,S.EMP),C(r.deptId,S.DC)];
+    var row=[C(r.empId,S.ID),C(r.name,S.EMP),C(fullName,S.DC)];
     mxSubjects.forEach(function(s){
       var v=r.cells[s.code]||'—';
       var st=v==='เรียนแล้ว/สอบผ่าน'?S.PASS:v==='เรียนแล้ว/สอบไม่ผ่าน'?S.FAIL:v==='ยังไม่ได้เรียน/สอบ'?S.NONE:S.DASH;
@@ -6780,7 +6804,7 @@ function mxDoExport(){
   });
 
   var ws=XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols']=[{wch:10},{wch:24},{wch:10}].concat(mxSubjects.map(function(){return{wch:18};}));
+  ws['!cols']=[{wch:10},{wch:24},{wch:22}].concat(mxSubjects.map(function(){return{wch:18};}));
   ws['!rows']=wsData.map(function(_,i){return{hpt:i===0?40:22};});
   ws['!freeze']={xSplit:3,ySplit:1,topLeftCell:'D2',activeCell:'D2',state:'frozen'};
   ws['!merges']=deptIdxs.map(function(ri){return{s:{r:ri,c:0},e:{r:ri,c:colN-1}};});
