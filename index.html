@@ -6729,90 +6729,70 @@ function mxRenderTable(){
   }
 }
 
-// ── Export .xlsx จริง ด้วย xlsx-js-style (รองรับ cellStyles) ──
+// ── Export .xls (HTML-based) พร้อมสีตามสถานะ ──
 function mxExportExcel(){
   if(!mxFilteredRows.length){ alert('ไม่มีข้อมูลที่จะ Export'); return; }
-  if(typeof XLSXStyle==='undefined'){ alert('xlsx-js-style ยังโหลดไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่'); return; }
+  if(typeof XLSX==='undefined'||!XLSX.style_version){
+    alert('xlsx-js-style ยังโหลดไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่'); return;
+  }
   try{ mxDoExport(); }
   catch(e){ console.error('Export error:',e); alert('Export ไม่สำเร็จ: '+e.message); }
 }
 
 function mxDoExport(){
-  var X = XLSXStyle;
-
-  // ── สี (ARGB ไม่มี #) ──
-  var S = {
-    PASS : { fill:{fgColor:{rgb:'DCFCE7'}}, font:{color:{rgb:'15803D'},bold:false}, alignment:{horizontal:'center',vertical:'center'} },
-    FAIL : { fill:{fgColor:{rgb:'FEE2E2'}}, font:{color:{rgb:'B91C1C'},bold:false}, alignment:{horizontal:'center',vertical:'center'} },
-    NONE : { fill:{fgColor:{rgb:'EDE9FE'}}, font:{color:{rgb:'6D28D9'},bold:false}, alignment:{horizontal:'center',vertical:'center'} },
-    DASH : { fill:{fgColor:{rgb:'F9FAFB'}}, font:{color:{rgb:'9CA3AF'},bold:false}, alignment:{horizontal:'center',vertical:'center'} },
-    HDR  : { fill:{fgColor:{rgb:'26274F'}}, font:{color:{rgb:'FFFFFF'},bold:true,sz:11}, alignment:{horizontal:'center',vertical:'center',wrapText:true} },
-    DEPT : { fill:{fgColor:{rgb:'E8E8F4'}}, font:{color:{rgb:'26274F'},bold:true,sz:11}, alignment:{horizontal:'left',vertical:'center'} },
-    EMP  : { fill:{fgColor:{rgb:'FFFFFF'}}, font:{color:{rgb:'111827'},bold:false}, alignment:{horizontal:'left',vertical:'center'} },
-    ID   : { fill:{fgColor:{rgb:'FFFFFF'}}, font:{color:{rgb:'6B7280'},bold:false}, alignment:{horizontal:'center',vertical:'center'} },
-    DEPT_C:{ fill:{fgColor:{rgb:'FFFFFF'}}, font:{color:{rgb:'6B7280'},bold:false}, alignment:{horizontal:'center',vertical:'center'} }
+  var S={
+    PASS:{fill:{fgColor:{rgb:'DCFCE7'}},font:{color:{rgb:'15803D'},bold:false,name:'Calibri',sz:11},alignment:{horizontal:'center',vertical:'center'}},
+    FAIL:{fill:{fgColor:{rgb:'FEE2E2'}},font:{color:{rgb:'B91C1C'},bold:false,name:'Calibri',sz:11},alignment:{horizontal:'center',vertical:'center'}},
+    NONE:{fill:{fgColor:{rgb:'EDE9FE'}},font:{color:{rgb:'6D28D9'},bold:false,name:'Calibri',sz:11},alignment:{horizontal:'center',vertical:'center'}},
+    DASH:{fill:{fgColor:{rgb:'F9FAFB'}},font:{color:{rgb:'9CA3AF'},bold:false,name:'Calibri',sz:11},alignment:{horizontal:'center',vertical:'center'}},
+    HDR :{fill:{fgColor:{rgb:'26274F'}},font:{color:{rgb:'FFFFFF'},bold:true, name:'Calibri',sz:11},alignment:{horizontal:'center',vertical:'center',wrapText:true}},
+    DEPT:{fill:{fgColor:{rgb:'E8E8F4'}},font:{color:{rgb:'26274F'},bold:true, name:'Calibri',sz:11},alignment:{horizontal:'left',  vertical:'center'}},
+    EMP :{fill:{fgColor:{rgb:'FFFFFF'}},font:{color:{rgb:'111827'},bold:false,name:'Calibri',sz:11},alignment:{horizontal:'left',  vertical:'center'}},
+    ID  :{fill:{fgColor:{rgb:'FFFFFF'}},font:{color:{rgb:'6B7280'},bold:false,name:'Calibri',sz:11},alignment:{horizontal:'center',vertical:'center'}},
+    DC  :{fill:{fgColor:{rgb:'FFFFFF'}},font:{color:{rgb:'6B7280'},bold:false,name:'Calibri',sz:11},alignment:{horizontal:'center',vertical:'center'}}
   };
+  function C(v,s){return{v:v,t:'s',s:s};}
 
-  function cell(v, s){ return {v:v, t:'s', s:s}; }
+  var colN=3+mxSubjects.length, wsData=[];
 
-  var wsData=[];
+  // header row
+  var hdr=[C('รหัส',S.HDR),C('ชื่อ',S.HDR),C('ฝ่าย',S.HDR)];
+  mxSubjects.forEach(function(s){hdr.push(C(s.code+'\n'+s.name,S.HDR));});
+  wsData.push(hdr);
 
-  // ── Header ──
-  var hdrRow=[cell('รหัส',S.HDR), cell('ชื่อ',S.HDR), cell('ฝ่าย',S.HDR)];
-  mxSubjects.forEach(function(s){ hdrRow.push(cell(s.code+'\n'+s.name, S.HDR)); });
-  wsData.push(hdrRow);
-
-  // ── Data ──
-  var colN = 3+mxSubjects.length;
-  var prevDept='';
+  // data rows + track dept row indices for merge
+  var prevDept='', deptIdxs=[];
   mxFilteredRows.forEach(function(r){
     if(r.deptId!==prevDept){
       prevDept=r.deptId;
-      var dRow=[cell(r.deptId, S.DEPT)];
-      for(var i=1;i<colN;i++) dRow.push(cell('', S.DEPT));
+      var dRow=[C(r.deptId,S.DEPT)];
+      for(var i=1;i<colN;i++) dRow.push(C('',S.DEPT));
+      deptIdxs.push(wsData.length);
       wsData.push(dRow);
     }
-    var row=[cell(r.empId,S.ID), cell(r.name,S.EMP), cell(r.deptId,S.DEPT_C)];
+    var row=[C(r.empId,S.ID),C(r.name,S.EMP),C(r.deptId,S.DC)];
     mxSubjects.forEach(function(s){
       var v=r.cells[s.code]||'—';
       var st=v==='เรียนแล้ว/สอบผ่าน'?S.PASS:v==='เรียนแล้ว/สอบไม่ผ่าน'?S.FAIL:v==='ยังไม่ได้เรียน/สอบ'?S.NONE:S.DASH;
-      row.push(cell(v,st));
+      row.push(C(v,st));
     });
     wsData.push(row);
   });
 
-  var ws = X.utils.aoa_to_sheet(wsData);
-
-  // ── Column widths ──
-  ws['!cols']=[{wch:10},{wch:24},{wch:10}].concat(mxSubjects.map(function(){return {wch:18};}));
-
-  // ── Row heights ──
-  ws['!rows']=wsData.map(function(_,i){return {hpt:i===0?40:22};});
-
-  // ── Freeze: row 1 + 3 cols ──
+  var ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=[{wch:10},{wch:24},{wch:10}].concat(mxSubjects.map(function(){return{wch:18};}));
+  ws['!rows']=wsData.map(function(_,i){return{hpt:i===0?40:22};});
   ws['!freeze']={xSplit:3,ySplit:1,topLeftCell:'D2',activeCell:'D2',state:'frozen'};
+  ws['!merges']=deptIdxs.map(function(ri){return{s:{r:ri,c:0},e:{r:ri,c:colN-1}};});
+  ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:wsData.length-1,c:colN-1}});
 
-  // ── Merge dept rows across all columns ──
-  ws['!merges']=[];
-  wsData.forEach(function(row,ri){
-    if(ri===0) return;
-    // ตรวจว่าเป็น dept row (col 1 ถึง colN-1 ว่างหมด)
-    var isDept=row.length===colN && row[1]&&row[1].v===''&&row[2]&&row[2].v==='';
-    if(isDept) ws['!merges'].push({s:{r:ri,c:0},e:{r:ri,c:colN-1}});
-  });
-
-  ws['!ref']=X.utils.encode_range({s:{r:0,c:0},e:{r:wsData.length-1,c:colN-1}});
-
-  var wb=X.utils.book_new();
-  X.utils.book_append_sheet(wb,ws,'BK Matrix');
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'BK Matrix');
 
   var today=new Date();
   var fname='Matrix_BK_'+today.getDate()+''+String(today.getMonth()+1).padStart(2,'0')+(today.getFullYear()+543)+'.xlsx';
-  X.writeFile(wb,fname,{bookType:'xlsx',type:'binary',cellStyles:true});
+  XLSX.writeFile(wb,fname,{bookType:'xlsx',type:'binary',cellStyles:true});
 }
-
-// stub ลบ legacy
-function _mxLegacy(){}
 </script>
 </body>
 </html>
