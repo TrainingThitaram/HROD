@@ -6591,9 +6591,8 @@ async function initBkMatrix(){
   if(errBox) errBox.style.display='none';
   try{
     // คัด subjects ที่ "เปิดสอน" และ "มีใน TR อย่างน้อย 1 record"
-    var bkNameSet=new Set(trRawData.map(function(r){return r.Course;}));
     mxSubjects=bkSubjects.filter(function(s){
-      return s.status==='เปิดสอน' && bkNameSet.has(s.name);
+      return s.status==='เปิดสอน';
     });
 
     // group score by empId+courseCode
