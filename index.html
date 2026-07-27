@@ -722,6 +722,31 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
     </div>
   </div>
 
+  <!-- ══ SIGNUP ATTENDEE LIST MODAL ══ -->
+  <div id="bk-signup-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:510;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;width:90%;max-width:560px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.18);">
+      <div style="padding:18px 24px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div>
+          <div id="bk-signup-modal-title" style="font-size:15px;font-weight:700;color:var(--tos);"></div>
+          <div id="bk-signup-modal-sub" style="font-size:12px;color:var(--text2);margin-top:3px;"></div>
+        </div>
+        <button onclick="bkCloseSignupModal()" style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>
+      </div>
+      <div style="overflow-y:auto;flex:1;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f8f9fc;border-bottom:1px solid var(--border);">
+              <th style="padding:9px 20px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);width:100px;">รหัส</th>
+              <th style="padding:9px 20px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);">ชื่อ-สกุล</th>
+              <th style="padding:9px 20px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);width:140px;">ฝ่าย</th>
+            </tr>
+          </thead>
+          <tbody id="bk-signup-modal-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- TAB: WELLEXP -->
   <div class="tab-content" id="tab-wellexp">
     <!-- SUB TABS -->
@@ -4551,6 +4576,19 @@ function bgToggleCourseRow(detailId, fy, co){
 const BK_FILE_ID  = '01M5SVO66A6TRLSSWGFJBIVB53HLJ2TJKV';
 const BK_DRIVE_ID = 'b!Q6WBRjNmxUaGpa_PVc_OmM7yWwkYrfVDpmT337_bHJWkYp3bLNpnSrWRpDky5-Tt';
 
+// ── ไฟล์ signup (แบบสำรวจ On-Boarding & Reskill Upskill) — site PeopleCultureHROD ──
+const SU_FILE_ID  = '01ZHOAZ7YTJYCNL2CDT5DYPGJHUTDLAIUN';
+const SU_DRIVE_ID = 'b!hpSZ9XeRUUeIAf1uFkTxOqp5Sh5aM9tPouZoPmxkeQdaheVOF-04Qofa29Q395sZ';
+
+// key: empId+'|'+subjectCode -> {dateObj,dateStr,timeStr,raw}
+var bkSignupByEmpSubject = {};
+// key: subjectCode+'|'+dateStr -> [{empId,name,deptId}, ...]
+var bkSignupBySubjectDate = {};
+// list ของ session ที่มีคนลง: [{code,dateObj,dateStr,timeStr,attendees:[...]}]
+var bkSignupSessions = [];
+
+var THAI_MONTH_ABBR = {'ม.ค.':0,'ก.พ.':1,'มี.ค.':2,'เม.ย.':3,'พ.ค.':4,'มิ.ย.':5,'ก.ค.':6,'ส.ค.':7,'ก.ย.':8,'ต.ค.':9,'พ.ย.':10,'ธ.ค.':11};
+
 // fiscal month keys: ต.ค.=10 → ก.ย.=09, ordered Oct→Sep
 const BK_MONTH_KEYS   = ['10','11','12','01','02','03','04','05','06','07','08','09'];
 const BK_MONTH_LABELS = ['ต.ค.','พ.ย.','ธ.ค.','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.'];
@@ -4590,6 +4628,80 @@ function bkFmtDate(d){
   return d.getDate()+' '+M[d.getMonth()]+' '+(d.getFullYear()+543);
 }
 
+// ══ SIGNUP MODULE HELPERS ══
+// เลือกปีที่ใกล้กับวันปัจจุบันที่สุด (เมื่อข้อมูลไม่มีปีระบุ)
+function bkNearestYearDate(day, monthIdx){
+  var today=new Date();
+  var candidates=[-1,0,1].map(function(off){ return new Date(today.getFullYear()+off, monthIdx, day); });
+  var best=candidates[0];
+  candidates.forEach(function(c){ if(Math.abs(c-today) < Math.abs(best-today)) best=c; });
+  return best;
+}
+
+// parse เซล signup: "13 ส.ค. / 09:00 - 12:00" → {dateObj,dateStr,timeStr}
+function bkParseSignupCell(raw){
+  var s=String(raw||'').trim();
+  if(!s || s==='ยังไม่ได้เรียน/สอบ') return null;
+  var parts=s.split('/');
+  if(parts.length<2) return null;
+  var datePart=parts[0].trim();
+  var timePart=parts.slice(1).join('/').trim();
+  var dm=datePart.split(/\s+/);
+  if(dm.length<2) return null;
+  var day=parseInt(dm[0],10);
+  var monthAbbr=dm[1];
+  if(isNaN(day) || !(monthAbbr in THAI_MONTH_ABBR)) return null;
+  var dateObj=bkNearestYearDate(day, THAI_MONTH_ABBR[monthAbbr]);
+  return { dateObj:dateObj, dateStr:bkFmtDate(dateObj), timeStr:timePart, raw:s };
+}
+
+// จับคู่ column header ของ Matrix_BK กับวิชาใน bkSubjects (code หรือ name)
+function bkMatchSubjectCol(headerText){
+  var h=String(headerText||'').trim();
+  if(!h) return null;
+  var found=bkSubjects.find(function(s){return s.code===h;});
+  if(found) return found.code;
+  found=bkSubjects.find(function(s){return s.name===h;});
+  if(found) return found.code;
+  found=bkSubjects.find(function(s){return h.indexOf(s.code)>=0 || h.indexOf(s.name)>=0;});
+  return found?found.code:null;
+}
+
+// parse ทั้งชีท Matrix_BK
+function bkParseSignupSheet(rows){
+  bkSignupByEmpSubject={};
+  bkSignupBySubjectDate={};
+  bkSignupSessions=[];
+  if(!rows||rows.length<2) return;
+  var hdr=rows[0];
+  var colMap={};   // colIdx -> subjectCode
+  for(var ci=3; ci<hdr.length; ci++){
+    var code=bkMatchSubjectCol(hdr[ci]);
+    if(code) colMap[ci]=code;
+  }
+  var sessionMap={};  // code|dateStr -> session obj
+  rows.slice(1).forEach(function(r){
+    if(!r) return;
+    var empId=String(r[0]||'').trim();
+    var name =String(r[1]||'').trim();
+    var dept =String(r[2]||'').trim();
+    if(!empId) return;
+    Object.keys(colMap).forEach(function(ciStr){
+      var ci=parseInt(ciStr,10);
+      var code=colMap[ci];
+      var parsed=bkParseSignupCell(r[ci]);
+      if(!parsed) return;
+      bkSignupByEmpSubject[empId+'|'+code]=parsed;
+      var sKey=code+'|'+parsed.dateStr;
+      if(!sessionMap[sKey]) sessionMap[sKey]={code:code,dateObj:parsed.dateObj,dateStr:parsed.dateStr,timeStr:parsed.timeStr,attendees:[]};
+      sessionMap[sKey].attendees.push({empId:empId,name:name,deptId:dept});
+      if(!bkSignupBySubjectDate[sKey]) bkSignupBySubjectDate[sKey]=[];
+      bkSignupBySubjectDate[sKey].push({empId:empId,name:name,deptId:dept});
+    });
+  });
+  bkSignupSessions=Object.keys(sessionMap).map(function(k){return sessionMap[k];});
+}
+
 // ══ INIT ══
 async function initBasicKnowledge(){
   if(bkLoaded) return;
@@ -4623,6 +4735,17 @@ async function initBasicKnowledge(){
     // 2) Plan sheet
     var planRows=await fetchSheet('Plan');
     bkPlanRows=bkParsePlanSheet(planRows);
+
+    // 2.5) Signup sheet (Matrix_BK) — ไฟล์แยก site PeopleCultureHROD, ไม่ critical ถ้าโหลดไม่ได้
+    try{
+      var suBase='https://graph.microsoft.com/v1.0/drives/'+SU_DRIVE_ID+'/items/'+SU_FILE_ID+'/workbook/worksheets';
+      var suSh=(await (await fetch(suBase,{headers:h})).json()).value||[];
+      var matSheet=suSh.find(function(s){return String(s.name||'').trim().toLowerCase()==='matrix_bk';});
+      if(matSheet){
+        var suRows=(await (await fetch(suBase+'/'+encodeURIComponent(matSheet.id)+'/usedRange',{headers:h})).json()).values||[];
+        bkParseSignupSheet(suRows);
+      }
+    }catch(suErr){ console.warn('โหลดข้อมูลลงทะเบียน (signup) ไม่สำเร็จ:', suErr); }
 
     // 3) Special group sheet — EmpID ที่ไม่นับในทุกการคำนวณ BK/Score
     var bkSpecialIds=new Set();
@@ -5055,10 +5178,68 @@ function bkCloseModal(){
   if(overlay) overlay.style.display='none';
 }
 
+// ══ Signup attendee-list modal ══
+function bkOpenSignupModal(code, dateStr){
+  var subj=bkSubjects.find(function(s){return s.code===code;});
+  var attendees=bkSignupBySubjectDate[code+'|'+dateStr]||[];
+
+  document.getElementById('bk-signup-modal-title').textContent=code+' — '+(subj?subj.name:code);
+  document.getElementById('bk-signup-modal-sub').textContent='วันที่ '+dateStr+' · ลงทะเบียนแล้ว '+attendees.length+' คน';
+
+  var tbody=document.getElementById('bk-signup-modal-tbody');
+  if(!attendees.length){
+    tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:30px;">ยังไม่มีพนักงานลงทะเบียนวันนี้</td></tr>';
+  } else {
+    tbody.innerHTML=attendees.map(function(a){
+      var fullDept=bkDeptFullMap[a.deptId]||a.deptId;
+      return '<tr style="border-bottom:1px solid var(--border);">'
+        +'<td style="padding:9px 20px;color:var(--text2);font-size:12px;">'+a.empId+'</td>'
+        +'<td style="padding:9px 20px;font-size:13px;">'+a.name+'</td>'
+        +'<td style="padding:9px 20px;font-size:12px;color:var(--text2);">'+fullDept+'</td>'
+      +'</tr>';
+    }).join('');
+  }
+
+  var overlay=document.getElementById('bk-signup-modal-overlay');
+  overlay.style.display='flex';
+  overlay.onclick=function(e){ if(e.target===overlay) bkCloseSignupModal(); };
+}
+
+function bkCloseSignupModal(){
+  var overlay=document.getElementById('bk-signup-modal-overlay');
+  if(overlay) overlay.style.display='none';
+}
+
 // ══ แผนถัดไป แบ่งตามเดือน ══
 function bkRenderPlanGrouped(futurePlan,fyVal){
   var container=document.getElementById('bk-plan-container'); if(!container) return;
-  if(!futurePlan.length){
+
+  var today=new Date();
+
+  // ── รวมวันที่จาก signup ที่ยังไม่มีอยู่ใน Plan sheet เดิม (เฉพาะอนาคต + FY เดียวกัน) ──
+  var existingKeys=new Set(futurePlan.map(function(r){return r.code+'|'+r.dateStr;}));
+  var extraRows=[];
+  bkSignupSessions.forEach(function(sess){
+    if(sess.dateObj<=today) return;
+    if(bkFY(sess.dateObj)!==fyVal) return;
+    var key=sess.code+'|'+sess.dateStr;
+    if(existingKeys.has(key)) return;
+    var subj=bkSubjects.find(function(s){return s.code===sess.code;});
+    extraRows.push({
+      code:sess.code,
+      name:subj?subj.name:sess.code,
+      monthKey:bkMK(sess.dateObj),
+      dateObj:sess.dateObj,
+      dateStr:sess.dateStr,
+      fiscalYear:fyVal,
+      isNew:true
+    });
+  });
+
+  var allRows=futurePlan.concat(extraRows);
+  allRows.sort(function(a,b){return a.dateObj-b.dateObj;});
+
+  if(!allRows.length){
     container.innerHTML='<div class="table-card" style="padding:30px;text-align:center;color:var(--text3);">ไม่มีแผนการสอนที่ยังไม่ถึงกำหนด</div>';
     return;
   }
@@ -5066,8 +5247,7 @@ function bkRenderPlanGrouped(futurePlan,fyVal){
   // จัดกลุ่มตาม monthKey+year
   var groups={};
   var groupOrder=[];
-  futurePlan.forEach(function(r){
-    // key = year+'-'+monthKey  เพื่อ sort ถูก
+  allRows.forEach(function(r){
     var gk=String(r.dateObj.getFullYear())+'-'+r.monthKey;
     if(!groups[gk]){
       groups[gk]={key:gk,mk:r.monthKey,year:r.dateObj.getFullYear(),rows:[]};
@@ -5076,7 +5256,6 @@ function bkRenderPlanGrouped(futurePlan,fyVal){
     groups[gk].rows.push(r);
   });
 
-  var today=new Date();
   var html=groupOrder.map(function(gk){
     var g=groups[gk];
     var monthName=BK_MONTH_FULL[g.mk]||g.mk;
@@ -5090,24 +5269,34 @@ function bkRenderPlanGrouped(futurePlan,fyVal){
           ?'<span style="padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#fffbeb;color:#b45309;margin-left:6px;">อีก '+daysLeft+' วัน</span>'
           :'';
 
+      var newBadge=r.isNew
+        ?'<span style="padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#fef3c7;color:#92400e;margin-left:6px;">ใหม่ — จากพนักงานลงทะเบียน</span>'
+        :'';
+
       // dot: เปิดสอน=เขียว, ระหว่างจัดทำ=เหลือง
-      var subj=bkSubjects.find(function(s){return s.name===r.name;});
+      var subj=bkSubjects.find(function(s){return s.code===r.code;});
       var dotColor=subj&&subj.status==='เปิดสอน'?'#16a34a':'#f59e0b';
 
-      return '<tr>'
+      // จำนวนคนลงทะเบียนวันนี้
+      var attendees=bkSignupBySubjectDate[r.code+'|'+r.dateStr]||[];
+      var attBtn='<button onclick="bkOpenSignupModal(\''+r.code+'\',\''+r.dateStr+'\')" '
+        +'style="padding:3px 10px;border-radius:7px;border:1px solid var(--tos);background:rgba(38,39,111,.06);'
+        +'color:var(--tos);font-family:\'Sarabun\',sans-serif;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">'
+        +'👥 ดูรายชื่อ ('+attendees.length+')</button>';
+
+      return '<tr'+(r.isNew?' style="background:#fffbeb;"':'')+'>'
         +'<td style="font-size:13px;color:var(--text2);white-space:nowrap;">'+r.dateStr+urgBadge+'</td>'
         +'<td style="font-weight:700;color:var(--tos);font-size:13px;white-space:nowrap;">'+r.code+'</td>'
         +'<td style="font-size:13px;">'
         +'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+dotColor+';margin-right:6px;vertical-align:middle;"></span>'
-        +r.name+'</td>'
+        +r.name+newBadge+'</td>'
+        +'<td style="text-align:center;">'+attBtn+'</td>'
       +'</tr>';
     }).join('');
 
     return '<div style="margin-bottom:20px;">'
-      // header เดือน
       +'<div style="font-size:13px;font-weight:700;color:var(--tos);margin-bottom:8px;">'
       +'เดือน '+monthName+' '+yearBE+'</div>'
-      // ตาราง 3 คอลัมน์
       +'<div class="table-card">'
       +'<div class="table-wrap">'
       +'<table>'
@@ -5115,6 +5304,7 @@ function bkRenderPlanGrouped(futurePlan,fyVal){
       +'<th style="width:160px;">วันที่</th>'
       +'<th style="width:90px;">รหัส</th>'
       +'<th>ชื่อหลักสูตร</th>'
+      +'<th style="width:150px;">ผู้ลงทะเบียน</th>'
       +'</tr></thead>'
       +'<tbody>'+rowsHtml+'</tbody>'
       +'</table>'
@@ -6611,6 +6801,7 @@ async function initBkMatrix(){
     // build row per employee
     mxAllRows=bkEmpRows.map(function(emp){
       var cells={};
+      var signup={};
       mxSubjects.forEach(function(s){
         if(!s.deptFlags[emp.deptId]){
           cells[s.code]='—';   // ไม่ต้องเรียน
@@ -6619,12 +6810,15 @@ async function initBkMatrix(){
         var sd=scoreMap[emp.empId]&&scoreMap[emp.empId][s.code];
         if(!sd){
           cells[s.code]='ยังไม่ได้เรียน/สอบ';
+          // ── ถ้ายังไม่ได้สอบ แต่มีการลงทะเบียนวันเรียนไว้แล้ว ──
+          var su=bkSignupByEmpSubject[emp.empId+'|'+s.code];
+          if(su) signup[s.code]=su;
           return;
         }
         var tot=sd.total||20;
         cells[s.code]=sd.max/tot>=SC_PASS_PCT?'เรียนแล้ว/สอบผ่าน':'เรียนแล้ว/สอบไม่ผ่าน';
       });
-      return {empId:emp.empId, name:emp.name, deptId:emp.deptId, cells:cells};
+      return {empId:emp.empId, name:emp.name, deptId:emp.deptId, cells:cells, signup:signup};
     });
 
     // sort by dept then name
@@ -6693,13 +6887,16 @@ function mxApplyFilter(){
   mxRenderTable();
 }
 
-function mxCellHtml(val){
+function mxCellHtml(val, signupInfo){
   if(val==='—') return '<td style="text-align:center;color:var(--text3);padding:7px 8px;">—</td>';
   if(val==='เรียนแล้ว/สอบผ่าน')
     return '<td style="text-align:center;padding:7px 8px;"><span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:#f0fdf4;color:#15803d;white-space:nowrap;">เรียนแล้ว/สอบผ่าน</span></td>';
   if(val==='เรียนแล้ว/สอบไม่ผ่าน')
     return '<td style="text-align:center;padding:7px 8px;"><span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:#fef2f2;color:#b91c1c;white-space:nowrap;">เรียนแล้ว/สอบไม่ผ่าน</span></td>';
-  // ยังไม่ได้เรียน/สอบ
+  // ยังไม่ได้เรียน/สอบ — แต่ถ้ามีลงทะเบียนวันเรียนไว้แล้ว ให้แสดงวันที่แทน
+  if(signupInfo){
+    return '<td style="text-align:center;padding:7px 8px;"><span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;white-space:nowrap;">📅 '+signupInfo.dateStr+' / '+signupInfo.timeStr+'</span></td>';
+  }
   return '<td style="text-align:center;padding:7px 8px;"><span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:var(--surface2);color:var(--text2);white-space:nowrap;">ยังไม่ได้เรียน/สอบ</span></td>';
 }
 
@@ -6723,7 +6920,7 @@ function mxRenderTable(){
       +'<td style="font-size:11px;color:var(--text2);padding:8px 12px;">'+r.empId+'</td>'
       +'<td style="font-size:13px;padding:8px 12px;">'+r.name+'</td>'
       +'<td style="text-align:center;font-size:11px;color:var(--text2);padding:8px 12px;">'+fullName+'</td>';
-    mxSubjects.forEach(function(s){ html+=mxCellHtml(r.cells[s.code]||'—'); });
+    mxSubjects.forEach(function(s){ html+=mxCellHtml(r.cells[s.code]||'—', r.signup&&r.signup[s.code]); });
     html+='</tr>';
   });
   tbody.innerHTML=html;
@@ -6752,6 +6949,7 @@ function mxDoExport(){
   var fFail={color:{rgb:'B91C1C'},bold:false,name:'Calibri',sz:11};
   var fNone={color:{rgb:'111827'},bold:false,name:'Calibri',sz:11};
   var fDash={color:{rgb:'9CA3AF'},bold:false,name:'Calibri',sz:11};
+  var fSignup={color:{rgb:'1D4ED8'},bold:false,name:'Calibri',sz:11};
   var fHdr ={color:{rgb:'FFFFFF'},bold:true, name:'Calibri',sz:11};
   var fDept={color:{rgb:'26274F'},bold:true, name:'Calibri',sz:11};
   var fEmp ={color:{rgb:'111827'},bold:false,name:'Calibri',sz:11};
@@ -6763,15 +6961,16 @@ function mxDoExport(){
 
   // ── styles: HDR/DEPT มีพื้นหลัง, อื่น ๆ โปร่งใส ──
   var S={
-    HDR :{fill:{fgColor:{rgb:'26274F'}},font:fHdr, alignment:aWrap},
-    DEPT:{fill:{fgColor:{rgb:'E8E8F4'}},font:fDept,alignment:aLeft},
-    PASS:{font:fPass,alignment:aCenter},
-    FAIL:{font:fFail,alignment:aCenter},
-    NONE:{font:fNone,alignment:aCenter},
-    DASH:{font:fDash,alignment:aCenter},
-    EMP :{font:fEmp, alignment:aLeft},
-    ID  :{font:fId,  alignment:aCenter},
-    DC  :{font:fId,  alignment:aCenter}
+    HDR   :{fill:{fgColor:{rgb:'26274F'}},font:fHdr, alignment:aWrap},
+    DEPT  :{fill:{fgColor:{rgb:'E8E8F4'}},font:fDept,alignment:aLeft},
+    PASS  :{font:fPass,alignment:aCenter},
+    FAIL  :{font:fFail,alignment:aCenter},
+    NONE  :{font:fNone,alignment:aCenter},
+    DASH  :{font:fDash,alignment:aCenter},
+    SIGNUP:{font:fSignup,alignment:aCenter},
+    EMP   :{font:fEmp, alignment:aLeft},
+    ID    :{font:fId,  alignment:aCenter},
+    DC    :{font:fId,  alignment:aCenter}
   };
   function C(v,s){return{v:v,t:'s',s:s};}
 
@@ -6796,6 +6995,11 @@ function mxDoExport(){
     var row=[C(r.empId,S.ID),C(r.name,S.EMP),C(fullName,S.DC)];
     mxSubjects.forEach(function(s){
       var v=r.cells[s.code]||'—';
+      if(v==='ยังไม่ได้เรียน/สอบ' && r.signup && r.signup[s.code]){
+        var su=r.signup[s.code];
+        row.push(C('📅 '+su.dateStr+' / '+su.timeStr, S.SIGNUP));
+        return;
+      }
       var st=v==='เรียนแล้ว/สอบผ่าน'?S.PASS:v==='เรียนแล้ว/สอบไม่ผ่าน'?S.FAIL:v==='ยังไม่ได้เรียน/สอบ'?S.NONE:S.DASH;
       row.push(C(v,st));
     });
