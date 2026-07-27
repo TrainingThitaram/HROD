@@ -4580,14 +4580,36 @@ const BK_DRIVE_ID = 'b!Q6WBRjNmxUaGpa_PVc_OmM7yWwkYrfVDpmT337_bHJWkYp3bLNpnSrWRp
 const SU_FILE_ID  = '01ZHOAZ7YTJYCNL2CDT5DYPGJHUTDLAIUN';
 const SU_DRIVE_ID = 'b!hpSZ9XeRUUeIAf1uFkTxOqp5Sh5aM9tPouZoPmxkeQdaheVOF-04Qofa29Q395sZ';
 
-// key: empId+'|'+subjectCode -> {dateObj,dateStr,timeStr,raw}
+// key: empId+'|'+subjectCode -> {dateObj,dateStr,timeStr,modes,raw}
 var bkSignupByEmpSubject = {};
 // key: subjectCode+'|'+dateStr -> [{empId,name,deptId}, ...]
 var bkSignupBySubjectDate = {};
-// list ของ session ที่มีคนลง: [{code,dateObj,dateStr,timeStr,attendees:[...]}]
+// key: subjectCode+'|'+dateStr -> {code,dateObj,dateStr,timeStr,modes:[...],attendees:[...]}
+var bkSignupSessionMap = {};
+// list ของ session ที่มีคนลง: [{code,dateObj,dateStr,timeStr,modes,attendees:[...]}]
 var bkSignupSessions = [];
 
 var THAI_MONTH_ABBR = {'ม.ค.':0,'ก.พ.':1,'มี.ค.':2,'เม.ย.':3,'พ.ค.':4,'มิ.ย.':5,'ก.ค.':6,'ส.ค.':7,'ก.ย.':8,'ต.ค.':9,'พ.ย.':10,'ธ.ค.':11};
+
+// ── แสดง chip รูปแบบการจัด (Online / On-site / ทั้งสอง) — ใช้สีชุดเดียวกับ Coverage table ──
+function bkModeChipsFromList(modes){
+  if(!modes || !modes.length) return '<span style="color:var(--text3);font-size:12px;">—</span>';
+  return modes.map(function(m){
+    var ml=m.toLowerCase();
+    var style,icon;
+    if(ml.includes('online')){
+      style='background:#eff6ff;color:#1d4ed8;'; icon='💻 ';
+    } else if(ml.includes('on-site')||ml.includes('onsite')){
+      style='background:#fdf4ff;color:#7e22ce;'; icon='📍 ';
+    } else if(ml.includes('self')){
+      style='background:#f0fdf4;color:#15803d;'; icon='📖 ';
+    } else {
+      style='background:var(--surface2);color:var(--text2);'; icon='';
+    }
+    return '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;'
+      +'font-size:11px;font-weight:500;white-space:nowrap;margin:1px 2px 1px 0;'+style+'">'+icon+m+'</span>';
+  }).join('');
+}
 
 // fiscal month keys: ต.ค.=10 → ก.ย.=09, ordered Oct→Sep
 const BK_MONTH_KEYS   = ['10','11','12','01','02','03','04','05','06','07','08','09'];
@@ -4638,21 +4660,23 @@ function bkNearestYearDate(day, monthIdx){
   return best;
 }
 
-// parse เซล signup: "13 ส.ค. / 09:00 - 12:00" → {dateObj,dateStr,timeStr}
+// parse เซล signup: "6 ส.ค. / 15:00 - 17:00 / Online&On-site" → {dateObj,dateStr,timeStr,modes}
 function bkParseSignupCell(raw){
   var s=String(raw||'').trim();
   if(!s || s==='ยังไม่ได้เรียน/สอบ') return null;
   var parts=s.split('/');
   if(parts.length<2) return null;
   var datePart=parts[0].trim();
-  var timePart=parts.slice(1).join('/').trim();
+  var timePart=parts[1].trim();
+  var modePart=parts.length>=3 ? parts.slice(2).join('/').trim() : '';
   var dm=datePart.split(/\s+/);
   if(dm.length<2) return null;
   var day=parseInt(dm[0],10);
   var monthAbbr=dm[1];
   if(isNaN(day) || !(monthAbbr in THAI_MONTH_ABBR)) return null;
   var dateObj=bkNearestYearDate(day, THAI_MONTH_ABBR[monthAbbr]);
-  return { dateObj:dateObj, dateStr:bkFmtDate(dateObj), timeStr:timePart, raw:s };
+  var modes=modePart ? modePart.split('&').map(function(m){return m.trim();}).filter(Boolean) : [];
+  return { dateObj:dateObj, dateStr:bkFmtDate(dateObj), timeStr:timePart, modes:modes, raw:s };
 }
 
 // จับคู่ column header ของ Matrix_BK กับวิชาใน bkSubjects (code หรือ name)
@@ -4671,6 +4695,7 @@ function bkMatchSubjectCol(headerText){
 function bkParseSignupSheet(rows){
   bkSignupByEmpSubject={};
   bkSignupBySubjectDate={};
+  bkSignupSessionMap={};
   bkSignupSessions=[];
   if(!rows||rows.length<2) return;
   var hdr=rows[0];
@@ -4679,7 +4704,7 @@ function bkParseSignupSheet(rows){
     var code=bkMatchSubjectCol(hdr[ci]);
     if(code) colMap[ci]=code;
   }
-  var sessionMap={};  // code|dateStr -> session obj
+  var sessionMap={};  // code|dateStr -> session obj (modes เป็น Set ระหว่างประมวลผล)
   rows.slice(1).forEach(function(r){
     if(!r) return;
     var empId=String(r[0]||'').trim();
@@ -4693,12 +4718,18 @@ function bkParseSignupSheet(rows){
       if(!parsed) return;
       bkSignupByEmpSubject[empId+'|'+code]=parsed;
       var sKey=code+'|'+parsed.dateStr;
-      if(!sessionMap[sKey]) sessionMap[sKey]={code:code,dateObj:parsed.dateObj,dateStr:parsed.dateStr,timeStr:parsed.timeStr,attendees:[]};
+      if(!sessionMap[sKey]) sessionMap[sKey]={code:code,dateObj:parsed.dateObj,dateStr:parsed.dateStr,timeStr:parsed.timeStr,modes:new Set(),attendees:[]};
+      parsed.modes.forEach(function(m){ sessionMap[sKey].modes.add(m); });
       sessionMap[sKey].attendees.push({empId:empId,name:name,deptId:dept});
       if(!bkSignupBySubjectDate[sKey]) bkSignupBySubjectDate[sKey]=[];
       bkSignupBySubjectDate[sKey].push({empId:empId,name:name,deptId:dept});
     });
   });
+  // แปลง modes Set → Array แล้ว expose ทั้ง map และ array
+  Object.keys(sessionMap).forEach(function(k){
+    sessionMap[k].modes=Array.from(sessionMap[k].modes);
+  });
+  bkSignupSessionMap=sessionMap;
   bkSignupSessions=Object.keys(sessionMap).map(function(k){return sessionMap[k];});
 }
 
@@ -5277,8 +5308,11 @@ function bkRenderPlanGrouped(futurePlan,fyVal){
       var subj=bkSubjects.find(function(s){return s.code===r.code;});
       var dotColor=subj&&subj.status==='เปิดสอน'?'#16a34a':'#f59e0b';
 
-      // จำนวนคนลงทะเบียนวันนี้
-      var attendees=bkSignupBySubjectDate[r.code+'|'+r.dateStr]||[];
+      // จำนวนคนลงทะเบียนวันนี้ + รูปแบบการจัด
+      var sessKey=r.code+'|'+r.dateStr;
+      var attendees=bkSignupBySubjectDate[sessKey]||[];
+      var sessInfo=bkSignupSessionMap[sessKey];
+      var modeCell=bkModeChipsFromList(sessInfo?sessInfo.modes:[]);
       var attBtn='<button onclick="bkOpenSignupModal(\''+r.code+'\',\''+r.dateStr+'\')" '
         +'style="padding:3px 10px;border-radius:7px;border:1px solid var(--tos);background:rgba(38,39,111,.06);'
         +'color:var(--tos);font-family:\'Sarabun\',sans-serif;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">'
@@ -5290,6 +5324,7 @@ function bkRenderPlanGrouped(futurePlan,fyVal){
         +'<td style="font-size:13px;">'
         +'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+dotColor+';margin-right:6px;vertical-align:middle;"></span>'
         +r.name+newBadge+'</td>'
+        +'<td>'+modeCell+'</td>'
         +'<td style="text-align:center;">'+attBtn+'</td>'
       +'</tr>';
     }).join('');
@@ -5304,6 +5339,7 @@ function bkRenderPlanGrouped(futurePlan,fyVal){
       +'<th style="width:160px;">วันที่</th>'
       +'<th style="width:90px;">รหัส</th>'
       +'<th>ชื่อหลักสูตร</th>'
+      +'<th style="width:170px;">รูปแบบ</th>'
       +'<th style="width:150px;">ผู้ลงทะเบียน</th>'
       +'</tr></thead>'
       +'<tbody>'+rowsHtml+'</tbody>'
