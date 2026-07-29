@@ -1569,7 +1569,7 @@ async function graphJson(url, headers){
 // แสดงข้อความ error ใน error-box — ถ้าเป็นปัญหาสิทธิ์ ให้แสดงข้อความสั้นตรงประเด็น
 function showLoadError(errBox, e){
   if(!errBox) return;
-  var msg = (e && e.message===NO_ACCESS_MSG) ? NO_ACCESS_MSG : ('โหลดข้อมูลไม่สำเร็จ: '+(e&&e.message||e));
+  var msg = (e && e.message===NO_ACCESS_MSG) ? NO_ACCESS_MSG : ('คุณไม่มีสิทธิ์เข้าถึงข้อมูล: '+(e&&e.message||e));
   errBox.textContent = msg;
   errBox.style.display='block';
 }
@@ -1608,7 +1608,7 @@ async function loadData(){
     parseData();
     document.getElementById('last-updated').textContent='อัปเดต: '+new Date().toLocaleTimeString('th-TH');
   }catch(e){
-    showError(e.message===NO_ACCESS_MSG ? NO_ACCESS_MSG : ('โหลดข้อมูลไม่สำเร็จ: '+e.message));
+    showError(e.message===NO_ACCESS_MSG ? NO_ACCESS_MSG : ('คุณไม่มีสิทธิ์เข้าถึงข้อมูล: '+e.message));
     console.error(e);
   }
   setLoading(false);
