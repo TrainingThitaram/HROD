@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
-console.log('%cHROD Dashboard — BUILD ver53', 'color:#26274F;font-weight:bold;font-size:14px;');
+console.log('%cHROD Dashboard — BUILD ver54', 'color:#26274F;font-weight:bold;font-size:14px;');
 (function(){
   function loadMsal(src, fallback){
     var s = document.createElement('script');
@@ -200,7 +200,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
     <div class="header-left">
       <div class="header-logo">HR</div>
       <div><div class="header-title">HROD Dashboard</div><div class="header-sub">ThitaramGroup</div></div>
-      <span style="margin-left:14px;padding:3px 10px;border-radius:20px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;letter-spacing:.02em;">BUILD ver53</span>
+      <span style="margin-left:14px;padding:3px 10px;border-radius:20px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;letter-spacing:.02em;">BUILD ver54</span>
     </div>
     <div class="header-right">
       <span id="last-updated" style="font-size:11px;color:var(--text3)"></span>
@@ -7072,7 +7072,7 @@ function mxDoExport(){
       var v=r.cells[s.code]||'—';
       if(v==='ยังไม่ได้เรียน/สอบ' && r.signup && r.signup[s.code]){
         var su=r.signup[s.code];
-        row.push(C('📅 '+su.dateStr+' / '+su.timeStr, S.SIGNUP));
+        row.push(C(su.dateStr+' / '+su.timeStr, S.SIGNUP));
         return;
       }
       var st=v==='เรียนแล้ว/สอบผ่าน'?S.PASS:v==='เรียนแล้ว/สอบไม่ผ่าน'?S.FAIL:v==='ยังไม่ได้เรียน/สอบ'?S.NONE:S.DASH;
