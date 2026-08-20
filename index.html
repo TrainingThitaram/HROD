@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
-console.log('%cHROD Dashboard — BUILD ver54', 'color:#26274F;font-weight:bold;font-size:14px;');
+console.log('%cHROD Dashboard — BUILD ver55', 'color:#26274F;font-weight:bold;font-size:14px;');
 (function(){
   function loadMsal(src, fallback){
     var s = document.createElement('script');
@@ -200,7 +200,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
     <div class="header-left">
       <div class="header-logo">HR</div>
       <div><div class="header-title">HROD Dashboard</div><div class="header-sub">ThitaramGroup</div></div>
-      <span style="margin-left:14px;padding:3px 10px;border-radius:20px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;letter-spacing:.02em;">BUILD ver54</span>
+      <span style="margin-left:14px;padding:3px 10px;border-radius:20px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;letter-spacing:.02em;">BUILD ver55</span>
     </div>
     <div class="header-right">
       <span id="last-updated" style="font-size:11px;color:var(--text3)"></span>
@@ -321,6 +321,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
       <button class="tab-btn"        id="tr-btn-basic"   onclick="switchTrainingTab(event,'basic');initBasicKnowledge();"   style="font-size:13px;padding:10px 18px;">&#128218; Basic Knowledge</button>
       <button class="tab-btn"        id="tr-btn-score"   onclick="switchTrainingTab(event,'score');initBkScore();"          style="font-size:13px;padding:10px 18px;">&#127942; Score</button>
       <button class="tab-btn"        id="tr-btn-matrix"  onclick="switchTrainingTab(event,'matrix');initBkMatrix();"         style="font-size:13px;padding:10px 18px;">&#128203; รายงานตาราง</button>
+      <button class="tab-btn"        id="tr-btn-pe"       onclick="switchTrainingTab(event,'pe');initProbationEval();"       style="font-size:13px;padding:10px 18px;">&#129514; ประเมินทดลองงาน</button>
     </div>
     <!-- Training Record -->
     <div id="tr-subtab-record">
@@ -692,6 +693,56 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
           </table>
         </div>
         <div id="mx-footer" style="padding:10px 16px;background:var(--surface2);border-top:1px solid var(--border);font-size:12px;color:var(--text2);display:flex;justify-content:space-between;"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ PROBATION EVALUATION SUB-TAB ══ -->
+  <div id="tr-subtab-pe" style="display:none;">
+    <div class="content">
+      <div class="error-box" id="pe-error-box"></div>
+
+      <div class="section-title">ประเมินทดลองงาน</div>
+
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;color:var(--text2);font-weight:500;">ขอบเขต</span>
+          <select id="pe-scope-select" onchange="peOnScopeChange()" style="padding:7px 10px;border:1px solid var(--border);border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);cursor:pointer;min-width:220px;">
+            <option value="probation">ทดลองงาน (อายุงาน ≤ 120 วัน)</option>
+            <option value="all">พนักงานทั้งหมด</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;color:var(--text2);font-weight:500;">พนักงาน</span>
+          <select id="pe-emp-select" onchange="peOnEmpChange()" style="padding:7px 10px;border:1px solid var(--border);border-radius:9px;font-family:'Sarabun',sans-serif;font-size:13px;color:var(--text);background:var(--surface);cursor:pointer;min-width:220px;"></select>
+        </div>
+      </div>
+
+      <div id="pe-info-card" style="background:var(--surface2);border-radius:12px;padding:16px 20px;margin-bottom:20px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+        <div><div style="font-size:12px;color:var(--text2);margin-bottom:4px;">ฝ่าย</div><div id="pe-info-dept" style="font-size:14px;font-weight:500;">—</div></div>
+        <div><div style="font-size:12px;color:var(--text2);margin-bottom:4px;">วันเริ่มงาน</div><div id="pe-info-start" style="font-size:14px;font-weight:500;">—</div></div>
+        <div><div style="font-size:12px;color:var(--text2);margin-bottom:4px;">อายุงาน</div><div id="pe-info-tenure" style="font-size:14px;font-weight:500;">—</div></div>
+        <div><div style="font-size:12px;color:var(--text2);margin-bottom:4px;">สถานะ</div><div id="pe-info-status" style="font-size:14px;font-weight:500;">—</div></div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>วิชา</th>
+                <th style="width:100px;text-align:center;">คะแนนต่ำสุด</th>
+                <th style="width:100px;text-align:center;">คะแนนสูงสุด</th>
+                <th style="width:100px;text-align:center;">ครั้งที่สอบ</th>
+                <th style="width:130px;text-align:center;">% (จากคะแนนต่ำสุด)</th>
+              </tr>
+            </thead>
+            <tbody id="pe-tbody">
+              <tr><td colspan="5" style="text-align:center;color:var(--text3);padding:40px;">กำลังโหลดข้อมูล...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
     </div>
@@ -2538,7 +2589,7 @@ function renderDsdMatrix() {
 function switchTrainingTab(e, name) {
   document.querySelectorAll('[id^="tr-btn-"]').forEach(function(b){b.classList.remove('active');});
   e.currentTarget.classList.add('active');
-  ['record','budget','basic','score','matrix'].forEach(function(n){
+  ['record','budget','basic','score','matrix','pe'].forEach(function(n){
     var el=document.getElementById('tr-subtab-'+n);
     if(el) el.style.display=n===name?'':'none';
   });
@@ -7094,6 +7145,162 @@ function mxDoExport(){
   var today=new Date();
   var fname='Matrix_BK_'+today.getDate()+''+String(today.getMonth()+1).padStart(2,'0')+(today.getFullYear()+543)+'.xlsx';
   XLSX.writeFile(wb,fname,{bookType:'xlsx',type:'binary',cellStyles:true});
+}
+
+// ══════════════════════════════════════════════════════
+// PROBATION EVALUATION MODULE — ประเมินทดลองงาน
+// ══════════════════════════════════════════════════════
+var peLoaded   = false;
+var peEmpRows  = [];   // [{empId,name,deptId,deptFull,startDate,tenureDays}]
+
+async function initProbationEval(){
+  if(peLoaded) return;
+  await initBkScore();   // chain: โหลด BK + Employee + Training Record + Score CSV ให้ครบ
+  setLoading(true);
+  var errBox=document.getElementById('pe-error-box');
+  if(errBox) errBox.style.display='none';
+  try{
+    var tok=await getToken(); if(!tok) throw new Error('ไม่มี Token');
+    var h={Authorization:'Bearer '+tok};
+
+    // ดึง StartDate ของพนักงานทุกคน (Employee Data)
+    var ocBase='https://graph.microsoft.com/v1.0/drives/'+OC_DRIVE_ID+'/items/'+OC_FILE_ID+'/workbook/worksheets';
+    var s2=(await graphJson(ocBase,h)).value||[];
+    var empSh=s2.find(function(s){return s.name==='Employees';});
+    var startMap={};
+    if(empSh){
+      var eRows=(await graphJson(ocBase+'/'+encodeURIComponent(empSh.id)+'/usedRange',h)).values||[];
+      var hdr=(eRows[0]||[]).map(function(c){return String(c||'').trim();});
+      var iId=hdr.indexOf('EmpID');
+      var iStart=hdr.indexOf('StartDate');
+      if(iId>=0 && iStart>=0){
+        eRows.slice(1).forEach(function(r){
+          var id=String(r[iId]||'').trim();
+          if(id) startMap[id]=bkParseDate(r[iStart]);
+        });
+      }
+    }
+
+    var today=new Date();
+    // ใช้ bkEmpRows (พนักงานคงสภาพ, exclude special group อยู่แล้ว) + แนบ StartDate
+    peEmpRows = bkEmpRows.map(function(e){
+      var sd = startMap[e.empId] || null;
+      var tenureDays = sd ? Math.floor((today - sd)/(1000*60*60*24)) : null;
+      return {
+        empId:e.empId, name:e.name, deptId:e.deptId, deptFull:e.deptFull,
+        startDate:sd, tenureDays:tenureDays
+      };
+    });
+
+    peLoaded=true;
+    peBuildEmpOptions();
+    peOnEmpChange();
+
+  }catch(e){
+    showLoadError(errBox, e);
+    console.error(e);
+  }
+  setLoading(false);
+}
+
+function peOnScopeChange(){
+  peBuildEmpOptions();
+  peOnEmpChange();
+}
+
+function peBuildEmpOptions(){
+  var scopeSel=document.getElementById('pe-scope-select');
+  var scope=(scopeSel&&scopeSel.value)||'probation';
+  var sel=document.getElementById('pe-emp-select'); if(!sel) return;
+
+  var filtered = scope==='probation'
+    ? peEmpRows.filter(function(e){ return e.tenureDays!==null && e.tenureDays<=120; })
+    : peEmpRows.slice();
+
+  filtered.sort(function(a,b){ return a.name.localeCompare(b.name,'th'); });
+
+  sel.innerHTML = filtered.length
+    ? filtered.map(function(e){ return '<option value="'+e.empId+'">'+e.name+'</option>'; }).join('')
+    : '<option value="">— ไม่มีพนักงานในขอบเขตนี้ —</option>';
+}
+
+function peOnEmpChange(){
+  var sel=document.getElementById('pe-emp-select');
+  var empId=(sel&&sel.value)||'';
+  var emp=peEmpRows.find(function(e){return e.empId===empId;});
+
+  if(!emp){
+    document.getElementById('pe-info-dept').textContent='—';
+    document.getElementById('pe-info-start').textContent='—';
+    document.getElementById('pe-info-tenure').textContent='—';
+    document.getElementById('pe-info-status').textContent='—';
+    document.getElementById('pe-tbody').innerHTML=
+      '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:30px;">กรุณาเลือกพนักงาน</td></tr>';
+    return;
+  }
+
+  document.getElementById('pe-info-dept').textContent=emp.deptFull||emp.deptId||'—';
+  document.getElementById('pe-info-start').textContent=emp.startDate?bkFmtDate(emp.startDate):'—';
+  document.getElementById('pe-info-tenure').textContent=emp.tenureDays!==null?(emp.tenureDays+' วัน'):'—';
+  var statusEl=document.getElementById('pe-info-status');
+  if(emp.tenureDays!==null && emp.tenureDays<=120){
+    statusEl.textContent='ทดลองงาน'; statusEl.style.color='#b45309';
+  } else {
+    statusEl.textContent='ผ่านทดลองงานแล้ว'; statusEl.style.color='#16a34a';
+  }
+
+  peRenderTable(emp);
+}
+
+function peRenderTable(emp){
+  var tbody=document.getElementById('pe-tbody'); if(!tbody) return;
+  if(!bkSubjects.length){
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:30px;">ไม่มีข้อมูลวิชา</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=bkSubjects.map(function(s){
+    var required = s.deptFlags[emp.deptId]===true;
+    var statusBadge = s.status!=='เปิดสอน'
+      ? '<span style="font-size:11px;color:#b45309;margin-left:6px;">ใช้ข้อสอบเก่า</span>'
+      : '';
+
+    if(!required){
+      return '<tr>'
+        +'<td style="color:var(--text3);">'+s.name+statusBadge+'</td>'
+        +'<td style="text-align:center;color:var(--text3);">-</td>'
+        +'<td style="text-align:center;color:var(--text3);">-</td>'
+        +'<td style="text-align:center;color:var(--text3);">-</td>'
+        +'<td style="text-align:center;color:var(--text3);">-</td>'
+      +'</tr>';
+    }
+
+    var rows=scScoreRows.filter(function(r){return r.empId===emp.empId && r.courseCode===s.code;});
+    if(!rows.length){
+      return '<tr>'
+        +'<td>'+s.name+statusBadge+'</td>'
+        +'<td style="text-align:center;color:var(--text3);">-</td>'
+        +'<td style="text-align:center;color:var(--text3);">-</td>'
+        +'<td style="text-align:center;color:var(--text3);">-</td>'
+        +'<td style="text-align:center;color:var(--text3);">-</td>'
+      +'</tr>';
+    }
+
+    var scores=rows.map(function(r){return r.score;});
+    var tot=rows.reduce(function(a,r){return r.total>0?r.total:a;},20);
+    var mn=Math.min.apply(null,scores);
+    var mx=Math.max.apply(null,scores);
+    var pct=Math.round(mn/tot*100);
+    var pctColor=pct>=80?'#16a34a':pct>=60?'#BA7517':'#dc2626';
+
+    return '<tr>'
+      +'<td>'+s.name+statusBadge+'</td>'
+      +'<td style="text-align:center;font-weight:600;">'+mn+'/'+tot+'</td>'
+      +'<td style="text-align:center;font-weight:600;">'+mx+'/'+tot+'</td>'
+      +'<td style="text-align:center;">'+rows.length+'</td>'
+      +'<td style="text-align:center;font-weight:600;color:'+pctColor+';">'+pct+'%</td>'
+    +'</tr>';
+  }).join('');
 }
 </script>
 </body>
