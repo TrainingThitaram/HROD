@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script>
-console.log('%cHROD Dashboard — BUILD ver56', 'color:#26274F;font-weight:bold;font-size:14px;');
+console.log('%cHROD Dashboard — BUILD ver57', 'color:#26274F;font-weight:bold;font-size:14px;');
 (function(){
   function loadMsal(src, fallback){
     var s = document.createElement('script');
@@ -200,7 +200,7 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
     <div class="header-left">
       <div class="header-logo">HR</div>
       <div><div class="header-title">HROD Dashboard</div><div class="header-sub">ThitaramGroup</div></div>
-      <span style="margin-left:14px;padding:3px 10px;border-radius:20px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;letter-spacing:.02em;">BUILD ver56</span>
+      <span style="margin-left:14px;padding:3px 10px;border-radius:20px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;letter-spacing:.02em;">BUILD ver57</span>
     </div>
     <div class="header-right">
       <span id="last-updated" style="font-size:11px;color:var(--text3)"></span>
@@ -694,6 +694,20 @@ td{padding:11px 16px;white-space:nowrap;color:var(--text);}
           </table>
         </div>
         <div id="mx-footer" style="padding:10px 16px;background:var(--surface2);border-top:1px solid var(--border);font-size:12px;color:var(--text2);display:flex;justify-content:space-between;"></div>
+      </div>
+
+      <!-- Table 2: ไม่แบ่งฝ่าย + Sort ได้ -->
+      <div class="section-title" style="margin-top:32px;">ตารางที่ 2 — เรียงลำดับได้ (ไม่แบ่งฝ่าย)</div>
+      <div class="table-card">
+        <div class="table-wrap" id="mx2-table-wrap" style="overflow:auto;max-height:65vh;">
+          <table id="mx2-table" style="min-width:600px;border-collapse:collapse;">
+            <thead id="mx2-thead" style="position:sticky;top:0;z-index:3;"></thead>
+            <tbody id="mx2-tbody">
+              <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:40px;">กำลังโหลดข้อมูล...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="mx2-footer" style="padding:10px 16px;background:var(--surface2);border-top:1px solid var(--border);font-size:12px;color:var(--text2);display:flex;justify-content:space-between;"></div>
       </div>
 
     </div>
@@ -7043,6 +7057,7 @@ async function initBkMatrix(){
     // build dept filter options
     mxBuildDeptFilter();
     mxBuildThead();
+    mx2RenderThead();
 
     mxLoaded=true;
     mxApplyFilter();
@@ -7098,6 +7113,7 @@ function mxApplyFilter(){
   });
 
   mxRenderTable();
+  mx2RenderTable();
 }
 
 function mxCellHtml(val, signupInfo){
@@ -7143,6 +7159,114 @@ function mxRenderTable(){
     var total=mxFilteredRows.length;
     ft.innerHTML='<span>แสดง '+total+' รายการ</span>'
       +'<span style="color:var(--text2);">คอลัมน์วิชา: '+mxSubjects.length+' วิชา (เปิดสอนแล้ว)</span>';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// TABLE 2 — ไม่แบ่งฝ่าย + Sort ได้ทุกคอลัมน์
+// ใช้ข้อมูล/ตัวกรองชุดเดียวกับตารางแรก (mxFilteredRows)
+// ══════════════════════════════════════════════════════
+var mx2SortKey = null;   // null = ลำดับเดิม (ฝ่าย → ชื่อ)
+var mx2SortDir = 1;      // 1 = น้อย→มาก, -1 = มาก→น้อย
+
+// ลำดับสถานะของเซลวิชา: ยังไม่ได้เรียน/สอบ → ลงทะเบียนแล้ว → สอบไม่ผ่าน → สอบผ่าน → —
+function mx2CellRank(row, code){
+  var v=row.cells[code]||'—';
+  if(v==='ยังไม่ได้เรียน/สอบ') return (row.signup&&row.signup[code]) ? 1 : 0;
+  if(v==='เรียนแล้ว/สอบไม่ผ่าน') return 2;
+  if(v==='เรียนแล้ว/สอบผ่าน') return 3;
+  return 4;   // —
+}
+
+function mx2Sort(key){
+  if(mx2SortKey===key){ mx2SortDir*=-1; }
+  else { mx2SortKey=key; mx2SortDir=1; }
+  mx2RenderThead();
+  mx2RenderTable();
+}
+
+function mx2RenderThead(){
+  var thead=document.getElementById('mx2-thead'); if(!thead) return;
+  var thStyle='padding:8px 12px;font-size:11px;background:#f0f1f6;border-bottom:2px solid var(--border);position:sticky;top:0;cursor:pointer;user-select:none;';
+  function ind(key){
+    return mx2SortKey===key
+      ? '<span style="color:var(--tos);"> '+(mx2SortDir===1?'▲':'▼')+'</span>'
+      : '<span style="color:var(--text3);"> ⇅</span>';
+  }
+  var th='<tr>'
+    +'<th onclick="mx2Sort(\'__empId\')" style="'+thStyle+'width:80px;text-align:left;">รหัส'+ind('__empId')+'</th>'
+    +'<th onclick="mx2Sort(\'__name\')" style="'+thStyle+'min-width:140px;text-align:left;">ชื่อ'+ind('__name')+'</th>'
+    +'<th onclick="mx2Sort(\'__dept\')" style="'+thStyle+'width:90px;text-align:center;">ฝ่าย'+ind('__dept')+'</th>';
+  mxSubjects.forEach(function(s){
+    th+='<th onclick="mx2Sort(\''+s.code+'\')" style="'+thStyle+'width:120px;text-align:center;font-weight:500;color:var(--tos);">'
+      +s.code+ind(s.code)+'<br><span style="font-weight:400;color:var(--text3);font-size:9px;">'+mxShortName(s.name)+'</span></th>';
+  });
+  th+='</tr>';
+  thead.innerHTML=th;
+}
+
+function mx2SortedRows(){
+  var rows=mxFilteredRows.slice();   // ลำดับเดิม: ฝ่าย → ชื่อ
+  var key=mx2SortKey;
+  if(!key) return rows;
+  var dir=mx2SortDir;
+
+  function tie(a,b){ return a.name.localeCompare(b.name,'th'); }   // tie-break คงที่ ก→ฮ
+
+  rows.sort(function(a,b){
+    var c=0;
+    if(key==='__empId'){
+      c=String(a.empId).localeCompare(String(b.empId),'th',{numeric:true});
+    } else if(key==='__name'){
+      c=a.name.localeCompare(b.name,'th');
+    } else if(key==='__dept'){
+      var da=bkDeptFullMap[a.deptId]||a.deptId, db=bkDeptFullMap[b.deptId]||b.deptId;
+      c=da.localeCompare(db,'th');
+    } else {
+      // คอลัมน์วิชา
+      var ra=mx2CellRank(a,key), rb=mx2CellRank(b,key);
+      c=ra-rb;
+      if(c===0 && ra===1){
+        // ทั้งคู่ลงทะเบียนแล้ว → เรียงตามวันที่เรียน (ใกล้สุดก่อน)
+        c=a.signup[key].dateObj.getTime()-b.signup[key].dateObj.getTime();
+      }
+    }
+    if(c!==0) return c*dir;
+    return tie(a,b);
+  });
+  return rows;
+}
+
+function mx2RenderTable(){
+  var tbody=document.getElementById('mx2-tbody'); if(!tbody) return;
+  var ft=document.getElementById('mx2-footer');
+  if(!mxFilteredRows.length){
+    tbody.innerHTML='<tr><td colspan="'+(3+mxSubjects.length)+'" style="text-align:center;color:var(--text3);padding:30px;">ไม่พบข้อมูล</td></tr>';
+    if(ft) ft.innerHTML='';
+    return;
+  }
+
+  var rows=mx2SortedRows();
+  var html='';
+  rows.forEach(function(r){
+    var fullName=bkDeptFullMap[r.deptId]||r.deptId;
+    html+='<tr>'
+      +'<td style="font-size:11px;color:var(--text2);padding:8px 12px;">'+r.empId+'</td>'
+      +'<td style="font-size:13px;padding:8px 12px;">'+r.name+'</td>'
+      +'<td style="text-align:center;font-size:11px;color:var(--text2);padding:8px 12px;">'+fullName+'</td>';
+    mxSubjects.forEach(function(s){ html+=mxCellHtml(r.cells[s.code]||'—', r.signup&&r.signup[s.code]); });
+    html+='</tr>';
+  });
+  tbody.innerHTML=html;
+
+  if(ft){
+    var sortLabel='ลำดับเดิม (ฝ่าย → ชื่อ)';
+    if(mx2SortKey){
+      var colName = mx2SortKey==='__empId' ? 'รหัส' : mx2SortKey==='__name' ? 'ชื่อ' : mx2SortKey==='__dept' ? 'ฝ่าย' : mx2SortKey;
+      sortLabel='เรียงตาม '+colName+' '+(mx2SortDir===1?'▲':'▼');
+    }
+    ft.innerHTML='<span>แสดง '+rows.length+' รายการ</span>'
+      +'<span style="color:var(--text2);">'+sortLabel+'</span>';
   }
 }
 
